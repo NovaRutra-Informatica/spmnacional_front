@@ -1,0 +1,43 @@
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@300;700;900&family=Open+Sans:wght@400;600&display=swap');
+
+:root {
+    /* Paleta SPM Nacional */
+    --color-primary: #004A99;
+    --color-primary-light: #007ACC;
+    --color-accent: #D4005E;
+
+    --color-text-dark: #333333;
+    --color-text-light: #666666;
+    --color-bg-light: #F4F4F4;
+    --color-white: #FFFFFF;
+
+    --container-width: 1140px;
+    --border-radius: 8px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    font-family: 'Open Sans', sans-serif;
+    color: var(--color-text-dark);
+    background-color: var(--color-bg-light);
+    line-height: 1.6;
+}
+
+h1, h2, h3, h4 {
+    font-family: 'Merriweather', serif;
+    color: var(--color-primary);
+    margin-top: 0;
+}
+
+a { text-decoration: none; }
+
+/* Classe utilitária para centralizar */
+.container {
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 0 1rem;
+}

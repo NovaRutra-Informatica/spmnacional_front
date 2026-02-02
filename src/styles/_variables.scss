@@ -1,0 +1,56 @@
+/* Reset básico e Fontes */
+@import url('https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,400;0,700;1,400&family=Open+Sans:wght@400;600;700&display=swap');
+
+:root {
+    /* Paleta SPM Nacional */
+    --color-brand-primary: #004A99; /* Azul Escuro Institucional */
+    --color-brand-accent: #007ACC;  /* Azul Claro */
+    --color-action: #D4005E;        /* Magenta/Vermelho (Botões) */
+    --color-bg-primary: #FFFFFF;
+    --color-bg-secondary: #F4F4F4;
+    --color-text-main: #333333;
+    --color-text-muted: #767676;
+
+    /* Layout */
+    --container-width: 1200px;
+    --header-height: 80px;
+    --border-radius: 8px;
+}
+
+body {
+    font-family: 'Open Sans', sans-serif;
+    color: var(--color-text-main);
+    background-color: var(--color-bg-secondary);
+    margin: 0;
+    line-height: 1.6;
+}
+
+h1, h2, h3, h4 {
+    font-family: 'Merriweather', serif;
+    color: var(--color-brand-primary);
+    margin-top: 0;
+}
+
+/* Utilitário de Container Centralizado */
+.container {
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Botão Padrão */
+.btn-primary {
+    background-color: var(--color-action);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background 0.3s;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+        background-color: darken(#D4005E, 10%);
+    }
+}
