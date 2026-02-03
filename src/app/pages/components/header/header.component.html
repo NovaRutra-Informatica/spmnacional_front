@@ -1,85 +1,22 @@
-<section class="hero">
-    <div class="hero-overlay">
-        <div class="container hero-content">
-            <span class="pill">Serviço Pastoral dos Migrantes</span>
-            <h1>Acolher, Proteger, Promover e Integrar</h1>
-            <p>Há mais de 30 anos defendendo a dignidade e os direitos dos migrantes e refugiados no Brasil.</p>
-            <div class="cta-group">
-                <button class="btn-donate">Como Ajudar</button>
-                <button class="btn-outline">Nossa História</button>
-            </div>
+<header class="main-header" [class.scrolled]="isScrolled">
+    <div class="container header-wrapper">
+        <div class="logo-area">
+                <img width="50" src="../../../../assets/img.png" alt="teste"/>
+        </div>
+
+        <nav class="nav-menu">
+            <ul>
+                <li><a routerLink="/" routerLinkActive="active">Home</a></li>
+                <li><a routerLink="/quem-somos">Quem Somos</a></li>
+                <li><a routerLink="/sobre">Sobre Nós</a></li>
+                <li><a routerLink="/impacto">Impacto</a></li>
+                <li><a routerLink="/noticias">Notícias</a></li>
+                <li><a routerLink="/contato">Contato</a></li>
+            </ul>
+        </nav>
+
+        <div class="header-actions">
+            <a href="#" class="btn-donate">Como Ajudar</a>
         </div>
     </div>
-</section>
-
-<div class="container main-layout">
-
-    <main class="feed-content">
-
-        <section class="impact-bar">
-            <div class="stat">
-                <strong>+15k</strong>
-                <span>Atendimentos</span>
-            </div>
-            <div class="stat">
-                <strong>24</strong>
-                <span>Estados</span>
-            </div>
-            <div class="stat">
-                <strong>100%</strong>
-                <span>Compromisso</span>
-            </div>
-        </section>
-
-        <div class="section-header">
-            <h2>Últimas Notícias</h2>
-            <div class="line"></div>
-        </div>
-
-        <article class="news-card">
-            <div class="news-img" style="background-image: url('assets/padre-alfredinho.png');"></div>
-            <div class="news-body">
-                <span class="category">Ação Social</span>
-                <h3>Mutirão atende 500 migrantes na fronteira</h3>
-                <p>Ação conjunta garantiu documentação e vacinação para famílias recém-chegadas.</p>
-                <a href="#" class="read-more">Ler mais &rarr;</a>
-            </div>
-        </article>
-
-        <article class="news-card">
-            <div class="news-img" style="background-image: url('assets/padre-alfredinho.png');"></div>
-            <div class="news-body">
-                <span class="category">Institucional</span>
-                <h3>Relatório de Transparência 2025</h3>
-                <p>Confira onde cada centavo da sua doação foi investido nas nossas casas de acolhida.</p>
-                <a href="#" class="read-more">Ler mais &rarr;</a>
-            </div>
-        </article>
-
-    </main>
-
-    <aside class="sidebar">
-
-        <div class="widget padre-widget">
-            <div class="photo-circle">
-                <img src="assets/padre-alfredinho.png" alt="Padre Alfredinho">
-            </div>
-            <div class="widget-text">
-                <h3>Padre Alfredinho</h3>
-                <p class="role">Fundador / Inspiração</p>
-                <blockquote class="quote">
-                    "O migrante não é um problema, é uma ponte entre povos."
-                </blockquote>
-                <button class="btn-small">Ver Biografia</button>
-            </div>
-        </div>
-
-        <div class="widget newsletter">
-            <h4>Boletim Informativo</h4>
-            <p>Receba notícias semanais.</p>
-            <input type="email" placeholder="Seu melhor e-mail">
-            <button class="btn-full">Inscrever-se</button>
-        </div>
-
-    </aside>
-</div>
+</header>

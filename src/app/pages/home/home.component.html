@@ -1,67 +1,95 @@
-<section class="hero-section">
-    <div class="hero-content container">
-        <h1>Acolhendo Vidas, Promovendo Dignidade</h1>
-        <p>O Serviço Pastoral dos Migrantes atua na defesa e promoção dos direitos dos migrantes e refugiados em todo o Brasil.</p>
+<section class="hero-section relative">
+    <div class="hero-overlay"></div>
+    <div class="container hero-content relative z-10" appAnimate>
+        <span class="hero-pill">Serviço Pastoral dos Migrantes</span>
+        <h1 class="hero-title">Acolher, Proteger, Promover e Integrar.</h1>
+        <p class="hero-subtitle">Inspiração baseada em "Padre Alfredinho": O migrante não é um problema, é uma ponte entre povos.</p>
         <div class="hero-actions">
-            <button class="btn-primary">Como Ajudar</button>
-            <button class="btn-outline">Conheça Nossa História</button>
+            <button class="btn btn-cta">Faça sua Doação</button>
+            <button class="btn btn-outline-light">Conheça Nossa História</button>
         </div>
     </div>
 </section>
 
-<div class="main-wrapper container">
+<div class="container main-layout section-padding">
 
-    <main class="content-area">
+    <main class="content-column">
 
-        <section class="impact-stats">
-            <div class="stat-card">
-                <span class="number">15k+</span>
-                <span class="label">Migrantes Atendidos</span>
+        <section class="impact-stats grid-3">
+            <div class="stat-card shadow-md" appAnimate>
+                <i class="fas fa-users stat-icon"></i>
+                <strong class="stat-number" [appCountUp]="15" suffix="k+">0</strong>
+                <span class="stat-label">Atendimentos/Ano</span>
             </div>
-            <div class="stat-card">
-                <span class="number">24</span>
-                <span class="label">Centros de Acolhida</span>
+
+            <div class="stat-card shadow-md delay-100" appAnimate>
+                <i class="fas fa-map-marker-alt stat-icon"></i>
+                <strong class="stat-number" [appCountUp]="24">0</strong>
+                <span class="stat-label">Estados com presença</span>
             </div>
-            <div class="stat-card">
-                <span class="number">100%</span>
-                <span class="label">Transparência</span>
+
+            <div class="stat-card shadow-md delay-200" appAnimate>
+                <i class="fas fa-hand-holding-heart stat-icon"></i>
+                <strong class="stat-number" [appCountUp]="100" suffix="%">0</strong>
+                <span class="stat-label">Compromisso com Transparência</span>
             </div>
         </section>
 
-        <section class="latest-news">
-            <h2>Últimas Notícias</h2>
-            <article class="news-item">
-                <div class="news-image"></div>
-                <div class="news-text">
-                    <span class="tag">Ação Social</span>
-                    <h3>Mutirão de regularização em Roraima atende 500 venezuelanos</h3>
-                    <p>Ação conjunta garantiu emissão de documentos e vacinação...</p>
+        <section class="partners-section" appAnimate>
+            <div class="container-fluid"> <div class="section-header text-center mb-5">
+                <span class="badge-pill">Rede de Apoio</span>
+                <h3 class="section-title">Quem caminha conosco</h3>
+            </div>
+
+                <div class="scroller" data-direction="left" data-speed="slow">
+                    <div class="scroller__inner">
+
+                        <div class="partner-card-minimal" *ngFor="let partner of partnersList">
+                            <img [src]="partner.img" [alt]="partner.name" class="partner-img">
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <section class="latest-news mt-5" appAnimate>
+            <div class="section-header mb-4">
+                <h5 class="text-accent uppercase ls-1">Nosso Blog</h5>
+                <h2>Últimas Notícias e Histórias</h2>
+            </div>
+
+            <article class="news-card shadow-md flex-row" appAnimate>
+                <div class="news-img-wrapper">
+                    <div class="news-img" style="background-image: url('assets/exemplo-migrantes.jpeg');"></div>
+                </div>
+                <div class="news-body">
+                    <span class="news-category">Ação Social</span>
+                    <h3 class="news-title"><a href="#">Mutirão na fronteira garante cidadania a 500 famílias</a></h3>
+                    <p class="news-excerpt">Ação conjunta garantiu documentação e vacinação para migrantes recém-chegados em Roraima.</p>
+                    <a href="#" class="read-more-link">Ler matéria completa <span class="arrow">→</span></a>
                 </div>
             </article>
-            <article class="news-item" style="height: 300px; background: #eee;">Placeholder para scroll</article>
-            <article class="news-item" style="height: 300px; background: #eee;">Placeholder para scroll</article>
         </section>
+
     </main>
 
-    <aside class="sidebar-area">
-
-        <div class="padre-widget sticky-widget">
-            <div class="photo-frame">
-                <img src="assets/padre-alfredinho.png" alt="Padre Alfredinho">
+    <aside class="sidebar-column">
+        <div class="widget padre-widget sticky-widget shadow-lg" appAnimate>
+            <div class="widget-header-bg"></div>
+            <div class="photo-circle shadow-md">
+                <img src="assets/padre-alfredinho.png" alt="Padre Alfredinho" class="img-cover">
             </div>
-            <div class="widget-content">
-                <h3>Padre Alfredinho</h3>
-                <p class="quote">"Não deixeis que a esperança seja roubada de vossos corações."</p>
-                <a href="#" class="link-arrow">Ler coluna pastoral &rarr;</a>
+            <div class="widget-content text-center">
+                <h3 class="mb-1">Padre Alfredinho</h3>
+                <p class="role-highlight">Fundador e Inspiração</p>
             </div>
         </div>
 
-        <div class="newsletter-widget">
-            <h4>Receba nosso boletim</h4>
-            <p>Notícias semanais sobre migração.</p>
-            <input type="email" placeholder="Seu e-mail">
+        <div class="widget newsletter-widget shadow-md mt-4 delay-100" appAnimate>
+            <h4>Boletim Informativo</h4>
         </div>
-
     </aside>
 
 </div>

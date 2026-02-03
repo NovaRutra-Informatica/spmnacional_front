@@ -1,0 +1,88 @@
+.main-footer {
+    background-color: var(--color-brand-primary);
+    color: white;
+    padding-top: 5rem;
+    margin-top: 4rem;
+    font-family: 'Montserrat', sans-serif;
+
+    .footer-content {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr 1.5fr;
+        gap: 3rem;
+        padding-bottom: 4rem;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+
+        @media(max-width: 992px) { grid-template-columns: 1fr 1fr; }
+        @media(max-width: 576px) { grid-template-columns: 1fr; }
+    }
+
+    .footer-logo {
+        color: white;
+        font-size: 2rem;
+        margin-bottom: 1.5rem;
+        .highlight { color: var(--color-brand-accent); }
+    }
+
+    .footer-mission {
+        opacity: 0.8;
+        line-height: 1.6;
+        margin-bottom: 2rem;
+        max-width: 350px;
+    }
+
+    h4 {
+        color: white;
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 1.5rem;
+    }
+
+    ul {
+        list-style: none;
+        li { margin-bottom: 0.8rem; }
+        a {
+            color: rgba(255,255,255,0.7);
+            &:hover { color: var(--color-action); padding-left: 5px; }
+        }
+    }
+
+    .btn-cta-footer {
+        background: var(--color-action);
+        color: white;
+        width: 100%;
+        padding: 1rem;
+        border-radius: 8px;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        border: none;
+        cursor: pointer;
+        transition: transform 0.2s;
+        &:hover { transform: translateY(-3px); }
+    }
+
+    .trust-badges {
+        display: flex;
+        gap: 10px;
+        .badge-placeholder {
+            background: rgba(255,255,255,0.1);
+            padding: 5px 10px;
+            font-size: 0.7rem;
+            border-radius: 4px;
+        }
+    }
+
+    .footer-bottom {
+        padding: 1.5rem 0;
+        background: darken(#004A99, 5%);
+        font-size: 0.9rem;
+        text-align: center;
+        opacity: 0.8;
+
+        .container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+    }
+}
