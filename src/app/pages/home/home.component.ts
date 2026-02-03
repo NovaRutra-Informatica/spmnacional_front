@@ -13,12 +13,10 @@ import { AnimateOnScrollDirective } from '../../shared/directives/animate-on-scr
 export class HomeComponent {
     originalPartners = [
         { name: 'CNBB', img: '../../../assets/parceiros/cnbb.png' },
-        { name: 'OIM ONU', img: '../../../assets/parceiros/iom.png' },
         { name: 'Cáritas', img: '../../../assets/parceiros/caritas.png' },
-        { name: 'MPT', img: '../../../assets/parceiros/mpt.png' },
         { name: 'Misereor', img: '../../../assets/parceiros/misereor.png' },
         { name: 'Adveniat', img: '../../../assets/parceiros/adveniat.png' },
-        { name: 'Sebrae', img: '../../../assets/parceiros/sebrae.png' },
+        { name: 'Rede Clamor', img: '../../../assets/parceiros/redeclamor.png' },
     ];
 
     partnersList = [...this.originalPartners, ...this.originalPartners];

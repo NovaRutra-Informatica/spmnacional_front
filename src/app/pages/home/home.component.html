@@ -9,87 +9,161 @@
             <button class="btn btn-outline-light">Conheça Nossa História</button>
         </div>
     </div>
+    <div class="wave-bottom">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path fill="#ffffff" fill-opacity="1" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path>
+        </svg>
+    </div>
 </section>
 
-<div class="container main-layout section-padding">
+<section class="pillars-section section-padding" appAnimate>
+    <div class="container">
+        <div class="section-header text-center mb-5">
+            <h5 class="text-accent uppercase ls-1">Nossa Metodologia</h5>
+            <h2 class="mb-3">Como transformamos vidas</h2>
+            <p class="section-desc">Atuamos em quatro frentes fundamentais para garantir a dignidade humana.</p>
+        </div>
 
-    <main class="content-column">
+        <div class="pillars-grid">
+            <div class="pillar-card"><div class="icon-box"><i class="fas fa-home"></i></div><h3>Acolher</h3><p>Oferecemos abrigo seguro, alimentação e suporte inicial para quem acaba de chegar.</p></div>
+            <div class="pillar-card"><div class="icon-box"><i class="fas fa-shield-alt"></i></div><h3>Proteger</h3><p>Defesa jurídica e garantia de direitos contra o tráfico humano.</p></div>
+            <div class="pillar-card"><div class="icon-box"><i class="fas fa-seedling"></i></div><h3>Promover</h3><p>Cursos de capacitação e língua portuguesa para autonomia.</p></div>
+            <div class="pillar-card"><div class="icon-box"><i class="fas fa-hands-helping"></i></div><h3>Integrar</h3><p>Construção de pontes culturais e inserção na comunidade.</p></div>
+        </div>
+    </div>
+</section>
 
-        <section class="impact-stats grid-3">
-            <div class="stat-card shadow-md" appAnimate>
+<section class="impact-section bg-light section-padding relative">
+    <div class="container">
+        <div class="impact-stats grid-3">
+            <div class="stat-card shadow-sm" appAnimate>
                 <i class="fas fa-users stat-icon"></i>
                 <strong class="stat-number" [appCountUp]="15" suffix="k+">0</strong>
                 <span class="stat-label">Atendimentos/Ano</span>
             </div>
-
-            <div class="stat-card shadow-md delay-100" appAnimate>
+            <div class="stat-card shadow-sm delay-100" appAnimate>
                 <i class="fas fa-map-marker-alt stat-icon"></i>
                 <strong class="stat-number" [appCountUp]="24">0</strong>
                 <span class="stat-label">Estados com presença</span>
             </div>
-
-            <div class="stat-card shadow-md delay-200" appAnimate>
+            <div class="stat-card shadow-sm delay-200" appAnimate>
                 <i class="fas fa-hand-holding-heart stat-icon"></i>
                 <strong class="stat-number" [appCountUp]="100" suffix="%">0</strong>
-                <span class="stat-label">Compromisso com Transparência</span>
+                <span class="stat-label">Transparência</span>
             </div>
-        </section>
+        </div>
+    </div>
+</section>
 
-        <section class="partners-section" appAnimate>
-            <div class="container-fluid"> <div class="section-header text-center mb-5">
-                <span class="badge-pill">Rede de Apoio</span>
-                <h3 class="section-title">Quem caminha conosco</h3>
-            </div>
+<section class="story-section relative" appAnimate>
+    <div class="wave-top">
+        <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+            <path fill="#f8f9fa" fill-opacity="1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
+        </svg>
+    </div>
 
-                <div class="scroller" data-direction="left" data-speed="slow">
-                    <div class="scroller__inner">
+    <div class="bg-image" style="background-image: url('assets/hero-bg-large.jpeg');"></div>
+    <div class="overlay-dark"></div>
 
-                        <div class="partner-card-minimal" *ngFor="let partner of partnersList">
-                            <img [src]="partner.img" [alt]="partner.name" class="partner-img">
-                        </div>
-
-                    </div>
+    <div class="container relative z-10 grid-story">
+        <div class="story-content">
+            <i class="fas fa-quote-left quote-big"></i>
+            <h2 class="story-title">"Eu achei que tinha perdido tudo quando deixei a Venezuela. Na SPM, eu não ganhei apenas comida, ganhei uma nova família."</h2>
+            <div class="story-author">
+                <div class="author-img">
+                    <img src="assets/venezuelana.jpeg" alt="Maria">
                 </div>
-
-            </div>
-        </section>
-
-        <section class="latest-news mt-5" appAnimate>
-            <div class="section-header mb-4">
-                <h5 class="text-accent uppercase ls-1">Nosso Blog</h5>
-                <h2>Últimas Notícias e Histórias</h2>
-            </div>
-
-            <article class="news-card shadow-md flex-row" appAnimate>
-                <div class="news-img-wrapper">
-                    <div class="news-img" style="background-image: url('assets/exemplo-migrantes.jpeg');"></div>
+                <div class="author-info">
+                    <strong>Maria González</strong>
+                    <span>Acolhida em Roraima</span>
                 </div>
+            </div>
+        </div>
+        <div class="story-cta">
+            <p class="text-white mb-4">Existem milhares de Marias esperando por um recomeço.</p>
+            <button class="btn btn-cta btn-lg">Quero transformar uma vida</button>
+        </div>
+    </div>
+</section>
+
+<section class="partners-section" appAnimate>
+    <div class="container text-center mb-5">
+        <span class="badge-pill">Rede de Apoio</span>
+        <h3 class="section-title">Quem caminha conosco</h3>
+    </div>
+
+    <div class="scroller" data-direction="left" data-speed="slow">
+        <div class="scroller__inner">
+            <div class="partner-card-minimal" *ngFor="let partner of partnersList">
+                <img [src]="partner.img" [alt]="partner.name">
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="latest-news section-padding bg-light relative" appAnimate>
+    <div class="container">
+        <div class="section-header mb-5 text-center">
+            <h5 class="text-accent uppercase ls-1">Nosso Blog</h5>
+            <h2>Últimas Notícias e Histórias</h2>
+        </div>
+
+        <div class="news-grid">
+            <article class="news-card-vertical shadow-md">
+                <div class="news-img" style="background-image: url('assets/exemplo-migrantes.jpeg');"></div>
                 <div class="news-body">
                     <span class="news-category">Ação Social</span>
-                    <h3 class="news-title"><a href="#">Mutirão na fronteira garante cidadania a 500 famílias</a></h3>
-                    <p class="news-excerpt">Ação conjunta garantiu documentação e vacinação para migrantes recém-chegados em Roraima.</p>
-                    <a href="#" class="read-more-link">Ler matéria completa <span class="arrow">→</span></a>
+                    <h3 class="news-title"><a href="#">Mutirão na fronteira garante cidadania</a></h3>
+                    <p class="news-excerpt">Ação conjunta garantiu documentação para migrantes em Roraima.</p>
+                    <a href="#" class="read-more-link">Ler mais →</a>
                 </div>
             </article>
+
+            <article class="news-card-vertical shadow-md highlight-card">
+                <div class="news-img" style="background-image: url('assets/padre-alfredinho.png'); background-position: top;"></div>
+                <div class="news-body">
+                    <span class="news-category">Legado</span>
+                    <h3 class="news-title"><a href="#">A inspiração de Padre Alfredinho</a></h3>
+                    <p class="news-excerpt">"O migrante não é um problema, é uma ponte." Conheça a história do nosso fundador.</p>
+                    <a href="#" class="read-more-link">Ler Biografia →</a>
+                </div>
+            </article>
+
+            <article class="news-card-vertical shadow-md highlight-card">
+                <div class="news-img" style="background-image: url('assets/house.jpg'); background-position: top;"></div>
+                <div class="news-body">
+                    <span class="news-category">Projetos</span>
+                    <h3 class="news-title"><a href="#">Nova casa de acolhida em SP</a></h3>
+                    <p class="news-excerpt">Inauguramos mais um espaço para receber famílias em situação de vulnerabilidade.</p>
+                    <a href="#" class="read-more-link">Ler mais →</a>
+                </div>
+            </article>
+        </div>
+        <section class="newsletter-section relative" appAnimate>
+            <div class="wave-top-news">
+                <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
+                    <path fill="#f8f9fa" fill-opacity="1" d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"></path>
+                </svg>
+            </div>
+
+            <div class="container relative z-10">
+                <div class="newsletter-wrapper">
+                    <div class="news-text">
+                        <h2 class="text-white mb-2">Não perca nenhuma história</h2>
+                        <p class="text-white-50">Receba mensalmente atualizações sobre nossos projetos, transparência e como sua ajuda está salvando vidas.</p>
+                    </div>
+
+                    <form class="news-form">
+                        <div class="input-group-modern">
+                            <input type="email" placeholder="Digite seu melhor e-mail" required>
+                            <button type="submit" class="btn-submit">
+                                Inscrever-se <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <p class="privacy-note">Respeitamos sua privacidade. Cancele a qualquer momento.</p>
+                    </form>
+                </div>
+            </div>
         </section>
-
-    </main>
-
-    <aside class="sidebar-column">
-        <div class="widget padre-widget sticky-widget shadow-lg" appAnimate>
-            <div class="widget-header-bg"></div>
-            <div class="photo-circle shadow-md">
-                <img src="assets/padre-alfredinho.png" alt="Padre Alfredinho" class="img-cover">
-            </div>
-            <div class="widget-content text-center">
-                <h3 class="mb-1">Padre Alfredinho</h3>
-                <p class="role-highlight">Fundador e Inspiração</p>
-            </div>
-        </div>
-
-        <div class="widget newsletter-widget shadow-md mt-4 delay-100" appAnimate>
-            <h4>Boletim Informativo</h4>
-        </div>
-    </aside>
-
-</div>
+    </div>
+</section>
