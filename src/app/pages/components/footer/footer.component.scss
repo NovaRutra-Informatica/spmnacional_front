@@ -24,7 +24,7 @@
         grid-template-columns: 2fr 1fr 1fr 1.5fr;
         gap: 4rem;
         padding-bottom: 4rem;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
         @media (max-width: 992px) {
             grid-template-columns: 1fr 1fr;
@@ -43,11 +43,13 @@
         text-decoration: none;
         margin-bottom: 1.5rem;
         display: block;
-        .highlight { color: var(--color-action); }
+        .highlight {
+            color: var(--color-action);
+        }
     }
 
     .mission-text {
-        color: rgba(255,255,255,0.7);
+        color: rgba(255, 255, 255, 0.7);
         line-height: 1.6;
         margin-bottom: 2rem;
         max-width: 350px;
@@ -58,8 +60,9 @@
         gap: 1rem;
 
         a {
-            width: 40px; height: 40px;
-            background: rgba(255,255,255,0.1);
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 50%;
             display: flex;
             align-items: center;
@@ -87,10 +90,12 @@
         padding: 0;
         margin: 0;
 
-        li { margin-bottom: 0.8rem; }
+        li {
+            margin-bottom: 0.8rem;
+        }
 
         a {
-            color: rgba(255,255,255,0.6);
+            color: rgba(255, 255, 255, 0.6);
             text-decoration: none;
             transition: all 0.3s;
             position: relative;
@@ -103,12 +108,15 @@
     }
 
     .contact-col p {
-        color: rgba(255,255,255,0.6);
+        color: rgba(255, 255, 255, 0.6);
         margin-bottom: 0.8rem;
         display: flex;
         align-items: flex-start;
         gap: 10px;
-        i { color: var(--color-brand-accent); margin-top: 5px; }
+        i {
+            color: var(--color-brand-accent);
+            margin-top: 5px;
+        }
     }
 
     .trust-badges {
@@ -116,13 +124,13 @@
         gap: 10px;
 
         .badge-box {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             padding: 5px 15px;
             border-radius: 6px;
             text-align: center;
             font-size: 0.7rem;
-            color: rgba(255,255,255,0.5);
+            color: rgba(255, 255, 255, 0.5);
 
             strong {
                 display: block;
@@ -137,7 +145,7 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
-        color: rgba(255,255,255,0.4);
+        color: rgba(255, 255, 255, 0.4);
         font-size: 0.85rem;
 
         @media (max-width: 768px) {
@@ -148,11 +156,15 @@
 
         .legal-links {
             a {
-                color: rgba(255,255,255,0.4);
+                color: rgba(255, 255, 255, 0.4);
                 text-decoration: none;
-                &:hover { text-decoration: underline; }
+                &:hover {
+                    text-decoration: underline;
+                }
             }
-            .separator { margin: 0 10px; }
+            .separator {
+                margin: 0 10px;
+            }
         }
     }
 }

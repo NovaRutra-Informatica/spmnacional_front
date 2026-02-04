@@ -17,16 +17,29 @@ body {
 }
 
 // Títulos Serifados
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
     font-family: 'Merriweather', serif;
     font-weight: 700;
     color: var(--color-brand-primary);
     margin-bottom: 1rem;
 }
 
-h1 { font-size: 3.5rem; line-height: 1.2; font-weight: 900; }
-h2 { font-size: 2.5rem; }
-h3 { font-size: 1.75rem; }
+h1 {
+    font-size: 3.5rem;
+    line-height: 1.2;
+    font-weight: 900;
+}
+h2 {
+    font-size: 2.5rem;
+}
+h3 {
+    font-size: 1.75rem;
+}
 
 // Links
 a {
@@ -48,9 +61,15 @@ a {
 }
 
 // Sombras Modernas (Suaves)
-.shadow-sm { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-.shadow-md { box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
-.shadow-lg { box-shadow: 0 15px 40px rgba(0,0,0,0.12); }
+.shadow-sm {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+.shadow-md {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+.shadow-lg {
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+}
 
 // --- Animações Globais ---
 
@@ -58,7 +77,9 @@ a {
 .hidden-element {
     opacity: 0;
     transform: translateY(30px);
-    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+    transition:
+        opacity 0.8s ease-out,
+        transform 0.8s ease-out;
     will-change: opacity, transform;
 }
 
@@ -69,11 +90,18 @@ a {
 }
 
 // Variações de delay (para efeito cascata em grids)
-.delay-100 { transition-delay: 100ms; }
-.delay-200 { transition-delay: 200ms; }
-.delay-300 { transition-delay: 300ms; }
+.delay-100 {
+    transition-delay: 100ms;
+}
+.delay-200 {
+    transition-delay: 200ms;
+}
+.delay-300 {
+    transition-delay: 300ms;
+}
 
-body, html {
+body,
+html {
     overflow-x: hidden;
     width: 100%;
 }

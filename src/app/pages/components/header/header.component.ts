@@ -7,7 +7,7 @@ import { CommonModule } from '@angular/common';
     standalone: true,
     imports: [RouterLink, RouterLinkActive, CommonModule],
     templateUrl: './header.component.html',
-    styleUrl: './header.component.scss'
+    styleUrl: './header.component.scss',
 })
 export class HeaderComponent {
     isScrolled = false;

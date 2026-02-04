@@ -1,13 +1,13 @@
 :root {
     /* Paleta SPM Nacional */
-    --color-primary: #004A99;
-    --color-primary-light: #007ACC;
-    --color-accent: #D4005E;
+    --color-primary: #004a99;
+    --color-primary-light: #007acc;
+    --color-accent: #d4005e;
 
     --color-text-dark: #333333;
     --color-text-light: #666666;
-    --color-bg-light: #F4F4F4;
-    --color-white: #FFFFFF;
+    --color-bg-light: #f4f4f4;
+    --color-white: #ffffff;
 
     --container-width: 1140px;
     --border-radius: 8px;
@@ -25,13 +25,18 @@ body {
     line-height: 1.6;
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
     font-family: 'Merriweather', serif;
     color: var(--color-primary);
     margin-top: 0;
 }
 
-a { text-decoration: none; }
+a {
+    text-decoration: none;
+}
 
 /* Classe utilitária para centralizar */
 .container {

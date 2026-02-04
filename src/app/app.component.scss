@@ -12,8 +12,8 @@
     z-index: 9999;
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(10px);
-    border-top: 1px solid rgba(0,0,0,0.05);
-    box-shadow: 0 -5px 20px rgba(0,0,0,0.1);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    box-shadow: 0 -5px 20px rgba(0, 0, 0, 0.1);
     padding: 1rem 1.5rem;
     animation: slideUp 0.5s ease-out forwards;
 
@@ -66,16 +66,30 @@
 
 // Animações
 @keyframes slideUp {
-    from { transform: translateY(100%); }
-    to { transform: translateY(0); }
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
 }
 
 @keyframes heartBeat {
-    0% { transform: scale(1); }
-    14% { transform: scale(1.3); }
-    28% { transform: scale(1); }
-    42% { transform: scale(1.3); }
-    70% { transform: scale(1); }
+    0% {
+        transform: scale(1);
+    }
+    14% {
+        transform: scale(1.3);
+    }
+    28% {
+        transform: scale(1);
+    }
+    42% {
+        transform: scale(1.3);
+    }
+    70% {
+        transform: scale(1);
+    }
 }
 
 // =========================================
@@ -89,13 +103,15 @@
     background: white;
     padding: 1.5rem;
     border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
     z-index: 9990;
-    border: 1px solid rgba(0,0,0,0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
     animation: slideInUp 0.6s ease-out;
 
     @media (max-width: 768px) {
-        left: 0; right: 0; bottom: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
         max-width: 100%;
         border-radius: 12px 12px 0 0;
         padding-bottom: 90px;
@@ -127,13 +143,21 @@
         width: 100%;
         transition: background 0.3s;
 
-        &:hover { background: color.adjust(#D4005E, $lightness: -10%); }
+        &:hover {
+            background: color.adjust(#d4005e, $lightness: -10%);
+        }
     }
 }
 
 @keyframes slideInUp {
-    from { transform: translateY(100%); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
 // =========================================
@@ -150,7 +174,7 @@
     color: white;
     border: none;
     border-radius: 50%;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -175,6 +199,8 @@
     @media (max-width: 768px) {
         bottom: 90px;
         right: 20px;
-        width: 40px; height: 40px; font-size: 1rem;
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
     }
 }

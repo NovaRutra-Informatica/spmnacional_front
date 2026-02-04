@@ -8,15 +8,15 @@ import { AnimateOnScrollDirective } from '../../shared/directives/animate-on-scr
     standalone: true,
     imports: [CommonModule, CountUpDirective, AnimateOnScrollDirective],
     templateUrl: './home.component.html',
-    styleUrl: './home.component.scss'
+    styleUrl: './home.component.scss',
 })
 export class HomeComponent {
     originalPartners = [
-        { name: 'CNBB', img: '../../../assets/parceiros/cnbb.png' },
-        { name: 'Cáritas', img: '../../../assets/parceiros/caritas.png' },
-        { name: 'Misereor', img: '../../../assets/parceiros/misereor.png' },
-        { name: 'Adveniat', img: '../../../assets/parceiros/adveniat.png' },
-        { name: 'Rede Clamor', img: '../../../assets/parceiros/redeclamor.png' },
+        { name: 'CNBB', img: 'assets/parceiros/cnbb.png' },
+        { name: 'Cáritas', img: 'assets/parceiros/caritas.png' },
+        { name: 'Misereor', img: 'assets/parceiros/misereor.png' },
+        { name: 'Adveniat', img: 'assets/parceiros/adveniat.png' },
+        { name: 'Rede Clamor', img: 'assets/parceiros/redeclamor.png' },
     ];
 
     partnersList = [...this.originalPartners, ...this.originalPartners];

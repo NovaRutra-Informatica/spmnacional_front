@@ -1,9 +1,17 @@
-import { Directive, ElementRef, Input, OnInit, Renderer2, Inject, PLATFORM_ID } from '@angular/core';
+import {
+    Directive,
+    ElementRef,
+    Input,
+    OnInit,
+    Renderer2,
+    Inject,
+    PLATFORM_ID,
+} from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 @Directive({
     selector: '[appCountUp]',
-    standalone: true
+    standalone: true,
 })
 export class CountUpDirective implements OnInit {
     @Input('appCountUp') endValue: number = 0;
@@ -16,14 +24,18 @@ export class CountUpDirective implements OnInit {
     constructor(
         private el: ElementRef,
         private renderer: Renderer2,
-        @Inject(PLATFORM_ID) private platformId: Object
+        @Inject(PLATFORM_ID) private platformId: Object,
     ) {}
 
     ngOnInit() {
         if (isPlatformBrowser(this.platformId)) {
             this.createObserver();
         } else {
-            this.renderer.setProperty(this.el.nativeElement, 'textContent', this.prefix + this.endValue + this.suffix);
+            this.renderer.setProperty(
+                this.el.nativeElement,
+                'textContent',
+                this.prefix + this.endValue + this.suffix,
+            );
         }
     }
 
@@ -31,11 +43,11 @@ export class CountUpDirective implements OnInit {
         const options = {
             root: null,
             rootMargin: '0px',
-            threshold: 0.2
+            threshold: 0.2,
         };
 
         const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
+            entries.forEach((entry) => {
                 if (entry.isIntersecting && !this.hasAnimated) {
                     this.animate();
                     this.hasAnimated = true;
@@ -54,7 +66,11 @@ export class CountUpDirective implements OnInit {
             const easeProgress = 1 - (1 - progress) * (1 - progress);
             const currentCount = Math.floor(easeProgress * this.endValue);
 
-            this.renderer.setProperty(this.el.nativeElement, 'textContent', this.prefix + currentCount + this.suffix);
+            this.renderer.setProperty(
+                this.el.nativeElement,
+                'textContent',
+                this.prefix + currentCount + this.suffix,
+            );
 
             if (progress < 1) {
                 window.requestAnimationFrame(step);

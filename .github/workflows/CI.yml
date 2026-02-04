@@ -15,7 +15,7 @@ jobs:
             - name: Configurar Node.js
               uses: actions/setup-node@v3
               with:
-                  node-version: "22.17.0"
+                  node-version: '22.17.0'
                   cache: 'npm'
 
             - name: Instalar dependências

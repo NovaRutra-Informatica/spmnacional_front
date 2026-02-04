@@ -3,7 +3,9 @@
 
 .main-header {
     position: fixed;
-    top: 0; left: 0; width: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
     z-index: 1000;
     padding: 1.2rem 0;
     transition: all 0.4s ease;
@@ -24,7 +26,9 @@
         text-decoration: none;
         z-index: 1002;
         position: relative;
-        .brand-highlight { color: var(--color-brand-accent); }
+        .brand-highlight {
+            color: var(--color-brand-accent);
+        }
     }
 
     // --- TOGGLE BUTTON (Hambúrguer) ---
@@ -43,7 +47,8 @@
         display: flex;
         list-style: none;
         gap: 2rem;
-        margin: 0; padding: 0;
+        margin: 0;
+        padding: 0;
 
         li a {
             color: rgba(255, 255, 255, 0.9);
@@ -54,13 +59,28 @@
             text-decoration: none;
             position: relative;
 
-            &::after { background-color: white; height: 2px; width: 0; content: ''; position: absolute; bottom: -5px; left: 0; transition: width 0.3s; }
-            &:hover::after { width: 100%; }
+            &::after {
+                background-color: white;
+                height: 2px;
+                width: 0;
+                content: '';
+                position: absolute;
+                bottom: -5px;
+                left: 0;
+                transition: width 0.3s;
+            }
+            &:hover::after {
+                width: 100%;
+            }
         }
     }
 
-    .mobile-only-btn { display: none; }
-    .desktop-only { display: block; }
+    .mobile-only-btn {
+        display: none;
+    }
+    .desktop-only {
+        display: block;
+    }
 
     // --- ESTADO SCROLLED (Fundo Branco) ---
     &.scrolled {
@@ -69,16 +89,25 @@
         padding: 0.8rem 0;
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 
-        .brand-link { color: var(--color-brand-primary); }
-        .mobile-toggle { color: var(--color-brand-primary); }
+        .brand-link {
+            color: var(--color-brand-primary);
+        }
+        .mobile-toggle {
+            color: var(--color-brand-primary);
+        }
 
         .nav-menu ul li a {
             color: var(--color-text-main);
-            &:hover { color: var(--color-brand-primary); }
+            &:hover {
+                color: var(--color-brand-primary);
+            }
         }
 
         &.menu-open {
-            .brand-link, .mobile-toggle { color: var(--color-brand-primary); }
+            .brand-link,
+            .mobile-toggle {
+                color: var(--color-brand-primary);
+            }
         }
 
         .btn-donate {
@@ -89,7 +118,7 @@
     }
 
     .btn-donate {
-        background: rgba(255,255,255,0.15);
+        background: rgba(255, 255, 255, 0.15);
         border: 2px solid white;
         color: white;
         padding: 0.7rem 1.8rem;
@@ -99,15 +128,22 @@
         font-size: 0.85rem;
         text-decoration: none;
         transition: all 0.3s;
-        &:hover { background: white; color: var(--color-brand-primary); }
+        &:hover {
+            background: white;
+            color: var(--color-brand-primary);
+        }
     }
 
     // =========================================
     // RESPONSIVIDADE (MOBILE)
     // =========================================
     @media (max-width: 992px) {
-        .mobile-toggle { display: block; }
-        .desktop-only { display: none; }
+        .mobile-toggle {
+            display: block;
+        }
+        .desktop-only {
+            display: none;
+        }
 
         .nav-menu {
             position: fixed;
@@ -121,7 +157,7 @@
             justify-content: center;
             transition: right 0.4s cubic-bezier(0.77, 0, 0.175, 1);
             z-index: 1001;
-            box-shadow: -5px 0 30px rgba(0,0,0,0.1);
+            box-shadow: -5px 0 30px rgba(0, 0, 0, 0.1);
 
             ul {
                 flex-direction: column;
@@ -132,8 +168,12 @@
                     color: var(--color-text-main);
                     font-size: 1.2rem;
 
-                    &::after { display: none; }
-                    &:hover { color: var(--color-action); }
+                    &::after {
+                        display: none;
+                    }
+                    &:hover {
+                        color: var(--color-action);
+                    }
                 }
             }
 
@@ -157,8 +197,12 @@
         }
 
         &.menu-open {
-            .brand-link { color: var(--color-brand-primary); }
-            .mobile-toggle { color: var(--color-brand-primary); }
+            .brand-link {
+                color: var(--color-brand-primary);
+            }
+            .mobile-toggle {
+                color: var(--color-brand-primary);
+            }
         }
     }
 }
