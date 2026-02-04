@@ -9,11 +9,9 @@ import { FooterComponent } from './pages/components/footer/footer.component';
     standalone: true,
     imports: [RouterOutlet, HeaderComponent, FooterComponent, CommonModule],
     templateUrl: './app.component.html',
-    styleUrl: './app.component.scss'
+    styleUrl: './app.component.scss',
 })
 export class AppComponent implements OnInit {
-    title = 'spm-nacional-site';
-
     showBackToTop = false;
     cookiesAccepted = false;
 

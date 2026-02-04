@@ -4,10 +4,12 @@
 
 <app-footer></app-footer>
 
-<button class="btn-back-to-top"
-        [class.show]="showBackToTop"
-        (click)="scrollToTop()"
-        aria-label="Voltar ao topo">
+<button
+    class="btn-back-to-top"
+    [class.show]="showBackToTop"
+    (click)="scrollToTop()"
+    aria-label="Voltar ao topo"
+>
     <i class="fas fa-arrow-up"></i>
 </button>
 
@@ -23,8 +25,8 @@
 <div class="cookie-banner" *ngIf="!cookiesAccepted">
     <div class="cookie-content">
         <p>
-            Utilizamos cookies para oferecer a melhor experiência e analisar o uso do nosso site.
-            Ao continuar, você concorda com nossa <a href="#">Política de Privacidade</a>.
+            Utilizamos cookies para oferecer a melhor experiência e analisar o uso do nosso site. Ao
+            continuar, você concorda com nossa <a href="#">Política de Privacidade</a>.
         </p>
         <div class="cookie-actions">
             <button class="btn-accept" (click)="acceptCookies()">Aceitar e Fechar</button>

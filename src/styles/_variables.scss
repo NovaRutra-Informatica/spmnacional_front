@@ -5,11 +5,11 @@
 
 :root {
     /* Paleta SPM Nacional */
-    --color-brand-primary: #004A99; /* Azul Escuro Institucional */
-    --color-brand-accent: #007ACC;  /* Azul Claro */
-    --color-action: #D4005E;        /* Magenta/Vermelho (Botões) */
-    --color-bg-primary: #FFFFFF;
-    --color-bg-secondary: #F4F4F4;
+    --color-brand-primary: #004a99; /* Azul Escuro Institucional */
+    --color-brand-accent: #007acc; /* Azul Claro */
+    --color-action: #d4005e; /* Magenta/Vermelho (Botões) */
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f4f4f4;
     --color-text-main: #333333;
     --color-text-muted: #767676;
 
@@ -27,7 +27,10 @@ body {
     line-height: 1.6;
 }
 
-h1, h2, h3, h4 {
+h1,
+h2,
+h3,
+h4 {
     font-family: 'Merriweather', serif;
     color: var(--color-brand-primary);
     margin-top: 0;
@@ -53,6 +56,6 @@ h1, h2, h3, h4 {
     cursor: pointer;
 
     &:hover {
-        background-color: color.adjust(#D4005E, $lightness: -10%);
+        background-color: color.adjust(#d4005e, $lightness: -10%);
     }
 }

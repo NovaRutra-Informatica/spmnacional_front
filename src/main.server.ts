@@ -10,6 +10,6 @@ export default function bootstrap(context: any) {
     return bootstrapApplication(
         AppComponent,
         mergeApplicationConfig(appConfig, serverConfig),
-        context
+        context,
     );
 }
