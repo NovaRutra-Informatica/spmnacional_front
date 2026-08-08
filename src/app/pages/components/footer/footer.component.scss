@@ -21,11 +21,14 @@
 
     .footer-top {
         display: grid;
-        grid-template-columns: 2fr 1fr 1fr 1.5fr;
-        gap: 4rem;
+        grid-template-columns: 1.8fr 1fr 1fr 1fr 1.3fr;
+        gap: 3rem;
         padding-bottom: 4rem;
         border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 
+        @media (max-width: 1200px) {
+            grid-template-columns: 1.6fr 1fr 1fr;
+        }
         @media (max-width: 992px) {
             grid-template-columns: 1fr 1fr;
             gap: 3rem;
@@ -35,16 +38,41 @@
         }
     }
 
+    .brand-col {
+        @media (max-width: 1200px) {
+            grid-column: 1 / -1;
+        }
+    }
+
     .footer-logo {
-        font-family: 'Merriweather', serif;
-        font-size: 1.8rem;
-        font-weight: 900;
-        color: white;
-        text-decoration: none;
+        display: inline-block;
         margin-bottom: 1.5rem;
-        display: block;
-        .highlight {
-            color: var(--color-action);
+
+        img {
+            width: 64px;
+            height: auto;
+        }
+    }
+
+    .footer-cta {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-top: 1rem;
+        background: var(--color-action);
+        color: #fff;
+        padding: 0.7rem 1.5rem;
+        border-radius: 50px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        transition: all 0.3s;
+
+        &:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(212, 0, 94, 0.35);
+            color: #fff;
         }
     }
 

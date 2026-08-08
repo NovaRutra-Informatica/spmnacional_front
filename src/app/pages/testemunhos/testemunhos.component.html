@@ -1,0 +1,100 @@
+<app-page-hero
+    eyebrow="Vozes"
+    title="Testemunhos"
+    subtitle="Antes de qualquer relatório, existe uma pessoa contando o que viveu. Estas são algumas das histórias que sustentam tudo o que fazemos."
+    [crumbs]="[{ label: 'Publicações', link: '/publicacoes' }, { label: 'Testemunhos' }]"
+></app-page-hero>
+
+<section class="section">
+    <div class="container">
+        <div class="split" appAnimate>
+            <div
+                class="split__media"
+                [style.background-image]="'url(' + destaque.photo + ')'"
+            ></div>
+            <div class="prose">
+                <span class="eyebrow">Testemunho em destaque</span>
+                <blockquote style="margin-top: 0">{{ destaque.text }}</blockquote>
+                <p>
+                    <strong>{{ destaque.name }}</strong
+                    ><br />
+                    <span style="color: var(--color-text-muted); font-size: 0.92rem">{{
+                        destaque.origin
+                    }}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Histórias da rede</span>
+            <h2>Quem migra conta</h2>
+            <p>
+                Relatos colhidos pelas equipes regionais do SPM. Publicados com autorização, alguns
+                com nomes alterados a pedido de quem contou.
+            </p>
+        </div>
+
+        <div class="grid grid--3">
+            @for (t of testemunhos; track t.name) {
+                <div class="testimony-card" appAnimate>
+                    <p class="testimony-card__text">{{ t.text }}</p>
+                    <div class="testimony-card__author">
+                        <span class="testimony-card__avatar">{{ t.initials }}</span>
+                        <span>
+                            <strong>{{ t.name }}</strong>
+                            <span>{{ t.origin }}</span>
+                        </span>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="prose" appAnimate>
+            <span class="eyebrow">Nosso compromisso</span>
+            <h2>Como tratamos essas histórias</h2>
+            <p>
+                Testemunho não é matéria-prima de campanha. É a narrativa de alguém sobre a própria
+                vida — e quem conta segue sendo dono dela.
+            </p>
+            <ul>
+                <li>
+                    <strong>Consentimento informado.</strong> Nada é publicado sem autorização
+                    explícita, dada em língua que a pessoa compreenda.
+                </li>
+                <li>
+                    <strong>Direito ao anonimato.</strong> Quem prefere pode ter nome, imagem e
+                    localidade alterados ou omitidos.
+                </li>
+                <li>
+                    <strong>Direito de retirada.</strong> Qualquer pessoa pode pedir a remoção do
+                    próprio relato a qualquer momento, sem justificar.
+                </li>
+                <li>
+                    <strong>Sem exploração da dor.</strong> Não publicamos imagens de sofrimento
+                    para comover doadores. Contamos histórias inteiras, não só a parte trágica.
+                </li>
+            </ul>
+
+            <div class="callout callout--action">
+                <i class="fas fa-microphone-lines"></i>
+                <p>
+                    <strong>Você tem uma história para contar?</strong> Se você é migrante e quer
+                    partilhar sua experiência — anonimamente ou não —, escreva para
+                    <a href="mailto:testemunhos@spmnacional.org.br"
+                        >testemunhos&#64;spmnacional.org.br</a
+                    >. Escutamos antes de qualquer coisa.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<app-page-cta></app-page-cta>

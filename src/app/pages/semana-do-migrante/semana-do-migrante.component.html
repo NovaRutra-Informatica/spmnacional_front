@@ -1,0 +1,168 @@
+<app-page-hero
+    eyebrow="Campanha anual"
+    title="Semana do Migrante"
+    subtitle="Todo mês de junho, comunidades de todo o Brasil param para escutar quem migra. Uma semana de conscientização, celebração e compromisso."
+    [crumbs]="[{ label: 'Semana do Migrante' }]"
+></app-page-hero>
+
+<section class="section">
+    <div class="container with-aside">
+        <div class="prose prose--wide" appAnimate>
+            <span class="eyebrow">O que é</span>
+            <h2>Um momento forte de conscientização e acolhida</h2>
+            <p class="lead">
+                A Semana do Migrante acontece anualmente na terceira semana de junho e culmina no
+                <strong>Dia do Migrante, celebrado em 25 de junho</strong> no Brasil. É a principal
+                campanha de mobilização do Serviço Pastoral dos Migrantes.
+            </p>
+            <p>
+                A história começa antes do próprio SPM. Em 1969, o Papa Paulo VI institui a
+                celebração do Dia do Migrante. Dez anos depois, em 1979, a CNBB determina que, no
+                Brasil, a data seja 25 de junho. O primeiro Dia do Migrante brasileiro é celebrado
+                em 1981, com o lema <em>“Por que somos obrigados a sair da nossa terra?”</em>
+            </p>
+            <p>
+                Em 1986, um ano depois da fundação do SPM, a celebração se amplia para uma semana
+                inteira. A primeira Semana do Migrante teve como lema
+                <em>“Tomareis posse da terra e nela habitareis”</em>. De lá para cá, foram mais de
+                quarenta edições consecutivas.
+            </p>
+
+            <h3>Como o tema é escolhido</h3>
+            <p>
+                Cada edição dialoga com a Campanha da Fraternidade do ano e com a conjuntura
+                migratória. Em 2024, o tema foi a casa comum e a crise climática; em 2025, a
+                esperança, no ano em que o SPM completou quarenta anos; em 2026, a moradia — em
+                sintonia direta com a Campanha da Fraternidade sobre o direito de morar.
+            </p>
+            <p>
+                A definição passa pelas equipes regionais e é aprovada pela Coordenação Nacional. Os
+                subsídios são produzidos com meses de antecedência para que as comunidades tenham
+                tempo de preparar a semana.
+            </p>
+        </div>
+
+        <aside class="aside-sticky">
+            <div class="aside-box">
+                <h4>Datas que organizam o ano</h4>
+                <ul>
+                    <li><strong>25 de junho</strong> — Dia do Migrante (Brasil)</li>
+                    <li><strong>3ª semana de junho</strong> — Semana do Migrante</li>
+                    <li><strong>Setembro</strong> — Dia Mundial do Migrante e do Refugiado</li>
+                    <li><strong>18 de dezembro</strong> — Dia Internacional do Migrante</li>
+                </ul>
+            </div>
+
+            <div class="aside-box">
+                <h4>Materiais por edição</h4>
+                <ul>
+                    <li><a routerLink="/semana-do-migrante/material-2026">Material 2026 →</a></li>
+                    <li><a routerLink="/semana-do-migrante/material-2025">Material 2025 →</a></li>
+                    <li><a routerLink="/semana-do-migrante/material-2024">Material 2024 →</a></li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Edições recentes</span>
+            <h2>Escolha o ano e baixe o material</h2>
+            <p>
+                Todos os subsídios são de livre reprodução para fins pastorais e educativos, com
+                indicação da fonte.
+            </p>
+        </div>
+
+        <div class="grid grid--3">
+            @for (e of edicoes; track e.ano) {
+                <a class="post-card" [routerLink]="e.link" appAnimate>
+                    <div class="post-card__img" [style.background-image]="'url(' + e.img + ')'">
+                        <span class="post-card__tag">{{ e.edicao }}</span>
+                    </div>
+                    <div class="post-card__body">
+                        <span class="post-card__date">{{ e.periodo }}</span>
+                        <h3>{{ e.tema }}</h3>
+                        <p>{{ e.lema }}</p>
+                        <span class="post-card__link">
+                            Baixar material {{ e.ano }} <i class="fas fa-arrow-right"></i>
+                        </span>
+                    </div>
+                </a>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Subsídios</span>
+            <h2>O que produzimos a cada edição</h2>
+            <p>
+                Um conjunto completo de materiais para que qualquer comunidade consiga organizar a
+                semana, mesmo sem experiência prévia com o tema migratório.
+            </p>
+        </div>
+
+        <div class="grid grid--3">
+            @for (m of materiais; track m.title) {
+                <div class="card" appAnimate>
+                    <div class="card__icon"><i [class]="'fas ' + m.icon"></i></div>
+                    <h3>{{ m.title }}</h3>
+                    <p>{{ m.text }}</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section section--brand">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <h2>Como organizar a Semana na sua comunidade</h2>
+            <p style="color: rgba(255, 255, 255, 0.75)">
+                Não é preciso estrutura nem orçamento. É preciso disposição para escutar.
+            </p>
+        </div>
+
+        <div class="grid grid--4" appAnimate>
+            <div class="card card--flat">
+                <h3>1. Forme um grupo</h3>
+                <p>
+                    Reúna três ou quatro pessoas da comunidade — de preferência incluindo alguém que
+                    tenha migrado.
+                </p>
+            </div>
+            <div class="card card--flat">
+                <h3>2. Baixe o material</h3>
+                <p>Comece pelo texto-base e pelo roteiro de círculos bíblicos da edição do ano.</p>
+            </div>
+            <div class="card card--flat">
+                <h3>3. Convide a cidade</h3>
+                <p>
+                    Escolas, sindicatos, coletivos de migrantes e poder público local: a semana é
+                    pública, não é só de igreja.
+                </p>
+            </div>
+            <div class="card card--flat">
+                <h3>4. Conte para nós</h3>
+                <p>
+                    Envie fotos e relatos ao secretariado nacional. Publicamos as experiências no
+                    blog e nos materiais seguintes.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<app-page-cta
+    title="Precisa de apoio para organizar a Semana?"
+    text="O secretariado nacional envia orientações, ajuda a articular com a diocese e indica a equipe do SPM mais próxima de você."
+    primaryLabel="Pedir apoio"
+    primaryLink="/fale-conosco"
+    secondaryLabel="Ver material 2026"
+    secondaryLink="/semana-do-migrante/material-2026"
+></app-page-cta>

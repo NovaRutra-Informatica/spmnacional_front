@@ -1,0 +1,151 @@
+<app-page-hero
+    eyebrow="41ª Semana do Migrante · 2026"
+    title="Migração e Moradia"
+    subtitle="“Eu não tenho onde morar!” — de 14 a 21 de junho de 2026, em sintonia com a Campanha da Fraternidade sobre o direito de morar."
+    [crumbs]="[
+        { label: 'Semana do Migrante', link: '/semana-do-migrante' },
+        { label: 'Material 2026' },
+    ]"
+></app-page-hero>
+
+<section class="section">
+    <div class="container">
+        <div class="law-meta" appAnimate>
+            <div>
+                <span>Edição</span>
+                <strong>41ª Semana do Migrante</strong>
+            </div>
+            <div>
+                <span>Tema</span>
+                <strong>Migração e Moradia</strong>
+            </div>
+            <div>
+                <span>Lema</span>
+                <strong>“Eu não tenho onde morar!”</strong>
+            </div>
+            <div>
+                <span>Período</span>
+                <strong>14 a 21 de junho de 2026</strong>
+            </div>
+        </div>
+
+        <div class="prose" appAnimate>
+            <span class="eyebrow">Sobre o tema</span>
+            <h2>Quem chega é o último da fila do aluguel</h2>
+            <p class="lead">
+                Não existe integração sem endereço. Sem comprovante de residência não se consegue
+                matrícula, cadastro no posto de saúde, conta bancária nem emprego formal. A moradia
+                não é uma etapa posterior da acolhida: é a condição de todas as outras.
+            </p>
+            <p>
+                A 41ª Semana do Migrante coloca essa realidade no centro. Famílias migrantes pagam
+                mais caro por menos espaço, aceitam contratos verbais porque não têm fiador e são as
+                primeiras a serem despejadas quando a conta aperta. Em muitos casos, o primeiro
+                “lar” no Brasil é um quarto de cortiço dividido por três famílias.
+            </p>
+            <p>
+                O tema dialoga diretamente com a Campanha da Fraternidade de 2026, dedicada à
+                moradia. É uma oportunidade rara: a pauta migratória entra na conversa nacional pela
+                porta da frente, e não como assunto de nicho.
+            </p>
+
+            <blockquote>
+                “Eu não tenho onde morar” não é uma frase sobre imóveis. É uma frase sobre
+                pertencimento.
+            </blockquote>
+
+            <h3>Objetivos da edição</h3>
+            <ul>
+                <li>Evidenciar a relação entre migração forçada e déficit habitacional;</li>
+                <li>
+                    Denunciar a exploração no aluguel informal, nos cortiços e nas moradias
+                    precárias;
+                </li>
+                <li>
+                    Incidir para que planos municipais de habitação incluam explicitamente a
+                    população migrante;
+                </li>
+                <li>Fortalecer coletivos de migrantes que já atuam por moradia em suas cidades.</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head" appAnimate>
+            <span class="eyebrow">Downloads</span>
+            <h2>Materiais da 41ª Semana do Migrante</h2>
+            <p>
+                Reprodução livre para fins pastorais e educativos, com indicação da fonte. Se
+                precisar de material impresso, fale com o secretariado nacional.
+            </p>
+        </div>
+
+        <div class="doc-list" appAnimate>
+            @for (d of downloads; track d.title) {
+                <a class="doc-item" href="#" (click)="$event.preventDefault()">
+                    <span class="doc-item__icon"><i [class]="'fas ' + d.icon"></i></span>
+                    <span class="doc-item__info">
+                        <strong>{{ d.title }}</strong>
+                        <span>{{ d.meta }}</span>
+                    </span>
+                    <span class="doc-item__action"><i class="fas fa-download"></i> Baixar</span>
+                </a>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head" appAnimate>
+            <span class="eyebrow">Sugestão de roteiro</span>
+            <h2>Oito dias, oito passos</h2>
+            <p>
+                Uma proposta de programação para a semana. Adapte livremente à realidade da sua
+                comunidade — o roteiro é sugestão, não obrigação.
+            </p>
+        </div>
+
+        <ul class="timeline" appAnimate>
+            @for (p of programacao; track p.dia) {
+                <li class="timeline__item">
+                    <span class="timeline__year">{{ p.dia }}</span>
+                    <h3>{{ p.title }}</h3>
+                    <p>{{ p.text }}</p>
+                </li>
+            }
+        </ul>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="grid grid--2">
+            <a class="card card--accent" routerLink="/semana-do-migrante/material-2025" appAnimate>
+                <div class="card__icon"><i class="fas fa-arrow-left-long"></i></div>
+                <h3>Edição anterior · 2025</h3>
+                <p>40ª Semana do Migrante — “Migração e Esperança”, no ano dos 40 anos do SPM.</p>
+                <span class="card__link">Ver material 2025 <i class="fas fa-arrow-right"></i></span>
+            </a>
+            <a class="card card--accent" routerLink="/semana-do-migrante" appAnimate>
+                <div class="card__icon"><i class="fas fa-calendar-days"></i></div>
+                <h3>Todas as edições</h3>
+                <p>
+                    Conheça a história da Semana do Migrante e acesse os materiais de outros anos.
+                </p>
+                <span class="card__link">Ver histórico <i class="fas fa-arrow-right"></i></span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<app-page-cta
+    title="Vai organizar a Semana na sua cidade?"
+    text="Conte com o apoio da equipe do SPM mais próxima: ajudamos na formação, na articulação com o poder público e na mobilização das comunidades migrantes."
+    primaryLabel="Pedir apoio"
+    primaryLink="/fale-conosco"
+    secondaryLabel="Onde estamos"
+    secondaryLink="/onde-estamos"
+></app-page-cta>

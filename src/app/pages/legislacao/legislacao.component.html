@@ -1,0 +1,163 @@
+<app-page-hero
+    eyebrow="Direitos"
+    title="Legislação"
+    subtitle="Migrar não é crime. Conheça as leis que garantem direitos a quem chega, a quem passa e a quem decide ficar."
+    [crumbs]="[{ label: 'Legislação' }]"
+></app-page-hero>
+
+<section class="section">
+    <div class="container">
+        <div class="prose" appAnimate>
+            <span class="eyebrow">Por que esta página existe</span>
+            <h2>Direito que não se conhece não se exerce</h2>
+            <p class="lead">
+                Boa parte das violações que acompanhamos não acontece por falta de lei — acontece
+                por desconhecimento. De quem migra, mas também de quem atende no balcão, na escola,
+                no posto de saúde e na delegacia.
+            </p>
+            <p>
+                Reunimos aqui as principais normas que estruturam os direitos das pessoas migrantes
+                no Brasil, com uma leitura acessível de cada uma. Não substituem a orientação
+                jurídica individual, mas servem como ponto de partida — para migrantes, agentes de
+                pastoral, servidores públicos e estudantes.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">As três principais</span>
+            <h2>Leis que mudaram o jogo</h2>
+            <p>
+                Uma federal e duas municipais — porque a política migratória se realiza, na prática,
+                na cidade onde a pessoa vive.
+            </p>
+        </div>
+
+        <div class="grid grid--3">
+            <a class="card card--accent" routerLink="/legislacao/lei-de-migracao" appAnimate>
+                <div class="card__icon"><i class="fas fa-scale-balanced"></i></div>
+                <span class="badge-pill badge-pill--accent">Federal · 2017</span>
+                <h3>Lei nº 13.445/2017</h3>
+                <p>
+                    A Lei de Migração. Substituiu o Estatuto do Estrangeiro e passou a tratar quem
+                    migra como sujeito de direitos, e não como ameaça à segurança nacional.
+                </p>
+                <span class="card__link">Ler resumo <i class="fas fa-arrow-right"></i></span>
+            </a>
+
+            <a
+                class="card card--accent delay-100"
+                routerLink="/legislacao/lei-municipal-16478"
+                appAnimate
+            >
+                <div class="card__icon"><i class="fas fa-city"></i></div>
+                <span class="badge-pill badge-pill--accent">Municipal · SP · 2016</span>
+                <h3>Lei nº 16.478/2016</h3>
+                <p>
+                    Institui a Política Municipal para a População Imigrante em São Paulo e cria o
+                    Conselho Municipal de Imigrantes.
+                </p>
+                <span class="card__link">Ler resumo <i class="fas fa-arrow-right"></i></span>
+            </a>
+
+            <a
+                class="card card--accent delay-200"
+                routerLink="/legislacao/decreto-57533"
+                appAnimate
+            >
+                <div class="card__icon"><i class="fas fa-file-signature"></i></div>
+                <span class="badge-pill badge-pill--accent">Municipal · SP · 2016</span>
+                <h3>Decreto nº 57.533/2016</h3>
+                <p>
+                    Regulamenta a lei municipal e define como cada secretaria da Prefeitura deve
+                    executar a política para imigrantes.
+                </p>
+                <span class="card__link">Ler resumo <i class="fas fa-arrow-right"></i></span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head" appAnimate>
+            <span class="eyebrow">Contexto</span>
+            <h2>Outras normas que você precisa conhecer</h2>
+            <p>
+                A proteção de quem migra não cabe em uma lei só. Ela se monta como um mosaico de
+                normas nacionais e tratados internacionais.
+            </p>
+        </div>
+
+        <div class="grid grid--2">
+            @for (n of outrasNormas; track n.title) {
+                <div class="card card--flat" appAnimate>
+                    <h3>{{ n.title }}</h3>
+                    <p>{{ n.text }}</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section section--brand">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <h2>O que a lei garante, na prática</h2>
+            <p style="color: rgba(255, 255, 255, 0.75)">
+                Quatro direitos que valem para toda pessoa migrante em território brasileiro —
+                independentemente da situação documental.
+            </p>
+        </div>
+
+        <div class="grid grid--4" appAnimate>
+            <div class="card card--flat">
+                <h3>Saúde</h3>
+                <p>
+                    Atendimento no SUS é universal. Nenhuma unidade de saúde pode exigir documento
+                    migratório para prestar atendimento.
+                </p>
+            </div>
+            <div class="card card--flat">
+                <h3>Educação</h3>
+                <p>
+                    Crianças e adolescentes migrantes têm direito à matrícula na rede pública, mesmo
+                    sem documentação completa.
+                </p>
+            </div>
+            <div class="card card--flat">
+                <h3>Trabalho</h3>
+                <p>
+                    Direitos trabalhistas valem para todos. Situação migratória irregular não
+                    autoriza salário menor nem jornada abusiva.
+                </p>
+            </div>
+            <div class="card card--flat">
+                <h3>Justiça</h3>
+                <p>
+                    Toda pessoa migrante pode acionar a Defensoria Pública e denunciar violações,
+                    sem risco de deportação por isso.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="callout callout--action" appAnimate>
+            <i class="fas fa-triangle-exclamation"></i>
+            <p>
+                <strong>Está passando por uma violação de direitos?</strong> Procure a equipe do SPM
+                mais próxima em <a routerLink="/onde-estamos">Onde estamos</a> ou escreva para nós
+                em <a routerLink="/fale-conosco">Fale Conosco</a>. O atendimento é gratuito e
+                sigiloso.
+            </p>
+        </div>
+    </div>
+</section>
+
+<app-page-cta></app-page-cta>

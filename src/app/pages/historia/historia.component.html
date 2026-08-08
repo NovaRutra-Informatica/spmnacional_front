@@ -1,0 +1,115 @@
+<app-page-hero
+    eyebrow="Nossa história"
+    title="Quatro décadas caminhando com quem migra"
+    subtitle="Do êxodo rural dos anos 1980 às rotas internacionais de hoje: uma linha do tempo do Serviço Pastoral dos Migrantes."
+    [crumbs]="[{ label: 'Quem Somos', link: '/quem-somos' }, { label: 'Nossa História' }]"
+></app-page-hero>
+
+<section class="section">
+    <div class="container">
+        <div class="split" appAnimate>
+            <div
+                class="split__media"
+                style="background-image: url('assets/exemplo-migrantes.jpeg')"
+            ></div>
+            <div class="prose">
+                <span class="eyebrow">Como tudo começou</span>
+                <h2>Uma pergunta que virou pastoral</h2>
+                <p>
+                    Em 1980, a Campanha da Fraternidade perguntou ao Brasil:
+                    <em>“Para onde vais?”</em>
+                    O país vivia um êxodo rural massivo. Famílias inteiras deixavam o campo rumo às
+                    periferias das grandes cidades, empurradas pela concentração de terra e pela
+                    mecanização da lavoura.
+                </p>
+                <p>
+                    Aquela pergunta não se encerrou com a campanha. Ela continuou ecoando em
+                    comunidades, sindicatos e romarias — e amadureceu, ao longo de cinco anos, na
+                    criação de um serviço permanente da Igreja junto às pessoas em mobilidade.
+                </p>
+                <p>
+                    Em <strong>outubro de 1985</strong> nascia o Serviço Pastoral dos Migrantes. Não
+                    como uma obra de assistência, mas como uma pastoral de organização: ajudar quem
+                    migra a se reconhecer sujeito de direitos e protagonista da própria história.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Linha do tempo</span>
+            <h2>Marcos da nossa caminhada</h2>
+            <p>
+                As datas que ajudam a entender por que o SPM é o que é — e por que as pautas de
+                terra, trabalho e moradia nunca saíram do nosso horizonte.
+            </p>
+        </div>
+
+        <ul class="timeline" appAnimate>
+            @for (m of milestones; track m.title) {
+                <li class="timeline__item">
+                    <span class="timeline__year">{{ m.year }}</span>
+                    <h3>{{ m.title }}</h3>
+                    <p>{{ m.text }}</p>
+                </li>
+            }
+        </ul>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="split split--reverse" appAnimate>
+            <div
+                class="split__media"
+                style="
+                    background-image: url('assets/padre-alfredinho.png');
+                    background-position: top;
+                "
+            ></div>
+            <div class="prose">
+                <span class="eyebrow">Memória viva</span>
+                <h2>Gente que abriu caminho</h2>
+                <p>
+                    A história do SPM é feita de padres, religiosas, leigos e — sobretudo — de
+                    migrantes que assumiram a liderança das próprias comunidades. Muitos deles
+                    enfrentaram ameaças ao denunciar o aliciamento de trabalhadores para os
+                    canaviais e as frentes de desmatamento.
+                </p>
+                <p>
+                    Guardamos essa memória não como nostalgia, mas como método: foi ouvindo quem
+                    migra que o SPM aprendeu a fazer pastoral. É por isso que, até hoje, nenhuma
+                    assembleia nacional acontece sem que as bases regionais tenham falado primeiro.
+                </p>
+                <blockquote>
+                    “O migrante não é um problema a ser resolvido. É uma ponte entre povos.”
+                </blockquote>
+                <a class="btn btn--outline" routerLink="/publicacoes/testemunhos">
+                    Ler testemunhos <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section--brand">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <h2>Continue explorando</h2>
+            <p style="color: rgba(255, 255, 255, 0.75)">
+                A história recente do SPM se escreve nas assembleias, nos documentos e nas campanhas
+                de cada ano.
+            </p>
+        </div>
+        <div class="cta-band__actions">
+            <a class="btn btn--light" routerLink="/quem-somos/estrutura">Estrutura e coordenação</a>
+            <a class="btn btn--light" routerLink="/quem-somos/documentos">Documentos</a>
+            <a class="btn btn--cta" routerLink="/semana-do-migrante">Semana do Migrante</a>
+        </div>
+    </div>
+</section>
+
+<app-page-cta></app-page-cta>

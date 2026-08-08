@@ -1,0 +1,185 @@
+<app-page-hero
+    eyebrow="Nossa atuação"
+    title="O que fazemos"
+    subtitle="Da porta da casa de acolhida à mesa de negociação de políticas públicas: seis frentes que se sustentam pela metodologia FIA."
+    [crumbs]="[{ label: 'O que fazemos' }]"
+></app-page-hero>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Método</span>
+            <h2>Assistir não basta. É preciso organizar.</h2>
+            <p>
+                O SPM não separa a caridade concreta da luta por direitos. Toda acolhida abre porta
+                para a formação; toda formação alimenta a incidência; toda incidência só se sustenta
+                em rede.
+            </p>
+        </div>
+
+        <div class="grid grid--3">
+            <div class="numbered-card" appAnimate>
+                <span class="numbered-card__num">F</span>
+                <h3>Formação</h3>
+                <p>
+                    Compreender o fenômeno migratório antes de agir sobre ele — com migrantes,
+                    agentes de pastoral e comunidades.
+                </p>
+            </div>
+            <div class="numbered-card delay-100" appAnimate>
+                <span class="numbered-card__num">I</span>
+                <h3>Incidência</h3>
+                <p>
+                    Transformar experiência de base em política pública, em lei e em orçamento
+                    público.
+                </p>
+            </div>
+            <div class="numbered-card delay-200" appAnimate>
+                <span class="numbered-card__num">A</span>
+                <h3>Articulação</h3>
+                <p>
+                    Somar com quem já está no território: Cáritas, scalabrinianos, Rede Clamor,
+                    universidades e movimentos sociais.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head" appAnimate>
+            <span class="eyebrow">Frentes de trabalho</span>
+            <h2>Seis frentes, um só compromisso</h2>
+            <p>
+                Cada equipe regional adapta essas frentes à realidade do seu território — mas todas
+                partem do mesmo princípio: a pessoa migrante é sujeito, nunca objeto.
+            </p>
+        </div>
+
+        <div class="grid grid--2">
+            @for (f of frentes; track f.title) {
+                <div class="card" appAnimate>
+                    <div class="card__icon"><i [class]="'fas ' + f.icon"></i></div>
+                    <h3>{{ f.title }}</h3>
+                    <p>{{ f.text }}</p>
+                    <ul style="margin: 0 0 1.25rem; padding-left: 1.1rem; color: #666">
+                        @for (item of f.items; track item) {
+                            <li style="margin-bottom: 0.4rem; font-size: 0.9rem">{{ item }}</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="split" appAnimate>
+            <div
+                class="split__media"
+                style="background-image: url('assets/venezuelana.jpeg')"
+            ></div>
+            <div class="prose">
+                <span class="eyebrow">Público acompanhado</span>
+                <h2>Com quem caminhamos</h2>
+                <p>
+                    O SPM nasceu olhando para a <strong>migração interna</strong>: trabalhadores e
+                    trabalhadoras que deixam o Nordeste e o Norte rumo aos canaviais, às colheitas
+                    de laranja e café, às obras e às periferias metropolitanas.
+                </p>
+                <p>
+                    Com o tempo, o Brasil também se tornou destino. Hoje acompanhamos
+                    <strong>imigrantes e refugiados</strong> de dezenas de nacionalidades — do
+                    Haiti, da Venezuela, da Bolívia, do Senegal, do Congo, do Mali, da Nigéria, da
+                    Síria, de Bangladesh e da China, entre outros.
+                </p>
+                <p>
+                    Há ainda quem migre dentro do próprio deslocamento: mulheres chefes de família,
+                    juventude sem perspectiva de trabalho, povos indígenas transfronteiriços como os
+                    Warao, e pessoas atingidas por eventos climáticos extremos.
+                </p>
+                <blockquote>
+                    Não existe migração “boa” ou “ruim”. Existe migração livre e migração forçada —
+                    e é contra a segunda que trabalhamos.
+                </blockquote>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section--brand">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <h2>O que enfrentamos hoje</h2>
+            <p style="color: rgba(255, 255, 255, 0.75)">
+                Os desafios mudaram desde 1985 — mas a raiz continua a mesma: gente obrigada a sair
+                de casa.
+            </p>
+        </div>
+
+        <div class="grid grid--4" appAnimate>
+            <div class="card card--flat">
+                <h3>Xenofobia e racismo</h3>
+                <p>
+                    Discurso de ódio nas redes, discriminação religiosa e barreiras de acesso a
+                    serviços públicos.
+                </p>
+            </div>
+            <div class="card card--flat">
+                <h3>Moradia</h3>
+                <p>
+                    Aluguel abusivo, cortiços superlotados e despejos que atingem primeiro quem
+                    acabou de chegar.
+                </p>
+            </div>
+            <div class="card card--flat">
+                <h3>Trabalho escravo</h3>
+                <p>
+                    Aliciamento nas cadeias da cana, da laranja, do eucalipto e do café — e, cada
+                    vez mais, em aplicativos e confecções.
+                </p>
+            </div>
+            <div class="card card--flat">
+                <h3>Documentação</h3>
+                <p>
+                    Filas, custos e desinformação que mantêm milhares de pessoas em situação
+                    migratória irregular.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Vá mais fundo</span>
+            <h2>Conheça o trabalho por dentro</h2>
+        </div>
+
+        <div class="grid grid--3">
+            <a class="card" routerLink="/onde-estamos" appAnimate>
+                <div class="card__icon"><i class="fas fa-map-location-dot"></i></div>
+                <h3>Onde estamos</h3>
+                <p>As regionais do SPM e o que cada uma prioriza em seu território.</p>
+                <span class="card__link">Ver mapa <i class="fas fa-arrow-right"></i></span>
+            </a>
+            <a class="card delay-100" routerLink="/legislacao" appAnimate>
+                <div class="card__icon"><i class="fas fa-gavel"></i></div>
+                <h3>Legislação</h3>
+                <p>Quais direitos a lei brasileira garante a quem migra — e como acioná-los.</p>
+                <span class="card__link">Entender a lei <i class="fas fa-arrow-right"></i></span>
+            </a>
+            <a class="card delay-200" routerLink="/publicacoes/testemunhos" appAnimate>
+                <div class="card__icon"><i class="fas fa-comment-dots"></i></div>
+                <h3>Testemunhos</h3>
+                <p>Histórias contadas por quem viveu a travessia e a chegada.</p>
+                <span class="card__link">Ler histórias <i class="fas fa-arrow-right"></i></span>
+            </a>
+        </div>
+    </div>
+</section>
+
+<app-page-cta></app-page-cta>

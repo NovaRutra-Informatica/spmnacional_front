@@ -1,0 +1,174 @@
+<app-page-hero
+    eyebrow="Legislação municipal · São Paulo"
+    title="Decreto nº 57.533/2016"
+    subtitle="Regulamenta a Lei nº 16.478/2016 e define os procedimentos e as ações que o Executivo municipal deve adotar para implementar a Política Municipal para a População Imigrante."
+    [crumbs]="[{ label: 'Legislação', link: '/legislacao' }, { label: 'Decreto nº 57.533/2016' }]"
+    waveFill="#f8f9fa"
+></app-page-hero>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="law-meta" appAnimate>
+            <div>
+                <span>Data</span>
+                <strong>15 de dezembro de 2016</strong>
+            </div>
+            <div>
+                <span>Regulamenta</span>
+                <strong>Lei nº 16.478, de 8 de julho de 2016</strong>
+            </div>
+            <div>
+                <span>Alcance</span>
+                <strong>Todo o Poder Executivo do Município de São Paulo</strong>
+            </div>
+            <div>
+                <span>Sigla</span>
+                <strong>PMPI — Política Municipal para a População Imigrante</strong>
+            </div>
+        </div>
+
+        <div class="prose" appAnimate>
+            <span class="eyebrow">Do papel à prática</span>
+            <h2>Uma lei sem regulamento é uma intenção</h2>
+            <p class="lead">
+                Cinco meses depois de aprovada a lei municipal, o Decreto nº 57.533 respondeu à
+                pergunta que faltava: <em>quem faz o quê?</em>
+            </p>
+            <p>
+                O decreto define os procedimentos e as ações a serem adotados no âmbito do Poder
+                Executivo municipal para a implementação da PMPI. Ele distribui responsabilidades
+                entre as secretarias, estabelece diretrizes de atendimento e detalha os mecanismos
+                de participação da população imigrante.
+            </p>
+            <p>
+                Para quem acompanha migrantes na ponta, esse é o documento mais útil do conjunto: é
+                ele que permite dizer a um servidor público, com respaldo normativo, qual é a
+                obrigação do órgão em que ele trabalha.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head" appAnimate>
+            <span class="eyebrow">Eixos de implementação</span>
+            <h2>O que cada área do município deve garantir</h2>
+            <p>
+                O decreto organiza a política em eixos temáticos, atribuindo responsabilidades
+                setoriais e prevendo articulação intersecretarial.
+            </p>
+        </div>
+
+        <div class="grid grid--2">
+            @for (e of eixos; track e.area) {
+                <div class="card" appAnimate>
+                    <div class="card__icon"><i [class]="'fas ' + e.icon"></i></div>
+                    <h3>{{ e.area }}</h3>
+                    <p>{{ e.text }}</p>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head" appAnimate>
+            <span class="eyebrow">Destaques normativos</span>
+            <h2>Pontos que o SPM considera decisivos</h2>
+        </div>
+
+        <div class="law-article" appAnimate>
+            <span class="law-article__num">Fortalecimento de coletivos imigrantes</span>
+            <p>
+                O Poder Público municipal deve incentivar o fortalecimento e a articulação de
+                coletivos e associações de imigrantes e de organizações da sociedade civil que
+                promovam ações voltadas a essa população.
+            </p>
+            <p>Entre as iniciativas previstas:</p>
+            <ul>
+                <li>editais públicos de fomento;</li>
+                <li>oficinas de capacitação;</li>
+                <li>apoio a grupos que buscam constituir formalmente suas associações.</li>
+            </ul>
+        </div>
+
+        <div class="law-article" appAnimate>
+            <span class="law-article__num">Atendimento sem barreira documental</span>
+            <p>
+                Os serviços municipais não podem condicionar o atendimento à apresentação de
+                documento migratório específico. A situação migratória irregular não pode ser motivo
+                de recusa de acesso a serviço público municipal.
+            </p>
+        </div>
+
+        <div class="law-article" appAnimate>
+            <span class="law-article__num">Formação de servidores</span>
+            <p>
+                Prevê a capacitação continuada dos servidores municipais para o atendimento
+                intercultural, incluindo noções de legislação migratória e enfrentamento à
+                xenofobia.
+            </p>
+        </div>
+
+        <div class="law-article" appAnimate>
+            <span class="law-article__num">Produção de dados</span>
+            <p>
+                Determina a coleta e a sistematização de informações sobre a população imigrante
+                atendida pelos serviços municipais — condição para planejar políticas com base em
+                evidências.
+            </p>
+        </div>
+
+        <div class="law-article" appAnimate>
+            <span class="law-article__num">Conselho Municipal de Imigrantes</span>
+            <p>
+                Detalha o funcionamento do CMI, incluindo o processo eleitoral dos representantes da
+                sociedade civil e das comunidades imigrantes, garantindo que a política tenha
+                controle social permanente.
+            </p>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="grid grid--2">
+            <div class="card card--accent" appAnimate>
+                <div class="card__icon"><i class="fas fa-arrow-left-long"></i></div>
+                <h3>Leia primeiro a lei</h3>
+                <p>
+                    O decreto regulamenta a Lei nº 16.478/2016. Entender os princípios e objetivos
+                    da lei ajuda a interpretar corretamente o regulamento.
+                </p>
+                <a class="card__link" routerLink="/legislacao/lei-municipal-16478">
+                    Ir para a Lei nº 16.478/2016 <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+
+            <div class="card card--accent" appAnimate>
+                <div class="card__icon"><i class="fas fa-scale-balanced"></i></div>
+                <h3>E no plano federal?</h3>
+                <p>
+                    A Lei de Migração define os direitos válidos em todo o território nacional.
+                    Municípios podem ampliar — nunca restringir — essas garantias.
+                </p>
+                <a class="card__link" routerLink="/legislacao/lei-de-migracao">
+                    Ir para a Lei nº 13.445/2017 <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <div class="callout callout--action" appAnimate>
+            <i class="fas fa-book"></i>
+            <p>
+                <strong>Texto oficial.</strong> A íntegra do Decreto nº 57.533, de 15 de dezembro de
+                2016, está disponível no Catálogo de Legislação Municipal da Prefeitura de São
+                Paulo. Esta página é um resumo didático produzido pelo SPM.
+            </p>
+        </div>
+    </div>
+</section>
+
+<app-page-cta></app-page-cta>

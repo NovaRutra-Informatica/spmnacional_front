@@ -28,7 +28,7 @@ export class CountUpDirective implements OnInit {
     ) {}
 
     ngOnInit() {
-        if (isPlatformBrowser(this.platformId)) {
+        if (isPlatformBrowser(this.platformId) && typeof IntersectionObserver !== 'undefined') {
             this.createObserver();
         } else {
             this.renderer.setProperty(
