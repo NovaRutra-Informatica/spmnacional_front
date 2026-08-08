@@ -1,0 +1,106 @@
+<div class="admin-shell">
+    <div class="admin-backdrop" [class.is-open]="sidebarOpen" (click)="closeSidebar()"></div>
+
+    <aside class="admin-sidebar" [class.is-open]="sidebarOpen">
+        <div class="admin-brand">
+            <img src="logo-small-white.png" alt="SPM" />
+            <div>
+                <strong>SPM</strong>
+                <small>Painel administrativo</small>
+            </div>
+        </div>
+
+        <nav class="admin-nav">
+            <div class="admin-nav__label">Visão geral</div>
+            <a
+                routerLink="/admin"
+                routerLinkActive="is-active"
+                [routerLinkActiveOptions]="{ exact: true }"
+                (click)="closeSidebar()"
+            >
+                <i class="fas fa-gauge-high"></i> Painel
+            </a>
+
+            <div class="admin-nav__label">Conteúdo</div>
+            <a routerLink="/admin/noticias" routerLinkActive="is-active" (click)="closeSidebar()">
+                <i class="fas fa-newspaper"></i> Notícias
+                <span class="admin-nav__count">{{ news.total() }}</span>
+            </a>
+            <a routerLink="/admin/midia" routerLinkActive="is-active" (click)="closeSidebar()">
+                <i class="fas fa-photo-film"></i> Biblioteca de mídia
+            </a>
+
+            <div class="admin-nav__label">Pessoas e acessos</div>
+            <a routerLink="/admin/usuarios" routerLinkActive="is-active" (click)="closeSidebar()">
+                <i class="fas fa-users"></i> Usuários
+                <span class="admin-nav__count">{{ users.total() }}</span>
+            </a>
+            <a routerLink="/admin/acessos" routerLinkActive="is-active" (click)="closeSidebar()">
+                <i class="fas fa-shield-halved"></i> Perfis e permissões
+            </a>
+
+            <div class="admin-nav__label">Sistema</div>
+            <a
+                routerLink="/admin/configuracoes"
+                routerLinkActive="is-active"
+                (click)="closeSidebar()"
+            >
+                <i class="fas fa-gear"></i> Configurações
+            </a>
+        </nav>
+
+        <div class="admin-sidebar__footer">
+            <a routerLink="/" (click)="closeSidebar()">
+                <i class="fas fa-arrow-up-right-from-square"></i> Ver o site público
+            </a>
+            <a href="#" (click)="$event.preventDefault(); logout()">
+                <i class="fas fa-right-from-bracket"></i> Sair da conta
+            </a>
+        </div>
+    </aside>
+
+    <div class="admin-main">
+        <header class="admin-topbar">
+            <button class="admin-burger" (click)="toggleSidebar()" aria-label="Abrir menu">
+                <i class="fas fa-bars"></i>
+            </button>
+
+            <div class="admin-search">
+                <i class="fas fa-magnifying-glass"></i>
+                <input type="search" placeholder="Buscar notícias, usuários, arquivos…" />
+            </div>
+
+            <div class="admin-topbar__actions">
+                <button class="admin-icon-btn" aria-label="Notificações">
+                    <i class="fas fa-bell"></i>
+                    @if (pendingCount() > 0) {
+                        <span class="dot"></span>
+                    }
+                </button>
+                <a class="admin-icon-btn" routerLink="/" aria-label="Ver o site" title="Ver o site">
+                    <i class="fas fa-globe"></i>
+                </a>
+
+                <div class="admin-user">
+                    <span class="admin-user__avatar">{{ auth.user()?.initials }}</span>
+                    <span class="admin-user__info">
+                        <strong>{{ auth.user()?.name }}</strong>
+                        <span>{{ auth.user()?.role }}</span>
+                    </span>
+                    <button
+                        class="admin-icon-btn"
+                        (click)="logout()"
+                        aria-label="Sair"
+                        title="Sair da conta"
+                    >
+                        <i class="fas fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="admin-content">
+            <router-outlet></router-outlet>
+        </main>
+    </div>
+</div>

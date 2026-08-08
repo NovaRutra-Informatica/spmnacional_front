@@ -8,8 +8,10 @@
             entre povos.
         </p>
         <div class="hero-actions">
-            <button class="btn btn-cta">Faça sua Doação</button>
-            <button class="btn btn-outline-light">Conheça Nossa História</button>
+            <a class="btn btn-cta" routerLink="/como-ajudar">Faça sua Doação</a>
+            <a class="btn btn-outline-light" routerLink="/quem-somos/historia"
+                >Conheça Nossa História</a
+            >
         </div>
     </div>
     <div class="wave-bottom">
@@ -41,21 +43,33 @@
                     Oferecemos abrigo seguro, alimentação e suporte inicial para quem acaba de
                     chegar.
                 </p>
+                <a class="pillar-link" routerLink="/o-que-fazemos"
+                    >Saiba mais <i class="fas fa-arrow-right"></i
+                ></a>
             </div>
             <div class="pillar-card">
                 <div class="icon-box"><i class="fas fa-shield-alt"></i></div>
                 <h3>Proteger</h3>
                 <p>Defesa jurídica e garantia de direitos contra o tráfico humano.</p>
+                <a class="pillar-link" routerLink="/legislacao"
+                    >Saiba mais <i class="fas fa-arrow-right"></i
+                ></a>
             </div>
             <div class="pillar-card">
                 <div class="icon-box"><i class="fas fa-seedling"></i></div>
                 <h3>Promover</h3>
                 <p>Cursos de capacitação e língua portuguesa para autonomia.</p>
+                <a class="pillar-link" routerLink="/o-que-fazemos"
+                    >Saiba mais <i class="fas fa-arrow-right"></i
+                ></a>
             </div>
             <div class="pillar-card">
                 <div class="icon-box"><i class="fas fa-hands-helping"></i></div>
                 <h3>Integrar</h3>
                 <p>Construção de pontes culturais e inserção na comunidade.</p>
+                <a class="pillar-link" routerLink="/onde-estamos"
+                    >Saiba mais <i class="fas fa-arrow-right"></i
+                ></a>
             </div>
         </div>
     </div>
@@ -116,7 +130,7 @@
         </div>
         <div class="story-cta">
             <p class="text-white mb-4">Existem milhares de Marias esperando por um recomeço.</p>
-            <button class="btn btn-cta btn-lg">Quero transformar uma vida</button>
+            <a class="btn btn-cta btn-lg" routerLink="/como-ajudar">Quero transformar uma vida</a>
         </div>
     </div>
 </section>
@@ -152,12 +166,15 @@
                 <div class="news-body">
                     <span class="news-category">Ação Social</span>
                     <h3 class="news-title">
-                        <a href="#">Mutirão na fronteira garante cidadania</a>
+                        <a routerLink="/publicacoes/blog"
+                            >Mutirão na fronteira garante documentação a 380 famílias</a
+                        >
                     </h3>
                     <p class="news-excerpt">
-                        Ação conjunta garantiu documentação para migrantes em Roraima.
+                        Ação conjunta com a Defensoria Pública da União e a Polícia Federal
+                        regularizou famílias venezuelanas e Warao em Boa Vista.
                     </p>
-                    <a href="#" class="read-more-link">Ler mais →</a>
+                    <a routerLink="/publicacoes/blog" class="read-more-link">Ler mais →</a>
                 </div>
             </article>
 
@@ -170,13 +187,19 @@
                     "
                 ></div>
                 <div class="news-body">
-                    <span class="news-category">Legado</span>
-                    <h3 class="news-title"><a href="#">A inspiração de Padre Alfredinho</a></h3>
+                    <span class="news-category">Reflexão</span>
+                    <h3 class="news-title">
+                        <a routerLink="/publicacoes/blog/spm-40-anos"
+                            >40 anos de caminhada com quem migra</a
+                        >
+                    </h3>
                     <p class="news-excerpt">
-                        "O migrante não é um problema, é uma ponte." Conheça a história do nosso
-                        fundador.
+                        O que mudou nas rotas, no trabalho e na acolhida desde 1985 — e o que
+                        continua exatamente igual.
                     </p>
-                    <a href="#" class="read-more-link">Ler Biografia →</a>
+                    <a routerLink="/publicacoes/blog/spm-40-anos" class="read-more-link"
+                        >Ler artigo →</a
+                    >
                 </div>
             </article>
 
@@ -186,13 +209,19 @@
                     style="background-image: url('assets/house.jpg'); background-position: top"
                 ></div>
                 <div class="news-body">
-                    <span class="news-category">Projetos</span>
-                    <h3 class="news-title"><a href="#">Nova casa de acolhida em SP</a></h3>
+                    <span class="news-category">Semana do Migrante</span>
+                    <h3 class="news-title">
+                        <a routerLink="/semana-do-migrante/material-2026"
+                            >“Eu não tenho onde morar!”</a
+                        >
+                    </h3>
                     <p class="news-excerpt">
-                        Inauguramos mais um espaço para receber famílias em situação de
-                        vulnerabilidade.
+                        A 41ª Semana do Migrante coloca a moradia no centro do debate. Baixe os
+                        materiais de formação.
                     </p>
-                    <a href="#" class="read-more-link">Ler mais →</a>
+                    <a routerLink="/semana-do-migrante/material-2026" class="read-more-link"
+                        >Ver materiais →</a
+                    >
                 </div>
             </article>
         </div>

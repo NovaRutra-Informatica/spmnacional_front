@@ -1,0 +1,180 @@
+<app-page-hero
+    eyebrow="Prestação de contas"
+    title="Transparência"
+    subtitle="Cada real que chega ao SPM vem de alguém que confiou. Mostramos de onde vem, para onde vai e quem fiscaliza."
+    [crumbs]="[{ label: 'Transparência' }]"
+></app-page-hero>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Princípios</span>
+            <h2>Três compromissos que assumimos publicamente</h2>
+        </div>
+
+        <div class="grid grid--3">
+            <div class="card card--accent" appAnimate>
+                <div class="card__icon"><i class="fas fa-book-open-reader"></i></div>
+                <h3>Contas abertas</h3>
+                <p>
+                    Publicamos anualmente relatório de atividades e demonstrativo financeiro,
+                    disponíveis para download na página de documentos.
+                </p>
+            </div>
+            <div class="card card--accent delay-100" appAnimate>
+                <div class="card__icon"><i class="fas fa-users-viewfinder"></i></div>
+                <h3>Controle coletivo</h3>
+                <p>
+                    As prioridades de gasto são aprovadas em Assembleia Nacional, com delegados das
+                    equipes regionais e de base.
+                </p>
+            </div>
+            <div class="card card--accent delay-200" appAnimate>
+                <div class="card__icon"><i class="fas fa-file-shield"></i></div>
+                <h3>Auditoria externa</h3>
+                <p>
+                    Projetos financiados por agências parceiras são auditados de forma independente,
+                    conforme os termos de cada convênio.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container with-aside">
+        <div appAnimate>
+            <div class="section-head">
+                <span class="eyebrow">Aplicação dos recursos</span>
+                <h2>Para onde vão os recursos</h2>
+                <p>
+                    Distribuição média dos recursos executados no último exercício, considerando o
+                    conjunto dos projetos nacionais.
+                </p>
+            </div>
+
+            <div class="usage-list">
+                @for (item of aplicacao; track item.label) {
+                    <div class="usage-item">
+                        <div class="usage-item__head">
+                            <span>{{ item.label }}</span>
+                            <strong>{{ item.pct }}%</strong>
+                        </div>
+                        <div class="usage-bar">
+                            <div class="usage-bar__fill" [style.width.%]="item.pct"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <div class="callout">
+                <i class="fas fa-circle-info"></i>
+                <p>
+                    <strong>Os percentuais são indicativos</strong> e variam conforme os projetos
+                    vigentes em cada ano. Os valores auditados constam no demonstrativo financeiro
+                    publicado em <a routerLink="/quem-somos/documentos">Documentos</a>.
+                </p>
+            </div>
+        </div>
+
+        <aside class="aside-sticky">
+            <div class="aside-box">
+                <h4>Origem dos recursos</h4>
+                <ul>
+                    <li>Agências de cooperação internacional</li>
+                    <li>CNBB e coletas eclesiais</li>
+                    <li>Doações de pessoas físicas</li>
+                    <li>Convênios com poder público</li>
+                    <li>Campanhas pontuais e emergenciais</li>
+                </ul>
+            </div>
+
+            <div class="aside-box">
+                <h4>Documentos financeiros</h4>
+                <ul>
+                    <li>
+                        <a routerLink="/quem-somos/documentos">Relatório de atividades 2025 →</a>
+                    </li>
+                    <li>
+                        <a routerLink="/quem-somos/documentos">Demonstrativo financeiro 2025 →</a>
+                    </li>
+                    <li>
+                        <a routerLink="/quem-somos/documentos">Relatório de atividades 2024 →</a>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Rede de apoio</span>
+            <h2>Quem caminha conosco</h2>
+            <p>
+                Instituições eclesiais e agências de cooperação que sustentam projetos e campanhas
+                do SPM.
+            </p>
+        </div>
+
+        <div class="grid grid--4" appAnimate>
+            @for (p of parceiros; track p.name) {
+                <div class="partner-tile">
+                    <img [src]="p.img" [alt]="p.name" />
+                    <span>{{ p.name }}</span>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head section-head--center" appAnimate>
+            <span class="eyebrow">Integridade</span>
+            <h2>Como pedir informações ou fazer uma denúncia</h2>
+            <p>
+                Qualquer pessoa pode solicitar esclarecimentos sobre o uso de recursos ou relatar
+                conduta inadequada de agentes ligados ao SPM.
+            </p>
+        </div>
+
+        <div class="grid grid--3">
+            <div class="numbered-card" appAnimate>
+                <span class="numbered-card__num">01</span>
+                <h3>Envie o pedido</h3>
+                <p>
+                    Escreva para
+                    <strong>transparencia&#64;spmnacional.org.br</strong> descrevendo o que deseja
+                    saber. Não é preciso justificar o pedido.
+                </p>
+            </div>
+            <div class="numbered-card delay-100" appAnimate>
+                <span class="numbered-card__num">02</span>
+                <h3>Receba o protocolo</h3>
+                <p>
+                    O secretariado nacional confirma o recebimento em até 5 dias úteis e informa o
+                    prazo estimado de resposta.
+                </p>
+            </div>
+            <div class="numbered-card delay-200" appAnimate>
+                <span class="numbered-card__num">03</span>
+                <h3>Acompanhamento</h3>
+                <p>
+                    Denúncias são encaminhadas à Coordenação Nacional, que garante sigilo ao
+                    denunciante e retorno sobre as providências adotadas.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<app-page-cta
+    title="Transparência é o que torna a doação possível"
+    text="Se você conhece nossas contas e ainda assim quer somar, esse é o melhor tipo de apoio que existe."
+    primaryLabel="Quero apoiar"
+    primaryLink="/como-ajudar"
+    secondaryLabel="Ver documentos"
+    secondaryLink="/quem-somos/documentos"
+></app-page-cta>

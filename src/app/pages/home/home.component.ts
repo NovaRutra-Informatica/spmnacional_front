@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 import { CountUpDirective } from '../../shared/directives/count-up.directive';
 import { AnimateOnScrollDirective } from '../../shared/directives/animate-on-scroll.directive';
 
 @Component({
     selector: 'app-home',
     standalone: true,
-    imports: [CommonModule, CountUpDirective, AnimateOnScrollDirective],
+    imports: [CommonModule, RouterLink, CountUpDirective, AnimateOnScrollDirective],
     templateUrl: './home.component.html',
     styleUrl: './home.component.scss',
 })

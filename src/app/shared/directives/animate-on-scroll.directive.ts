@@ -14,6 +14,12 @@ export class AnimateOnScrollDirective implements OnInit {
 
     ngOnInit() {
         if (isPlatformBrowser(this.platformId)) {
+            // Ambientes sem IntersectionObserver (jsdom, navegadores antigos):
+            // mostra o conteúdo direto, sem animação.
+            if (typeof IntersectionObserver === 'undefined') {
+                return;
+            }
+
             this.renderer.addClass(this.el.nativeElement, 'hidden-element');
 
             const observer = new IntersectionObserver(

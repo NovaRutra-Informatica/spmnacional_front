@@ -1,0 +1,177 @@
+<div class="admin-page-head">
+    <div>
+        <div class="admin-crumb"><a routerLink="/admin">Painel</a> / Conteúdo</div>
+        <h1>Notícias</h1>
+        <p>
+            Gerencie tudo o que aparece no blog do site: crie, revise, agende, destaque na home ou
+            despublique.
+        </p>
+    </div>
+    <div class="admin-page-head__actions">
+        <a class="abtn abtn--ghost" routerLink="/publicacoes/blog">
+            <i class="fas fa-arrow-up-right-from-square"></i> Ver blog público
+        </a>
+        <a class="abtn abtn--action" routerLink="/admin/noticias/nova">
+            <i class="fas fa-plus"></i> Nova notícia
+        </a>
+    </div>
+</div>
+
+<div class="agrid agrid--4" style="margin-bottom: 1.5rem">
+    <div class="stat-tile is-success">
+        <span class="stat-tile__icon"><i class="fas fa-circle-check"></i></span>
+        <div>
+            <strong>{{ news.published() }}</strong>
+            <span>Publicadas</span>
+        </div>
+    </div>
+    <div class="stat-tile">
+        <span class="stat-tile__icon"><i class="fas fa-pen"></i></span>
+        <div>
+            <strong>{{ news.drafts() }}</strong>
+            <span>Rascunhos</span>
+        </div>
+    </div>
+    <div class="stat-tile is-warning">
+        <span class="stat-tile__icon"><i class="fas fa-eye"></i></span>
+        <div>
+            <strong>{{ news.inReview() }}</strong>
+            <span>Aguardando revisão</span>
+        </div>
+    </div>
+    <div class="stat-tile is-action">
+        <span class="stat-tile__icon"><i class="fas fa-clock"></i></span>
+        <div>
+            <strong>{{ news.scheduled() }}</strong>
+            <span>Agendadas</span>
+        </div>
+    </div>
+</div>
+
+<div class="acard">
+    <div class="atoolbar">
+        <input
+            class="atoolbar__search"
+            type="search"
+            placeholder="Buscar por título, autor ou tag…"
+            [value]="search()"
+            (input)="onSearch($any($event.target).value)"
+        />
+
+        <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+            @for (s of statuses; track s.value) {
+                <option [value]="s.value">{{ s.label }}</option>
+            }
+        </select>
+
+        <select [ngModel]="categoryFilter()" (ngModelChange)="categoryFilter.set($event)">
+            <option value="todas">Todas as categorias</option>
+            @for (c of news.categories; track c) {
+                <option [value]="c">{{ c }}</option>
+            }
+        </select>
+
+        <span class="atoolbar__spacer"></span>
+        <span style="font-size: 0.82rem; color: #7b8a9a">
+            {{ filtered().length }} de {{ news.total() }} registros
+        </span>
+    </div>
+
+    @if (filtered().length) {
+        <div class="atable-wrap">
+            <table class="atable">
+                <thead>
+                    <tr>
+                        <th>Publicação</th>
+                        <th>Categoria</th>
+                        <th>Data</th>
+                        <th>Visualizações</th>
+                        <th>Status</th>
+                        <th style="text-align: right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (item of filtered(); track item.id) {
+                        <tr>
+                            <td>
+                                <div class="atable__cell-media">
+                                    <span
+                                        class="atable__thumb"
+                                        [style.background-image]="'url(' + item.cover + ')'"
+                                    ></span>
+                                    <span>
+                                        <span class="atable__title">
+                                            @if (item.highlight) {
+                                                <i
+                                                    class="fas fa-star"
+                                                    style="color: #e0a800; margin-right: 0.35rem"
+                                                    title="Destaque na home"
+                                                ></i>
+                                            }
+                                            {{ item.title }}
+                                        </span>
+                                        <span class="atable__sub">/{{ item.slug }}</span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td>{{ item.category }}</td>
+                            <td>{{ item.date }}</td>
+                            <td>{{ item.views }}</td>
+                            <td>
+                                <span [class]="'abadge abadge--' + item.status">
+                                    {{ item.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="atable__actions">
+                                    <button
+                                        class="abtn abtn--ghost abtn--sm"
+                                        (click)="toggleHighlight(item)"
+                                        [title]="
+                                            item.highlight ? 'Remover destaque' : 'Destacar na home'
+                                        "
+                                    >
+                                        <i class="fas fa-star"></i>
+                                    </button>
+                                    <button
+                                        class="abtn abtn--ghost abtn--sm"
+                                        (click)="publish(item)"
+                                        [title]="
+                                            item.status === 'publicado' ? 'Despublicar' : 'Publicar'
+                                        "
+                                    >
+                                        <i
+                                            class="fas"
+                                            [class.fa-eye-slash]="item.status === 'publicado'"
+                                            [class.fa-paper-plane]="item.status !== 'publicado'"
+                                        ></i>
+                                    </button>
+                                    <a
+                                        class="abtn abtn--ghost abtn--sm"
+                                        routerLink="/admin/noticias/nova"
+                                        title="Editar"
+                                    >
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <button
+                                        class="abtn abtn--danger abtn--sm"
+                                        (click)="remove(item)"
+                                        title="Excluir"
+                                    >
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    } @else {
+        <div class="aempty">
+            <i class="fas fa-newspaper"></i>
+            <strong>Nenhuma notícia encontrada</strong>
+            <span>Ajuste os filtros ou crie uma nova publicação.</span>
+        </div>
+    }
+</div>

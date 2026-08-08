@@ -1,0 +1,161 @@
+<div class="admin-page-head">
+    <div>
+        <div class="admin-crumb"><a routerLink="/admin">Painel</a> / Pessoas e acessos</div>
+        <h1>Usuários</h1>
+        <p>
+            Quem tem acesso ao painel, com qual perfil e em qual regional. Desative contas que não
+            estão mais em uso.
+        </p>
+    </div>
+    <div class="admin-page-head__actions">
+        <a class="abtn abtn--ghost" routerLink="/admin/acessos">
+            <i class="fas fa-shield-halved"></i> Perfis e permissões
+        </a>
+        <a class="abtn abtn--action" routerLink="/admin/usuarios/novo">
+            <i class="fas fa-user-plus"></i> Convidar usuário
+        </a>
+    </div>
+</div>
+
+<div class="agrid agrid--4" style="margin-bottom: 1.5rem">
+    <div class="stat-tile">
+        <span class="stat-tile__icon"><i class="fas fa-users"></i></span>
+        <div>
+            <strong>{{ users.total() }}</strong>
+            <span>Contas cadastradas</span>
+        </div>
+    </div>
+    <div class="stat-tile is-success">
+        <span class="stat-tile__icon"><i class="fas fa-user-check"></i></span>
+        <div>
+            <strong>{{ users.active() }}</strong>
+            <span>Ativas</span>
+        </div>
+    </div>
+    <div class="stat-tile is-warning">
+        <span class="stat-tile__icon"><i class="fas fa-envelope"></i></span>
+        <div>
+            <strong>{{ users.pending() }}</strong>
+            <span>Convites pendentes</span>
+        </div>
+    </div>
+    <div class="stat-tile">
+        <span class="stat-tile__icon"><i class="fas fa-user-slash"></i></span>
+        <div>
+            <strong>{{ users.inactive() }}</strong>
+            <span>Desativadas</span>
+        </div>
+    </div>
+</div>
+
+<div class="acard">
+    <div class="atoolbar">
+        <input
+            class="atoolbar__search"
+            type="search"
+            placeholder="Buscar por nome, e-mail ou regional…"
+            [value]="search()"
+            (input)="onSearch($any($event.target).value)"
+        />
+
+        <select [ngModel]="roleFilter()" (ngModelChange)="roleFilter.set($event)">
+            <option value="todos">Todos os perfis</option>
+            @for (r of users.roleNames; track r) {
+                <option [value]="r">{{ r }}</option>
+            }
+        </select>
+
+        <select [ngModel]="statusFilter()" (ngModelChange)="statusFilter.set($event)">
+            <option value="todos">Todos os status</option>
+            <option value="ativo">Ativo</option>
+            <option value="pendente">Pendente</option>
+            <option value="inativo">Inativo</option>
+        </select>
+
+        <span class="atoolbar__spacer"></span>
+        <span style="font-size: 0.82rem; color: #7b8a9a">
+            {{ filtered().length }} de {{ users.total() }} contas
+        </span>
+    </div>
+
+    @if (filtered().length) {
+        <div class="atable-wrap">
+            <table class="atable">
+                <thead>
+                    <tr>
+                        <th>Usuário</th>
+                        <th>Perfil</th>
+                        <th>Regional</th>
+                        <th>Último acesso</th>
+                        <th>Status</th>
+                        <th style="text-align: right">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @for (user of filtered(); track user.id) {
+                        <tr>
+                            <td>
+                                <div class="atable__cell-media">
+                                    <span class="aavatar">{{ user.initials }}</span>
+                                    <span>
+                                        <span class="atable__title">{{ user.name }}</span>
+                                        <span class="atable__sub">{{ user.email }}</span>
+                                    </span>
+                                </div>
+                            </td>
+                            <td>{{ user.role }}</td>
+                            <td>{{ user.regional }}</td>
+                            <td class="atable__sub">{{ user.lastAccess }}</td>
+                            <td>
+                                <span [class]="'abadge abadge--' + user.status">
+                                    {{ user.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <div class="atable__actions">
+                                    <button
+                                        class="abtn abtn--ghost abtn--sm"
+                                        (click)="toggleStatus(user)"
+                                        [title]="
+                                            user.status === 'ativo'
+                                                ? 'Desativar acesso'
+                                                : 'Reativar acesso'
+                                        "
+                                    >
+                                        <i
+                                            class="fas"
+                                            [class.fa-user-slash]="user.status === 'ativo'"
+                                            [class.fa-user-check]="user.status !== 'ativo'"
+                                        ></i>
+                                    </button>
+                                    <a
+                                        class="abtn abtn--ghost abtn--sm"
+                                        routerLink="/admin/usuarios/novo"
+                                        title="Editar"
+                                    >
+                                        <i class="fas fa-pen"></i>
+                                    </a>
+                                    <button
+                                        class="abtn abtn--danger abtn--sm"
+                                        (click)="remove(user)"
+                                        [disabled]="isProtected(user)"
+                                        [style.opacity]="isProtected(user) ? 0.4 : 1"
+                                        title="Remover"
+                                    >
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    } @else {
+        <div class="aempty">
+            <i class="fas fa-users"></i>
+            <strong>Nenhum usuário encontrado</strong>
+            <span>Ajuste a busca ou os filtros de perfil e status.</span>
+        </div>
+    }
+</div>

@@ -1,13 +1,14 @@
-import { Component, HostListener, Inject, OnInit, PLATFORM_ID } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, HostListener, Inject, OnInit, PLATFORM_ID, signal } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
+import { filter } from 'rxjs/operators';
 import { HeaderComponent } from './pages/components/header/header.component';
 import { FooterComponent } from './pages/components/footer/footer.component';
 
 @Component({
     selector: 'app-root',
     standalone: true,
-    imports: [RouterOutlet, HeaderComponent, FooterComponent, CommonModule],
+    imports: [RouterOutlet, RouterLink, HeaderComponent, FooterComponent, CommonModule],
     templateUrl: './app.component.html',
     styleUrl: './app.component.scss',
 })
@@ -15,7 +16,21 @@ export class AppComponent implements OnInit {
     showBackToTop = false;
     cookiesAccepted = false;
 
-    constructor(@Inject(PLATFORM_ID) private platformId: Object) {}
+    /** Rotas do painel usam layout próprio, sem o cabeçalho e o rodapé públicos. */
+    readonly isAdminArea = signal(false);
+
+    constructor(
+        private router: Router,
+        @Inject(PLATFORM_ID) private platformId: Object,
+    ) {
+        this.isAdminArea.set(this.router.url.startsWith('/admin'));
+
+        this.router.events
+            .pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd))
+            .subscribe((event) => {
+                this.isAdminArea.set(event.urlAfterRedirects.startsWith('/admin'));
+            });
+    }
 
     ngOnInit() {
         if (isPlatformBrowser(this.platformId)) {

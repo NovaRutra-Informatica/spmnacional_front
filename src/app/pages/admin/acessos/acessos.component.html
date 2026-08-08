@@ -1,0 +1,200 @@
+<div class="admin-page-head">
+    <div>
+        <div class="admin-crumb"><a routerLink="/admin">Painel</a> / Pessoas e acessos</div>
+        <h1>Perfis e permissões</h1>
+        <p>
+            Defina o que cada perfil pode fazer no sistema e acompanhe o registro de acessos. As
+            alterações valem para todas as contas que usam o perfil.
+        </p>
+    </div>
+    <div class="admin-page-head__actions">
+        <a class="abtn abtn--ghost" routerLink="/admin/usuarios">
+            <i class="fas fa-users"></i> Ver usuários
+        </a>
+    </div>
+</div>
+
+<div class="anote">
+    <i class="fas fa-circle-info"></i>
+    <div>
+        <strong>Princípio do menor privilégio.</strong> Conceda apenas o necessário para a função.
+        Permissões de atendimento dão acesso a dados sensíveis de pessoas migrantes e devem ficar
+        restritas a quem assinou o termo de sigilo.
+    </div>
+</div>
+
+<div class="acard">
+    <div class="acard__head">
+        <div>
+            <h2>Matriz de permissões</h2>
+            <p>Clique nas células para conceder ou revogar cada permissão.</p>
+        </div>
+    </div>
+
+    <div class="atable-wrap">
+        <table class="perm-table">
+            <thead>
+                <tr>
+                    <th>Permissão</th>
+                    @for (role of users.roles(); track role.key) {
+                        <th>{{ role.name }}</th>
+                    }
+                </tr>
+            </thead>
+            <tbody>
+                @for (perm of users.permissionLabels; track perm.key) {
+                    <tr>
+                        <td>
+                            <div class="perm-table__label">
+                                <strong>{{ perm.label }}</strong>
+                                <span>{{ perm.hint }}</span>
+                            </div>
+                        </td>
+                        @for (role of users.roles(); track role.key) {
+                            <td>
+                                <button
+                                    class="perm-toggle"
+                                    [class.is-on]="role.permissions[perm.key]"
+                                    (click)="toggle(role.key, perm.key)"
+                                    [attr.aria-pressed]="role.permissions[perm.key]"
+                                    [title]="
+                                        role.permissions[perm.key]
+                                            ? 'Revogar permissão'
+                                            : 'Conceder permissão'
+                                    "
+                                >
+                                    <i
+                                        class="fas"
+                                        [class.fa-check]="role.permissions[perm.key]"
+                                        [class.fa-minus]="!role.permissions[perm.key]"
+                                    ></i>
+                                </button>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="agrid agrid--sidebar">
+    <div class="acard">
+        <div class="acard__head">
+            <div>
+                <h2>Registro de acessos</h2>
+                <p>Ações relevantes executadas no painel nos últimos dias.</p>
+            </div>
+            <select [ngModel]="levelFilter()" (ngModelChange)="levelFilter.set($event)">
+                <option value="todos">Todos os eventos</option>
+                <option value="info">Informativos</option>
+                <option value="alerta">Alertas</option>
+                <option value="critico">Críticos</option>
+            </select>
+        </div>
+
+        @if (filteredLog().length) {
+            <div class="atable-wrap">
+                <table class="atable">
+                    <thead>
+                        <tr>
+                            <th>Evento</th>
+                            <th>Usuário</th>
+                            <th>Origem</th>
+                            <th>Quando</th>
+                            <th>Nível</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @for (entry of filteredLog(); track entry.when + entry.action) {
+                            <tr>
+                                <td>
+                                    <span class="atable__title">{{ entry.action }}</span>
+                                    <span class="atable__sub">{{ entry.target }}</span>
+                                </td>
+                                <td class="atable__sub">{{ entry.user }}</td>
+                                <td class="atable__sub">{{ entry.ip }}</td>
+                                <td class="atable__sub">{{ entry.when }}</td>
+                                <td>
+                                    <span [class]="'abadge abadge--' + entry.level">
+                                        <i [class]="'fas ' + levelIcon(entry.level)"></i>
+                                        {{ entry.level }}
+                                    </span>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        } @else {
+            <div class="aempty">
+                <i class="fas fa-clipboard-list"></i>
+                <strong>Nenhum evento neste nível</strong>
+                <span>Selecione outro filtro para ver o registro.</span>
+            </div>
+        }
+    </div>
+
+    <div>
+        <div class="acard">
+            <div class="acard__head">
+                <div>
+                    <h3>Distribuição de perfis</h3>
+                    <p>Quantas contas usam cada perfil.</p>
+                </div>
+            </div>
+
+            @for (row of roleUsage(); track row.role.key) {
+                <div class="abar-row">
+                    <div class="abar-row__head">
+                        <span>{{ row.role.name }}</span>
+                        <strong>{{ row.count }}</strong>
+                    </div>
+                    <div class="abar"><div [style.width.%]="row.pct"></div></div>
+                </div>
+            }
+        </div>
+
+        <div class="acard">
+            <div class="acard__head">
+                <div>
+                    <h3>Descrição dos perfis</h3>
+                </div>
+            </div>
+
+            <ul class="activity-list">
+                @for (role of users.roles(); track role.key) {
+                    <li>
+                        <span class="activity-list__icon"><i class="fas fa-user-shield"></i></span>
+                        <div>
+                            <strong>{{ role.name }}</strong>
+                            <span>{{ role.description }}</span>
+                        </div>
+                    </li>
+                }
+            </ul>
+        </div>
+
+        <div class="acard">
+            <div class="acard__head">
+                <div><h3>Políticas de sessão</h3></div>
+            </div>
+
+            <label class="aswitch" style="margin-bottom: 1rem">
+                <input type="checkbox" checked />
+                <span class="aswitch__track"></span>
+                <span class="aswitch__label">Expirar sessão após 30 min de inatividade</span>
+            </label>
+            <label class="aswitch" style="margin-bottom: 1rem">
+                <input type="checkbox" checked />
+                <span class="aswitch__track"></span>
+                <span class="aswitch__label">Bloquear conta após 5 tentativas malsucedidas</span>
+            </label>
+            <label class="aswitch">
+                <input type="checkbox" />
+                <span class="aswitch__track"></span>
+                <span class="aswitch__label">Exigir verificação em duas etapas para todos</span>
+            </label>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,155 @@
+<app-page-hero
+    eyebrow="Área restrita"
+    title="Área do Atendente"
+    subtitle="Espaço reservado às equipes do SPM para gestão de conteúdo, registro de atendimentos e acompanhamento de casos."
+    [crumbs]="[{ label: 'Área do Atendente' }]"
+    [center]="true"
+    waveFill="#f8f9fa"
+></app-page-hero>
+
+<section class="section section--light">
+    <div class="container">
+        <div style="max-width: 480px; margin: 0 auto">
+            <div class="form-card">
+                <div style="text-align: center; margin-bottom: 2rem">
+                    <div
+                        class="card__icon card__icon--initials"
+                        style="margin: 0 auto 1.25rem; width: 68px; height: 68px; font-size: 1.4rem"
+                    >
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h2 style="font-size: 1.5rem; margin-bottom: 0.5rem">Acesso restrito</h2>
+                    <p style="color: var(--color-text-muted); font-size: 0.92rem; margin: 0">
+                        Use as credenciais fornecidas pela coordenação da sua regional.
+                    </p>
+                </div>
+
+                @if (error()) {
+                    <div
+                        class="callout callout--action"
+                        style="margin: 0 0 1.5rem; padding: 1rem 1.25rem"
+                    >
+                        <i class="fas fa-triangle-exclamation"></i>
+                        <p>{{ error() }}</p>
+                    </div>
+                }
+
+                <form (submit)="$event.preventDefault(); submit()">
+                    <div class="form-grid" style="grid-template-columns: 1fr">
+                        <div class="form-field">
+                            <label for="usuario">Usuário ou e-mail</label>
+                            <input
+                                id="usuario"
+                                type="text"
+                                name="usuario"
+                                autocomplete="username"
+                                [(ngModel)]="username"
+                                placeholder="seu.usuario"
+                            />
+                        </div>
+
+                        <div class="form-field">
+                            <label for="senha">Senha</label>
+                            <div style="position: relative">
+                                <input
+                                    id="senha"
+                                    name="senha"
+                                    autocomplete="current-password"
+                                    [type]="showPassword ? 'text' : 'password'"
+                                    [(ngModel)]="password"
+                                    placeholder="••••••••"
+                                />
+                                <button
+                                    type="button"
+                                    class="password-toggle"
+                                    (click)="togglePassword()"
+                                    [attr.aria-label]="
+                                        showPassword ? 'Ocultar senha' : 'Mostrar senha'
+                                    "
+                                >
+                                    <i
+                                        class="fas"
+                                        [class.fa-eye]="!showPassword"
+                                        [class.fa-eye-slash]="showPassword"
+                                    ></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-field">
+                            <button
+                                type="submit"
+                                class="btn btn--primary btn--block"
+                                [disabled]="loading()"
+                            >
+                                @if (loading()) {
+                                    <i class="fas fa-circle-notch fa-spin"></i> Entrando…
+                                } @else {
+                                    <i class="fas fa-right-to-bracket"></i> Entrar
+                                }
+                            </button>
+                        </div>
+                    </div>
+                </form>
+
+                <div
+                    style="
+                        margin-top: 1.75rem;
+                        padding-top: 1.5rem;
+                        border-top: 1px solid #f0f0f0;
+                        text-align: center;
+                    "
+                >
+                    <p style="font-size: 0.88rem; color: var(--color-text-muted); margin: 0">
+                        Esqueceu a senha ou ainda não tem acesso?
+                        <a
+                            routerLink="/fale-conosco"
+                            style="color: var(--color-action); font-weight: 600"
+                        >
+                            Fale com a coordenação
+                        </a>
+                    </p>
+                </div>
+            </div>
+
+            <div class="callout" style="margin-top: 2rem">
+                <i class="fas fa-shield-halved"></i>
+                <p>
+                    <strong>Dados de pessoas atendidas são sigilosos.</strong> O acesso a esta área
+                    é individual e registrado. Nunca compartilhe suas credenciais nem informações de
+                    atendimento fora dos canais oficiais do SPM.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-head section-head--center">
+            <span class="eyebrow">Não é da equipe?</span>
+            <h2>Talvez você esteja procurando por aqui</h2>
+        </div>
+
+        <div class="grid grid--3">
+            <a class="card" routerLink="/fale-conosco">
+                <div class="card__icon"><i class="fas fa-headset"></i></div>
+                <h3>Preciso de atendimento</h3>
+                <p>Orientação migratória, denúncias e encaminhamentos. Gratuito e sigiloso.</p>
+                <span class="card__link">Fale conosco <i class="fas fa-arrow-right"></i></span>
+            </a>
+            <a class="card" routerLink="/onde-estamos">
+                <div class="card__icon"><i class="fas fa-map-location-dot"></i></div>
+                <h3>Onde estamos</h3>
+                <p>Encontre a equipe do SPM mais próxima da sua cidade.</p>
+                <span class="card__link">Ver mapa <i class="fas fa-arrow-right"></i></span>
+            </a>
+            <a class="card" routerLink="/legislacao">
+                <div class="card__icon"><i class="fas fa-scale-balanced"></i></div>
+                <h3>Meus direitos</h3>
+                <p>O que a lei brasileira garante a quem migra — em linguagem acessível.</p>
+                <span class="card__link">Ver legislação <i class="fas fa-arrow-right"></i></span>
+            </a>
+        </div>
+    </div>
+</section>

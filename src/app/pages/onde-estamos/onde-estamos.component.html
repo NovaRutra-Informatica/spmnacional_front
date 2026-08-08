@@ -1,0 +1,140 @@
+<app-page-hero
+    eyebrow="Presença nacional"
+    title="Onde estamos"
+    subtitle="Uma rede de equipes regionais e de base espalhada por fronteiras, canaviais, portos e periferias de todo o Brasil."
+    [crumbs]="[{ label: 'Onde estamos' }]"
+    waveFill="#f8f9fa"
+></app-page-hero>
+
+<section class="section section--light">
+    <div class="container">
+        <div class="section-head" appAnimate>
+            <span class="eyebrow">Mapa da rede</span>
+            <h2>O SPM está onde a migração acontece</h2>
+            <p>
+                Não escolhemos os territórios por conveniência: estamos onde as rotas passam, onde o
+                trabalho explora e onde a chegada é mais difícil. Filtre por região para conhecer
+                cada equipe.
+            </p>
+        </div>
+
+        <ul class="pill-nav" appAnimate>
+            @for (r of regions; track r) {
+                <li>
+                    <button
+                        type="button"
+                        [class.is-active]="activeRegion === r"
+                        (click)="setRegion(r)"
+                    >
+                        {{ r }}
+                    </button>
+                </li>
+            }
+        </ul>
+
+        <div class="grid grid--3">
+            @for (r of filtered; track r.name) {
+                <div class="region-card" appAnimate>
+                    <span class="region-card__uf">{{ r.uf }} · {{ r.region }}</span>
+                    <h3>{{ r.name }}</h3>
+                    <p>{{ r.text }}</p>
+                    <ul>
+                        @for (f of r.focus; track f) {
+                            <li><i class="fas fa-circle-check"></i> {{ f }}</li>
+                        }
+                    </ul>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<section class="section section--brand">
+    <div class="container">
+        <div class="stat-band" appAnimate>
+            <div class="stat-band__item">
+                <strong>24</strong>
+                <span>Estados alcançados pela rede</span>
+            </div>
+            <div class="stat-band__item">
+                <strong>5</strong>
+                <span>Regiões do país com equipes ativas</span>
+            </div>
+            <div class="stat-band__item">
+                <strong>13</strong>
+                <span>Polos regionais de referência</span>
+            </div>
+            <div class="stat-band__item">
+                <strong>1985</strong>
+                <span>Ano em que a rede começou a se formar</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container with-aside">
+        <div class="prose prose--wide" appAnimate>
+            <span class="eyebrow">Como a rede funciona</span>
+            <h2>Autonomia local, plano nacional</h2>
+            <p>
+                Cada regional tem autonomia para definir prioridades a partir da realidade do seu
+                território. Uma equipe de fronteira precisa de mutirões de documentação; uma equipe
+                de região canavieira precisa de acompanhamento trabalhista; uma equipe urbana
+                precisa de moradia e escola.
+            </p>
+            <p>
+                O que une todas é o plano nacional aprovado em assembleia, a metodologia FIA e o
+                calendário comum — sobretudo a
+                <a routerLink="/semana-do-migrante">Semana do Migrante</a>, celebrada
+                simultaneamente em todo o país na terceira semana de junho.
+            </p>
+
+            <h3>Não encontrou sua cidade?</h3>
+            <p>
+                A rede do SPM é maior do que este mapa: muitas paróquias, casas de acolhida e
+                coletivos de migrantes atuam conosco sem constar aqui. Se você quer localizar a
+                equipe mais próxima — ou começar uma —, fale com o secretariado nacional.
+            </p>
+
+            <a class="btn btn--cta" routerLink="/fale-conosco">
+                <i class="fas fa-location-dot"></i> Encontrar uma equipe
+            </a>
+        </div>
+
+        <aside class="aside-sticky">
+            <div class="aside-box">
+                <h4>Parceiros no território</h4>
+                <ul>
+                    <li>Cáritas Brasileira e regionais</li>
+                    <li>Missionários e Missionárias de São Carlos (Scalabrinianos)</li>
+                    <li>Rede Clamor</li>
+                    <li>Missão Paz — São Paulo</li>
+                    <li>Comissão Pastoral da Terra</li>
+                    <li>Defensoria Pública da União</li>
+                </ul>
+            </div>
+
+            <div class="aside-box">
+                <h4>Precisa de ajuda agora?</h4>
+                <ul>
+                    <li><strong>Disque 100</strong> — Direitos Humanos</li>
+                    <li><strong>Disque 180</strong> — Central de Atendimento à Mulher</li>
+                    <li><strong>Disque 190</strong> — Emergências policiais</li>
+                    <li>
+                        <a routerLink="/fale-conosco">Fale com o SPM →</a>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+    </div>
+</section>
+
+<app-page-cta
+    title="Sua comunidade quer integrar a rede?"
+    text="Oferecemos formação, material e acompanhamento para paróquias, dioceses e coletivos que desejam iniciar um trabalho pastoral com migrantes."
+    primaryLabel="Quero começar"
+    primaryLink="/fale-conosco"
+    secondaryLabel="Ver o que fazemos"
+    secondaryLink="/o-que-fazemos"
+></app-page-cta>

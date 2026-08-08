@@ -1,0 +1,234 @@
+<div class="admin-page-head">
+    <div>
+        <div class="admin-crumb">
+            <a routerLink="/admin">Painel</a> / <a routerLink="/admin/noticias">Notícias</a> / Nova
+        </div>
+        <h1>Nova notícia</h1>
+        <p>Escreva, escolha a imagem de capa e defina se a publicação vai ao ar agora ou depois.</p>
+    </div>
+    <div class="admin-page-head__actions">
+        <a class="abtn abtn--ghost" routerLink="/admin/noticias">
+            <i class="fas fa-arrow-left"></i> Cancelar
+        </a>
+        <button class="abtn abtn--primary" (click)="save(false)">
+            <i class="fas fa-floppy-disk"></i> Salvar rascunho
+        </button>
+        <button class="abtn abtn--action" (click)="save(true)">
+            <i class="fas fa-paper-plane"></i> Publicar agora
+        </button>
+    </div>
+</div>
+
+@if (saved()) {
+    <div class="anote anote--success">
+        <i class="fas fa-circle-check"></i>
+        <div><strong>Publicação salva.</strong> Redirecionando para a lista de notícias…</div>
+    </div>
+}
+
+@if (error()) {
+    <div class="anote anote--warning">
+        <i class="fas fa-triangle-exclamation"></i>
+        <div><strong>Verifique o formulário.</strong> {{ error() }}</div>
+    </div>
+}
+
+<div class="agrid agrid--sidebar">
+    <div>
+        <div class="acard">
+            <div class="acard__head">
+                <div>
+                    <h2>Conteúdo</h2>
+                    <p>O texto que será exibido na página pública da notícia.</p>
+                </div>
+            </div>
+
+            <div class="afield">
+                <label for="titulo">Título</label>
+                <input
+                    id="titulo"
+                    type="text"
+                    [ngModel]="title"
+                    (ngModelChange)="onTitleChange($event)"
+                    placeholder="Ex.: Mutirão na fronteira garante documentação a 380 famílias"
+                />
+            </div>
+
+            <div class="afield">
+                <label for="slug">Endereço da página (slug)</label>
+                <input
+                    id="slug"
+                    type="text"
+                    [ngModel]="slug"
+                    (ngModelChange)="onSlugChange($event)"
+                    placeholder="mutirao-fronteira-380-familias"
+                />
+                <span class="afield__hint">
+                    spmnacional.org.br/publicacoes/blog/<strong>{{
+                        slug || 'endereco-da-pagina'
+                    }}</strong>
+                </span>
+            </div>
+
+            <div class="afield">
+                <label for="resumo">Resumo</label>
+                <textarea
+                    id="resumo"
+                    style="min-height: 100px"
+                    [(ngModel)]="excerpt"
+                    placeholder="Duas ou três linhas que aparecem nos cards do blog e nas redes sociais."
+                ></textarea>
+                <span class="afield__hint">{{ excerpt.length }} caracteres · ideal até 220</span>
+            </div>
+
+            <div class="afield" style="margin-bottom: 0">
+                <label for="conteudo">Texto completo</label>
+                <textarea
+                    id="conteudo"
+                    [(ngModel)]="content"
+                    placeholder="Escreva a matéria. Use uma linha em branco para separar parágrafos."
+                ></textarea>
+                <span class="afield__hint">{{ charCount }} caracteres</span>
+            </div>
+        </div>
+
+        <div class="acard">
+            <div class="acard__head">
+                <div>
+                    <h2>Imagem de capa</h2>
+                    <p>Envie um arquivo ou escolha uma imagem já existente no acervo.</p>
+                </div>
+            </div>
+
+            <div class="acover-preview" [style.background-image]="'url(' + cover + ')'">
+                @if (!cover) {
+                    <div class="acover-preview__empty">
+                        <i class="fas fa-image"></i>
+                        <span>Nenhuma capa selecionada</span>
+                    </div>
+                }
+            </div>
+
+            <label class="adropzone">
+                <i class="fas fa-cloud-arrow-up"></i>
+                <strong>Clique para enviar uma imagem</strong>
+                <span>JPG, PNG ou WebP · até 5 MB · recomendado 1200 × 675 px</span>
+                <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+            </label>
+
+            @if (uploadedName()) {
+                <div class="anote anote--success" style="margin: 1rem 0 0">
+                    <i class="fas fa-file-image"></i>
+                    <div>
+                        Arquivo carregado: <strong>{{ uploadedName() }}</strong>
+                    </div>
+                </div>
+            }
+
+            <p style="font-size: 0.78rem; color: #93a1af; margin: 1.25rem 0 0.6rem">
+                Ou escolha do acervo:
+            </p>
+            <div class="media-grid">
+                @for (path of covers; track path) {
+                    <button
+                        type="button"
+                        class="media-item"
+                        style="cursor: pointer; text-align: left; padding: 0; border-width: 2px"
+                        [style.border-color]="cover === path ? 'var(--color-action)' : '#e6ebf1'"
+                        (click)="pickCover(path)"
+                    >
+                        <span
+                            class="media-item__img"
+                            style="display: block"
+                            [style.background-image]="'url(' + path + ')'"
+                        ></span>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <div class="acard">
+            <div class="acard__head">
+                <div><h3>Publicação</h3></div>
+            </div>
+
+            <div class="afield">
+                <label for="status">Status</label>
+                <select id="status" [(ngModel)]="status">
+                    <option value="rascunho">Rascunho</option>
+                    <option value="revisao">Enviar para revisão</option>
+                    <option value="agendado">Agendado</option>
+                    <option value="publicado">Publicado</option>
+                </select>
+            </div>
+
+            <div class="afield">
+                <label for="data">Data de publicação</label>
+                <input id="data" type="date" [(ngModel)]="date" />
+            </div>
+
+            <label class="aswitch" style="margin-top: 0.5rem">
+                <input type="checkbox" [(ngModel)]="highlight" />
+                <span class="aswitch__track"></span>
+                <span class="aswitch__label">Destacar na página inicial</span>
+            </label>
+        </div>
+
+        <div class="acard">
+            <div class="acard__head">
+                <div><h3>Organização</h3></div>
+            </div>
+
+            <div class="afield">
+                <label for="categoria">Categoria</label>
+                <select id="categoria" [(ngModel)]="category">
+                    @for (c of news.categories; track c) {
+                        <option [value]="c">{{ c }}</option>
+                    }
+                </select>
+            </div>
+
+            <div class="afield" style="margin-bottom: 0">
+                <label for="tags">Tags</label>
+                <input
+                    id="tags"
+                    type="text"
+                    [(ngModel)]="tagsText"
+                    placeholder="moradia, fronteira, documentação"
+                />
+                <span class="afield__hint">Separe por vírgula.</span>
+                @if (tags.length) {
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.5rem">
+                        @for (tag of tags; track tag) {
+                            <span class="abadge abadge--info">{{ tag }}</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="acard">
+            <div class="acard__head">
+                <div><h3>Autoria</h3></div>
+            </div>
+            <div class="atable__cell-media">
+                <span class="aavatar">{{ auth.user()?.initials }}</span>
+                <span>
+                    <span class="atable__title">{{ auth.user()?.name }}</span>
+                    <span class="atable__sub">{{ auth.user()?.role }}</span>
+                </span>
+            </div>
+        </div>
+
+        <div class="anote">
+            <i class="fas fa-circle-info"></i>
+            <div>
+                <strong>Protótipo.</strong> As publicações criadas aqui ficam guardadas apenas na
+                memória do navegador e somem ao recarregar a página, já que ainda não há backend
+                conectado.
+            </div>
+        </div>
+    </div>
+</div>

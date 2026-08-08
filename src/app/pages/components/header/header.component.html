@@ -2,31 +2,90 @@
     <div class="container header-wrapper">
         <div class="logo-area">
             <a routerLink="/" class="brand-link" (click)="closeMenu()">
-                <img width="50" src="logo-small-white.png" alt="Logo SPM" />
+                <img width="52" src="logo-small-white.png" alt="Serviço Pastoral dos Migrantes" />
+                <span class="brand-text">
+                    <strong>SPM</strong>
+                    <small>Serviço Pastoral dos Migrantes</small>
+                </span>
             </a>
         </div>
 
-        <button class="mobile-toggle" (click)="toggleMenu()" aria-label="Abrir Menu">
+        <button
+            class="mobile-toggle"
+            (click)="toggleMenu()"
+            [attr.aria-expanded]="isMenuOpen"
+            aria-label="Abrir menu de navegação"
+        >
             <i class="fas" [class.fa-bars]="!isMenuOpen" [class.fa-times]="isMenuOpen"></i>
         </button>
 
-        <nav class="nav-menu" [class.active]="isMenuOpen">
-            <ul>
-                <li><a routerLink="/" routerLinkActive="active" (click)="closeMenu()">Home</a></li>
-                <li><a routerLink="/quem-somos" (click)="closeMenu()">Quem Somos</a></li>
-                <li><a routerLink="/sobre" (click)="closeMenu()">Sobre Nós</a></li>
-                <li><a routerLink="/impacto" (click)="closeMenu()">Impacto</a></li>
-                <li><a routerLink="/noticias" (click)="closeMenu()">Notícias</a></li>
-                <li><a routerLink="/contato" (click)="closeMenu()">Contato</a></li>
+        <nav class="nav-menu" [class.active]="isMenuOpen" aria-label="Navegação principal">
+            <ul class="nav-list">
+                @for (item of navItems; track item.label) {
+                    <li class="nav-item" [class.has-children]="item.children">
+                        @if (!item.children) {
+                            <a
+                                [routerLink]="item.link"
+                                routerLinkActive="active"
+                                [routerLinkActiveOptions]="{ exact: !!item.exact }"
+                                (click)="closeMenu()"
+                            >
+                                {{ item.label }}
+                            </a>
+                        } @else {
+                            <button
+                                class="nav-trigger"
+                                type="button"
+                                (click)="toggleSubmenu(item.label)"
+                                [attr.aria-expanded]="openSubmenu === item.label"
+                            >
+                                {{ item.label }}
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+
+                            <div
+                                class="dropdown"
+                                [class.is-open]="openSubmenu === item.label"
+                                role="menu"
+                            >
+                                @for (child of item.children; track child.link) {
+                                    <a
+                                        class="dropdown-link"
+                                        [routerLink]="child.link"
+                                        routerLinkActive="active"
+                                        (click)="closeMenu()"
+                                        role="menuitem"
+                                    >
+                                        <strong>{{ child.label }}</strong>
+                                        @if (child.desc) {
+                                            <small>{{ child.desc }}</small>
+                                        }
+                                    </a>
+                                }
+                            </div>
+                        }
+                    </li>
+                }
+
+                <li class="nav-item mobile-only-block">
+                    <a class="nav-secure" routerLink="/atendente" (click)="closeMenu()">
+                        <i class="fas fa-lock"></i> Área do Atendente
+                    </a>
+                </li>
 
                 <li class="mobile-only-btn">
-                    <a href="#" class="btn-donate-mobile">Como Ajudar</a>
+                    <a routerLink="/como-ajudar" class="btn-donate-mobile" (click)="closeMenu()">
+                        Como Ajudar
+                    </a>
                 </li>
             </ul>
         </nav>
 
         <div class="header-actions desktop-only">
-            <a href="#" class="btn-donate">Como Ajudar</a>
+            <a routerLink="/atendente" class="btn-secure" title="Área restrita do atendente">
+                <i class="fas fa-lock"></i>
+            </a>
+            <a routerLink="/como-ajudar" class="btn-donate">Como Ajudar</a>
         </div>
     </div>
 </header>

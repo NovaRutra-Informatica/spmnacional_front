@@ -1,0 +1,119 @@
+<div class="admin-page-head">
+    <div>
+        <div class="admin-crumb"><a routerLink="/admin">Painel</a> / Conteúdo</div>
+        <h1>Biblioteca de mídia</h1>
+        <p>
+            Imagens usadas nas notícias e arquivos disponibilizados para download no site — como os
+            subsídios da Semana do Migrante.
+        </p>
+    </div>
+    <div class="admin-page-head__actions">
+        <label class="abtn abtn--action" style="cursor: pointer">
+            <i class="fas fa-cloud-arrow-up"></i> Enviar arquivos
+            <input type="file" multiple hidden (change)="onUpload($event)" />
+        </label>
+    </div>
+</div>
+
+@if (uploadFeedback()) {
+    <div class="anote anote--success">
+        <i class="fas fa-circle-check"></i>
+        <div>{{ uploadFeedback() }}</div>
+    </div>
+}
+
+<div class="agrid agrid--3" style="margin-bottom: 1.5rem">
+    <div class="stat-tile">
+        <span class="stat-tile__icon"><i class="fas fa-photo-film"></i></span>
+        <div>
+            <strong>{{ files().length }}</strong>
+            <span>Arquivos na biblioteca</span>
+        </div>
+    </div>
+    <div class="stat-tile is-success">
+        <span class="stat-tile__icon"><i class="fas fa-image"></i></span>
+        <div>
+            <strong>{{ imageCount() }}</strong>
+            <span>Imagens</span>
+        </div>
+    </div>
+    <div class="stat-tile is-action">
+        <span class="stat-tile__icon"><i class="fas fa-file-pdf"></i></span>
+        <div>
+            <strong>{{ docCount() }}</strong>
+            <span>Documentos</span>
+        </div>
+    </div>
+</div>
+
+<div class="acard">
+    <div class="atoolbar">
+        <select [ngModel]="typeFilter()" (ngModelChange)="typeFilter.set($event)">
+            <option value="todos">Todos os tipos</option>
+            <option value="imagem">Imagens</option>
+            <option value="documento">Documentos</option>
+        </select>
+        <span class="atoolbar__spacer"></span>
+        <span style="font-size: 0.82rem; color: #7b8a9a"> {{ filtered().length }} arquivo(s) </span>
+    </div>
+
+    <label class="adropzone" style="margin-bottom: 1.5rem">
+        <i class="fas fa-cloud-arrow-up"></i>
+        <strong>Arraste arquivos ou clique para enviar</strong>
+        <span>Imagens (JPG, PNG, WebP) e documentos (PDF) · até 20 MB por arquivo</span>
+        <input type="file" multiple (change)="onUpload($event)" />
+    </label>
+
+    @if (filtered().length) {
+        <div class="media-grid">
+            @for (file of filtered(); track file.name + file.uploadedAt) {
+                <div class="media-item">
+                    @if (file.type === 'imagem' && file.url) {
+                        <div
+                            class="media-item__img"
+                            [style.background-image]="'url(' + file.url + ')'"
+                        ></div>
+                    } @else {
+                        <div
+                            class="media-item__img"
+                            style="
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                color: #c2185b;
+                                font-size: 2rem;
+                            "
+                        >
+                            <i class="fas fa-file-pdf"></i>
+                        </div>
+                    }
+                    <div class="media-item__body">
+                        <strong>{{ file.name }}</strong>
+                        <span>{{ file.size }} · {{ file.uploadedAt }}</span>
+                        <button
+                            class="abtn abtn--danger abtn--sm abtn--block"
+                            style="margin-top: 0.6rem"
+                            (click)="remove(file)"
+                        >
+                            <i class="fas fa-trash"></i> Remover
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+    } @else {
+        <div class="aempty">
+            <i class="fas fa-photo-film"></i>
+            <strong>Nenhum arquivo neste filtro</strong>
+            <span>Envie um arquivo ou mude o tipo selecionado.</span>
+        </div>
+    }
+</div>
+
+<div class="anote">
+    <i class="fas fa-circle-info"></i>
+    <div>
+        <strong>Protótipo.</strong> Os arquivos enviados aqui ficam apenas na memória do navegador —
+        não há armazenamento em servidor conectado ainda.
+    </div>
+</div>
