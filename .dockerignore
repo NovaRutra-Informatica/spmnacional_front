@@ -1,0 +1,19 @@
+node_modules
+.next
+out
+dist
+storage
+# O client do Prisma é sempre gerado dentro da imagem.
+lib/generated
+.git
+.github
+.idea
+.vscode
+legacy-angular
+npm-debug.log*
+.env*.local
+Dockerfile
+docker-compose.yml
+.dockerignore
+README.md
+*.tsbuildinfo

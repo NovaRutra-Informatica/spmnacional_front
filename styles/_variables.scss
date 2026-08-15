@@ -1,0 +1,60 @@
+@use 'sass:color';
+
+/* Reset básico e Fontes */
+
+:root {
+    /* Paleta SPM Nacional */
+    --color-brand-primary: #004a99; /* Azul Escuro Institucional */
+    --color-brand-accent: #007acc; /* Azul Claro */
+    --color-action: #d4005e; /* Magenta/Vermelho (Botões) */
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f4f4f4;
+    --color-text-main: #333333;
+    --color-text-muted: #767676;
+
+    /* Layout */
+    --container-width: 1200px;
+    --header-height: 80px;
+    --border-radius: 8px;
+}
+
+body {
+    font-family: 'Open Sans', sans-serif;
+    color: var(--color-text-main);
+    background-color: var(--color-bg-secondary);
+    margin: 0;
+    line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+h4 {
+    font-family: 'Merriweather', serif;
+    color: var(--color-brand-primary);
+    margin-top: 0;
+}
+
+/* Utilitário de Container Centralizado */
+.container {
+    max-width: var(--container-width);
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Botão Padrão */
+.btn-primary {
+    background-color: var(--color-action);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background 0.3s;
+    border: none;
+    cursor: pointer;
+
+    &:hover {
+        background-color: color.adjust(#d4005e, $lightness: -10%);
+    }
+}

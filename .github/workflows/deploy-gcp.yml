@@ -1,0 +1,186 @@
+# =========================================================
+# SPM Nacional — deploy no Google Cloud (Cloud Run)
+#
+# Autenticação por Workload Identity Federation: o GitHub apresenta um token
+# OIDC de vida curta e o Google devolve credencial temporária. Não existe
+# chave JSON de conta de serviço em lugar nenhum — nem em segredo do
+# repositório —, então não há o que vazar nem o que rotacionar.
+#
+# A infraestrutura que este workflow espera encontrar pronta está em
+# infra/terraform. Rode o terraform antes do primeiro deploy.
+#
+# Ordem das etapas (importa): imagem -> migração -> nova revisão.
+# A migração roda ANTES do código novo entrar no ar, então toda migração
+# precisa ser compatível com a versão que ainda está rodando (adicionar
+# coluna, não remover; renomear em dois passos).
+# =========================================================
+
+name: Deploy no Google Cloud
+
+on:
+    push:
+        branches:
+            - prod
+    workflow_dispatch:
+
+# Um deploy por vez. Dois `gcloud run deploy` simultâneos no mesmo serviço
+# criam revisões concorrentes e o tráfego acaba numa delas por acaso.
+concurrency:
+    group: deploy-gcp
+    cancel-in-progress: false
+
+env:
+    PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+    REGION: ${{ vars.GCP_REGION }}
+    REPO: ${{ vars.GCP_ARTIFACT_REPO }}
+    SERVICE: ${{ vars.GCP_RUN_SERVICE }}
+    MIGRATE_JOB: ${{ vars.GCP_RUN_MIGRATE_JOB }}
+
+jobs:
+    deploy:
+        name: Build, migração e deploy
+        runs-on: ubuntu-latest
+
+        permissions:
+            contents: read
+            # Sem isto o job não consegue pedir o token OIDC ao GitHub e a
+            # federação falha com "unable to get credentials".
+            id-token: write
+
+        steps:
+            - name: Conferir a branch
+              # A condição de atributo do provider no Google só aceita
+              # refs/heads/prod. Falhar aqui dá uma mensagem legível em vez de
+              # um erro de permissão no passo de autenticação.
+              run: |
+                  set -euo pipefail
+                  if [ "${GITHUB_REF}" != "refs/heads/prod" ]; then
+                      echo "::error::O deploy só é autorizado a partir da branch prod (ref atual: ${GITHUB_REF})."
+                      exit 1
+                  fi
+
+            - name: Conferir a configuração do repositório
+              run: |
+                  set -euo pipefail
+                  faltando=""
+                  for nome in PROJECT_ID REGION REPO SERVICE MIGRATE_JOB; do
+                      if [ -z "${!nome}" ]; then
+                          faltando="${faltando} ${nome}"
+                      fi
+                  done
+                  if [ -n "${faltando}" ]; then
+                      echo "::error::Variáveis de repositório ausentes:${faltando}. Rode 'terraform output github_actions_config'."
+                      exit 1
+                  fi
+
+            - name: Checkout do código
+              uses: actions/checkout@v4
+
+            - name: Autenticar no Google Cloud (OIDC)
+              uses: google-github-actions/auth@v2
+              with:
+                  workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+                  service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
+
+            - name: Instalar o gcloud
+              uses: google-github-actions/setup-gcloud@v2
+              with:
+                  project_id: ${{ env.PROJECT_ID }}
+
+            - name: Autorizar o Docker no Artifact Registry
+              run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+
+            - name: Conferir se a infraestrutura existe
+              # `gcloud run deploy` cria o serviço se ele não existir — e criaria
+              # sem segredo, sem conta de serviço e sem Cloud SQL. Melhor parar.
+              run: |
+                  set -euo pipefail
+                  gcloud run services describe "${SERVICE}" --region "${REGION}" >/dev/null \
+                      || { echo "::error::Serviço ${SERVICE} não existe. Rode o terraform em infra/terraform primeiro."; exit 1; }
+                  gcloud run jobs describe "${MIGRATE_JOB}" --region "${REGION}" >/dev/null \
+                      || { echo "::error::Job ${MIGRATE_JOB} não existe. Rode o terraform em infra/terraform primeiro."; exit 1; }
+
+            - name: Montar os nomes das imagens
+              id: img
+              run: |
+                  set -euo pipefail
+                  base="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
+                  sha="${GITHUB_SHA::7}"
+                  {
+                      echo "app=${base}/${SERVICE}:${sha}"
+                      echo "app_latest=${base}/${SERVICE}:latest"
+                      echo "migrator=${base}/${MIGRATE_JOB}:${sha}"
+                      echo "migrator_latest=${base}/${MIGRATE_JOB}:latest"
+                      echo "sha=${sha}"
+                  } >> "$GITHUB_OUTPUT"
+
+            - name: Configurar Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Build e push da imagem da aplicação
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  target: runner
+                  push: true
+                  tags: |
+                      ${{ steps.img.outputs.app }}
+                      ${{ steps.img.outputs.app_latest }}
+                  # Escopo por imagem: sem ele os dois builds gravam no mesmo
+                  # cache do Actions e um sobrescreve o do outro a cada deploy,
+                  # o que anula o cache em vez de acelerá-lo.
+                  cache-from: type=gha,scope=app
+                  cache-to: type=gha,mode=max,scope=app
+                  # Sem atestação: o manifesto extra que ela cria confunde o
+                  # Cloud Run na hora de resolver a imagem.
+                  provenance: false
+
+            - name: Build e push da imagem de migração
+              uses: docker/build-push-action@v6
+              with:
+                  context: .
+                  target: migrator
+                  push: true
+                  tags: |
+                      ${{ steps.img.outputs.migrator }}
+                      ${{ steps.img.outputs.migrator_latest }}
+                  cache-from: type=gha,scope=migrator
+                  cache-to: type=gha,mode=max,scope=migrator
+                  provenance: false
+
+            - name: Aplicar as migrações (Cloud Run Job)
+              # `--wait` devolve código de saída diferente de zero se a migração
+              # falhar, e aí o deploy nem chega a acontecer.
+              run: |
+                  set -euo pipefail
+                  gcloud run jobs update "${MIGRATE_JOB}" \
+                      --region "${REGION}" \
+                      --image "${{ steps.img.outputs.migrator }}" \
+                      --quiet
+                  gcloud run jobs execute "${MIGRATE_JOB}" \
+                      --region "${REGION}" \
+                      --wait
+
+            - name: Publicar a nova revisão (Cloud Run)
+              id: deploy
+              run: |
+                  set -euo pipefail
+                  gcloud run deploy "${SERVICE}" \
+                      --region "${REGION}" \
+                      --image "${{ steps.img.outputs.app }}" \
+                      --quiet
+                  url="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --format='value(status.url)')"
+                  echo "url=${url}" >> "$GITHUB_OUTPUT"
+
+            - name: Resumo do deploy
+              run: |
+                  {
+                      echo "### Deploy concluído"
+                      echo ""
+                      echo "| Item | Valor |"
+                      echo "| --- | --- |"
+                      echo "| Commit | \`${{ steps.img.outputs.sha }}\` |"
+                      echo "| Imagem | \`${{ steps.img.outputs.app }}\` |"
+                      echo "| Serviço | \`${SERVICE}\` (${REGION}) |"
+                      echo "| URL | ${{ steps.deploy.outputs.url }} |"
+                  } >> "$GITHUB_STEP_SUMMARY"

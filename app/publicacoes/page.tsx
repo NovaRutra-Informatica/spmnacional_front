@@ -1,0 +1,149 @@
+import type { Metadata } from 'next';
+import Animate from '@/components/Animate';
+import PageCta from '@/components/PageCta';
+import PageHero from '@/components/PageHero';
+import AnimateLink from '@/components/AnimateLink';
+
+export const metadata: Metadata = { title: 'Publicações' };
+
+export default function PublicacoesPage() {
+    return (
+        <>
+            <PageHero
+                eyebrow="Central de conteúdo"
+                title="Publicações"
+                subtitle="Artigos, reflexões, editais, testemunhos e materiais de formação produzidos pela rede do Serviço Pastoral dos Migrantes."
+                crumbs={[{ label: 'Publicações' }]}
+            />
+
+            <section className="section">
+                <div className="container">
+                    <Animate className="section-head section-head--center">
+                        <span className="eyebrow">Por onde começar</span>
+                        <h2>Escolha o tipo de conteúdo</h2>
+                        <p>
+                            Reunimos em um só lugar tudo o que publicamos — do texto-base da Semana
+                            do Migrante às histórias contadas por quem viveu a travessia.
+                        </p>
+                    </Animate>
+
+                    <div className="grid grid--3">
+                        <AnimateLink className="card card--accent" href="/publicacoes/blog">
+                            <div className="card__icon">
+                                <i className="fas fa-newspaper"></i>
+                            </div>
+                            <h3>Blog e Notícias</h3>
+                            <p>
+                                Artigos, análises de conjuntura, notas públicas e as reflexões que
+                                acompanham a caminhada do SPM.
+                            </p>
+                            <span className="card__link">
+                                Ler o blog <i className="fas fa-arrow-right"></i>
+                            </span>
+                        </AnimateLink>
+
+                        <AnimateLink
+                            className="card card--accent delay-100"
+                            href="/publicacoes/editais"
+                        >
+                            <div className="card__icon">
+                                <i className="fas fa-bullhorn"></i>
+                            </div>
+                            <h3>Editais</h3>
+                            <p>
+                                Chamadas públicas, processos seletivos, convites para projetos e
+                                oportunidades abertas à rede.
+                            </p>
+                            <span className="card__link">
+                                Ver editais <i className="fas fa-arrow-right"></i>
+                            </span>
+                        </AnimateLink>
+
+                        <AnimateLink
+                            className="card card--accent delay-200"
+                            href="/publicacoes/testemunhos"
+                        >
+                            <div className="card__icon">
+                                <i className="fas fa-comment-dots"></i>
+                            </div>
+                            <h3>Testemunhos</h3>
+                            <p>
+                                Histórias em primeira pessoa. Quem migra fala — e a gente escuta
+                                antes de escrever qualquer coisa.
+                            </p>
+                            <span className="card__link">
+                                Ler histórias <i className="fas fa-arrow-right"></i>
+                            </span>
+                        </AnimateLink>
+                    </div>
+                </div>
+            </section>
+
+            <section className="section section--light">
+                <div className="container">
+                    <Animate className="section-head section-head--center">
+                        <span className="eyebrow">Materiais de formação</span>
+                        <h2>Subsídios para comunidades e escolas</h2>
+                        <p>
+                            Todo ano produzimos material de formação para a Semana do Migrante e
+                            para o trabalho cotidiano das equipes de base.
+                        </p>
+                    </Animate>
+
+                    <div className="grid grid--2">
+                        <AnimateLink className="card" href="/semana-do-migrante">
+                            <div className="card__icon">
+                                <i className="fas fa-calendar-days"></i>
+                            </div>
+                            <h3>Semana do Migrante</h3>
+                            <p>
+                                Textos-base, cartazes, roteiros de celebração, círculos bíblicos e
+                                novenas de cada edição — de 2024 a 2026.
+                            </p>
+                            <span className="card__link">
+                                Acessar materiais <i className="fas fa-arrow-right"></i>
+                            </span>
+                        </AnimateLink>
+
+                        <AnimateLink className="card delay-100" href="/quem-somos/documentos">
+                            <div className="card__icon">
+                                <i className="fas fa-folder-open"></i>
+                            </div>
+                            <h3>Documentos institucionais</h3>
+                            <p>
+                                Estatuto, cartas de assembleia, notas públicas, cartilhas de
+                                direitos e relatórios anuais.
+                            </p>
+                            <span className="card__link">
+                                Acessar acervo <i className="fas fa-arrow-right"></i>
+                            </span>
+                        </AnimateLink>
+                    </div>
+                </div>
+            </section>
+
+            <section className="section">
+                <div className="container">
+                    <Animate className="callout">
+                        <i className="fas fa-copyright"></i>
+                        <p>
+                            <strong>Pode usar, pode copiar, pode multiplicar.</strong> Nossos
+                            materiais de formação são de livre reprodução para fins pastorais,
+                            educativos e não comerciais. Pedimos apenas que a autoria do Serviço
+                            Pastoral dos Migrantes seja citada.
+                        </p>
+                    </Animate>
+                </div>
+            </section>
+
+            <PageCta
+                title="Quer receber nossas publicações?"
+                text="Assine o boletim do SPM e receba, todo mês, artigos, editais e materiais de formação diretamente no seu e-mail."
+                primaryLabel="Assinar boletim"
+                primaryLink="/fale-conosco"
+                secondaryLabel="Ver o blog"
+                secondaryLink="/publicacoes/blog"
+            />
+        </>
+    );
+}
