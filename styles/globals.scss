@@ -1,0 +1,17 @@
+// =========================================================
+// SPM Nacional — folha de estilo global
+//
+// A ordem importa: variáveis e fontes primeiro, depois a base,
+// o sistema de páginas internas, os componentes de chrome do site
+// e, por último, os estilos específicos da home e do painel.
+// =========================================================
+
+@use 'variables';
+@use 'fonts';
+@use 'base';
+@use 'pages';
+@use 'header';
+@use 'footer';
+@use 'chrome';
+@use 'home';
+@use 'admin';

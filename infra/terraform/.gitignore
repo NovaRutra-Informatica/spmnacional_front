@@ -1,0 +1,26 @@
+# Diretório de trabalho do terraform (providers baixados, plugins).
+.terraform/
+.terraform.tfstate.lock.info
+
+# Estado local. Em produção o estado fica no bucket GCS (ver versions.tf) e
+# contém senha do banco, AUTH_SECRET e ENCRYPTION_KEY — nunca no git.
+*.tfstate
+*.tfstate.*
+
+# Configuração da instalação — o exemplo fica versionado, o real não.
+terraform.tfvars
+*.auto.tfvars
+
+# Planos salvos podem conter valores sensíveis.
+*.tfplan
+
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# O .terraform.lock.hcl DEVE ser versionado: é ele que garante que todo mundo
+# use exatamente a mesma versão de provider.
+!.terraform.lock.hcl

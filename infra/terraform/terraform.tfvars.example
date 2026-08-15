@@ -1,0 +1,72 @@
+# =========================================================
+# SPM Nacional — exemplo de configuração
+#
+# Copie para `terraform.tfvars` e ajuste. O arquivo real NÃO vai para o git
+# (ver .gitignore); ele não guarda segredo, mas guarda o ID do projeto e o
+# repositório autorizado a fazer deploy.
+# =========================================================
+
+# ---------- Obrigatórias ----------
+
+project_id        = "spm-nacional-prod"
+github_repository = "spm-nacional/spmnacional_front"
+
+# ---------- Região ----------
+# São Paulo custa ~1,5x us-central1 e mantém os dados no Brasil.
+region = "southamerica-east1"
+
+# ---------- Domínio ----------
+# Deixe vazio no primeiro apply. Depois de mapear o domínio no Cloud Run,
+# preencha e rode o apply de novo para que APP_URL fique correto.
+app_domain = ""
+# app_domain = "spmnacional.org.br"
+
+# ---------- Aplicação ----------
+# No primeiro apply o Artifact Registry está vazio; o serviço nasce com uma
+# imagem pública de exemplo e o pipeline a substitui no primeiro deploy.
+use_bootstrap_image = true
+
+# max_instances é trava de gasto, não meta de capacidade.
+max_instances       = 4
+cpu_limit           = "1"
+memory_limit        = "512Mi"
+request_concurrency = 80
+
+# ---------- Banco ----------
+# db-f1-micro + 10 GB SSD ≈ US$ 14 a 15/mês em São Paulo.
+# É o único item que cobra 24h por dia.
+db_tier         = "db-f1-micro"
+db_disk_size_gb = 10
+db_name         = "spmnacional"
+db_user         = "spm"
+
+# ---------- Uploads ----------
+# true porque capas de notícia e PDFs de edital são servidos direto do bucket.
+# Nenhum dado do módulo de atendimentos vai para arquivo.
+uploads_bucket_public             = true
+uploads_noncurrent_retention_days = 30
+
+# ---------- Integrações ----------
+# Ligue uma de cada vez, DEPOIS de preencher o segredo correspondente no
+# Secret Manager (`terraform output secrets_a_preencher` lista quais são).
+
+enable_smtp    = false
+smtp_host      = "smtp.gmail.com"
+smtp_port      = 587
+smtp_user      = "contato@spmnacional.org.br"
+mail_from      = "SPM Nacional <contato@spmnacional.org.br>"
+mail_notify_to = "contato@spmnacional.org.br"
+
+enable_google_oauth         = false
+google_oauth_allowed_domain = "spmnacional.org.br"
+
+enable_google_calendar = false
+google_calendar_id     = ""
+agenda_sync_schedule   = "0 */6 * * *"
+
+# ---------- Deploy ----------
+# Só esta branch consegue assumir a conta de serviço de deploy.
+github_deploy_branch = "prod"
+
+# ---------- Conta inicial ----------
+seed_admin_email = "admin@spmnacional.org.br"

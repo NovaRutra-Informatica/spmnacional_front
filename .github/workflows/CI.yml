@@ -10,16 +10,29 @@ jobs:
 
         steps:
             - name: Checkout do código
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
 
             - name: Configurar Node.js
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
-                  node-version: '22.17.0'
+                  node-version: '22'
                   cache: 'npm'
 
             - name: Instalar dependências
               run: npm ci
 
-            - name: Testar Build
+            - name: Checagem de tipos
+              run: npm run typecheck
+
+            - name: Testar build
               run: npm run build
+
+    docker-check:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout do código
+              uses: actions/checkout@v4
+
+            - name: Testar build da imagem Docker
+              run: docker build -t spmnacional-front:ci .
