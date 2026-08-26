@@ -12,7 +12,7 @@ name: Publicar imagem Docker
 on:
     push:
         branches:
-            - prod
+            - dev
     workflow_dispatch:
 
 env:
