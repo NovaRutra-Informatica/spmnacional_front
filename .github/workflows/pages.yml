@@ -1,0 +1,159 @@
+# =========================================================
+# SPM Nacional — publicação do site no GitHub Pages
+#
+# O Pages serve arquivo estático, e o app é um Next.js com servidor. Quem
+# resolve essa diferença é o `scripts/build-pages.mjs`: ele monta, a partir do
+# mesmo código, só a parte pública do site, com o conteúdo lido do banco
+# durante o build. O painel, o login e as rotas de API ficam de fora — não há
+# como executá-los aqui.
+#
+# Requer, em Settings → Pages, a fonte configurada como **GitHub Actions**.
+# Nesse modo o site vem do artefato publicado por `actions/deploy-pages`, e não
+# de uma branch: a `gh-pages` deixa de ser lida e pode ser apagada.
+#
+# De onde vem o conteúdo do site:
+#   • com o segredo PAGES_DATABASE_URL configurado, do banco real;
+#   • sem ele, de um Postgres descartável semeado com `prisma db seed`,
+#     ou seja, do conteúdo de demonstração.
+#
+# Publicar algo pelo painel não muda o site sozinho: é preciso rodar este
+# workflow de novo (push na dev, ou "Run workflow" na aba Actions).
+# =========================================================
+
+name: Publicar site no GitHub Pages
+
+on:
+    push:
+        branches:
+            - dev
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+# Uma publicação por vez. `cancel-in-progress: false` de propósito: cancelar um
+# deploy do Pages no meio deixa o site num estado indefinido — melhor enfileirar.
+concurrency:
+    group: github-pages
+    cancel-in-progress: false
+
+jobs:
+    construir:
+        name: Build do site estático
+        runs-on: ubuntu-latest
+
+        services:
+            # Banco descartável, usado só quando não há PAGES_DATABASE_URL.
+            # Fica de pé sempre: subir um Postgres custa segundos e evita ter
+            # que duplicar o job em duas versões.
+            postgres:
+                image: postgres:17-alpine
+                env:
+                    POSTGRES_USER: spm
+                    POSTGRES_PASSWORD: spm
+                    POSTGRES_DB: spmnacional
+                ports:
+                    - 5432:5432
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 5s
+                    --health-timeout 5s
+                    --health-retries 20
+
+        steps:
+            - name: Checkout do código
+              uses: actions/checkout@v4
+
+            - name: Configurar Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'npm'
+
+            - name: Instalar dependências
+              # O postinstall roda `prisma generate` e cria lib/generated/prisma,
+              # que o build importa.
+              run: npm ci
+
+            - name: Ler a configuração do Pages
+              # Devolve o endereço real do site. Enquanto for um site de projeto,
+              # `base_path` é /<nome-do-repo>; se um dia entrar um domínio
+              # próprio, vira "/" e o build se ajusta sozinho.
+              id: pages
+              uses: actions/configure-pages@v5
+
+            - name: Escolher o banco do build
+              id: banco
+              env:
+                  BANCO_EXTERNO: ${{ secrets.PAGES_DATABASE_URL }}
+              run: |
+                  set -euo pipefail
+                  if [ -n "${BANCO_EXTERNO}" ]; then
+                      echo "DATABASE_URL=${BANCO_EXTERNO}" >> "$GITHUB_ENV"
+                      echo "semear=false" >> "$GITHUB_OUTPUT"
+                      echo "Conteúdo vindo do banco de PAGES_DATABASE_URL."
+                  else
+                      echo "DATABASE_URL=postgresql://spm:spm@localhost:5432/spmnacional?schema=public" >> "$GITHUB_ENV"
+                      echo "semear=true" >> "$GITHUB_OUTPUT"
+                      echo "::warning::PAGES_DATABASE_URL não está configurada. O site vai ao ar com o conteúdo de demonstração do seed, e nada publicado pelo painel aparece nele."
+                  fi
+
+            - name: Preparar o banco de demonstração
+              if: steps.banco.outputs.semear == 'true'
+              run: |
+                  set -euo pipefail
+                  npx prisma migrate deploy
+                  npx prisma db seed
+
+            - name: Gerar o site estático
+              env:
+                  # O `||` é rede de segurança: se o passo acima não devolver
+                  # nada, o build assume o site de projeto em vez de gerar um
+                  # site com todos os caminhos apontando para a raiz do domínio.
+                  PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path || format('/{0}', github.event.repository.name) }}
+                  PAGES_SITE_URL: ${{ steps.pages.outputs.base_url || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
+              run: npm run build:pages
+
+            - name: Enviar o site como artefato do Pages
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: ./out
+
+            - name: Resumo do build
+              run: |
+                  {
+                      echo "### Site gerado"
+                      echo ""
+                      echo "| Item | Valor |"
+                      echo "| --- | --- |"
+                      echo "| Commit | \`${GITHUB_SHA::7}\` |"
+                      echo "| Conteúdo | ${{ steps.banco.outputs.semear == 'true' && 'seed de demonstração' || 'banco de PAGES_DATABASE_URL' }} |"
+                  } >> "$GITHUB_STEP_SUMMARY"
+
+    publicar:
+        name: Publicação no Pages
+        needs: construir
+        runs-on: ubuntu-latest
+
+        permissions:
+            # `pages: write` publica o artefato; `id-token: write` é o que
+            # permite ao deploy provar para o Pages que veio deste workflow.
+            pages: write
+            id-token: write
+
+        environment:
+            name: github-pages
+            url: ${{ steps.deploy.outputs.page_url }}
+
+        steps:
+            - name: Publicar
+              id: deploy
+              uses: actions/deploy-pages@v4
+
+            - name: Resumo da publicação
+              run: |
+                  {
+                      echo "### Site publicado"
+                      echo ""
+                      echo "${{ steps.deploy.outputs.page_url }}"
+                  } >> "$GITHUB_STEP_SUMMARY"

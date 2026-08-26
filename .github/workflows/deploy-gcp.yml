@@ -18,9 +18,10 @@
 name: Deploy no Google Cloud
 
 on:
-    push:
-        branches:
-            - dev
+    # Sem gatilho por push, de propósito: o site é publicado no GitHub Pages
+    # (.github/workflows/pages.yml) e não no Cloud Run. Enquanto for assim, este
+    # workflow fica só como botão manual na aba Actions — nenhum push dispara
+    # deploy no GCP, e nenhum run vermelho aparece por causa dele.
     workflow_dispatch:
 
 # Um deploy por vez. Dois `gcloud run deploy` simultâneos no mesmo serviço

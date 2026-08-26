@@ -46,3 +46,6 @@ Thumbs.db
 
 # Uploads locais quando STORAGE_DRIVER=local.
 /storage
+
+# Copia de trabalho do build estatico do GitHub Pages (scripts/build-pages.mjs).
+/.pages-build

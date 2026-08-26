@@ -11,3 +11,6 @@ legacy-angular
 
 # Assets de terceiros (Font Awesome)
 public/assets/fonts
+
+# Copia de trabalho do build estatico do GitHub Pages.
+.pages-build

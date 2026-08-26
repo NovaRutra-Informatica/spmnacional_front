@@ -41,16 +41,17 @@ docker compose --profile dev up
 
 ## Scripts
 
-| Comando              | O que faz                                         |
-| -------------------- | ------------------------------------------------- |
-| `npm run dev`        | Servidor de desenvolvimento                       |
-| `npm run build`      | Build de produção                                 |
-| `npm run typecheck`  | Checagem de tipos                                 |
-| `npm run format`     | Prettier                                          |
-| `npm run setup`      | Banco + migrações + seed, em um comando           |
-| `npm run db:studio`  | Prisma Studio (interface visual do banco)         |
-| `npm run db:migrate` | Cria e aplica uma migração a partir do schema     |
-| `npm run db:reset`   | Recria o banco do zero (apaga tudo) e roda o seed |
+| Comando               | O que faz                                         |
+| --------------------- | ------------------------------------------------- |
+| `npm run dev`         | Servidor de desenvolvimento                       |
+| `npm run build`       | Build de produção                                 |
+| `npm run build:pages` | Site público estático para o GitHub Pages         |
+| `npm run typecheck`   | Checagem de tipos                                 |
+| `npm run format`      | Prettier                                          |
+| `npm run setup`       | Banco + migrações + seed, em um comando           |
+| `npm run db:studio`   | Prisma Studio (interface visual do banco)         |
+| `npm run db:migrate`  | Cria e aplica uma migração a partir do schema     |
+| `npm run db:reset`    | Recria o banco do zero (apaga tudo) e roda o seed |
 
 ---
 
@@ -129,7 +130,51 @@ recurso. Detalhes em [`docs/INTEGRACOES-GOOGLE.md`](docs/INTEGRACOES-GOOGLE.md).
 
 ---
 
+## Publicação no GitHub Pages
+
+O site público vai para <https://novarutra-informatica.github.io/spmnacional_front/> pelo workflow
+[`.github/workflows/pages.yml`](.github/workflows/pages.yml), a cada push na `dev` (ou pelo botão
+"Run workflow" na aba Actions).
+
+Em **Settings → Pages**, a fonte precisa estar em **"GitHub Actions"**. Nesse modo o site vem do
+artefato publicado pelo workflow, e não de uma branch — a `gh-pages`, que ainda guarda o build do
+site Angular anterior, deixa de ser lida e pode ser apagada.
+
+O Pages serve arquivo estático, e o app precisa de servidor Node. Quem faz a ponte é
+[`scripts/build-pages.mjs`](scripts/build-pages.mjs): ele copia o projeto para `.pages-build/`,
+tira de lá o que depende de servidor e roda um `next build` com `output: 'export'`. A árvore de
+trabalho não é tocada — o build normal e a imagem Docker continuam vendo o código original.
+
+O que **não** existe no site estático, e por quê:
+
+| Fora                                              | Motivo                                                                                                     |
+| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `app/admin`                                       | Sessão em cookie e Server Actions exigem servidor                                                          |
+| `app/api`                                         | Rotas dinâmicas (login Google, arquivos, cron)                                                             |
+| `app/convite/[token]`, `app/newsletter/confirmar` | A URL vem do e-mail; não há como pré-gerar                                                                 |
+| `middleware.ts`                                   | Não existe middleware em export estático                                                                   |
+| Envio do Fale Conosco e da newsletter             | Sem banco e sem SMTP; os formulários passam a indicar o e-mail de contato (ver `scripts/pages-overrides/`) |
+
+**O conteúdo do site é congelado no momento do build.** Publicar uma notícia pelo painel não muda o
+site sozinho: é preciso rodar o workflow de novo. E, sem o segredo `PAGES_DATABASE_URL` apontando
+para um Postgres acessível pela internet, o build usa um banco descartável semeado com
+`prisma db seed` — ou seja, o site sai com o **conteúdo de demonstração**.
+
+Para rodar o build localmente:
+
+```bash
+npm run db:up
+DATABASE_URL="postgresql://spm:spm_dev_password@localhost:55432/spmnacional?schema=public" \
+  npm run build:pages
+# resultado em out/
+```
+
+---
+
 ## Deploy no GCP
+
+> Desligado por ora: o workflow [`deploy-gcp.yml`](.github/workflows/deploy-gcp.yml) só roda pelo
+> botão manual na aba Actions. Nenhum push dispara deploy no Cloud Run.
 
 A infraestrutura está descrita em Terraform e **não foi aplicada**. Passo a passo, custos estimados
 e decisões em [`infra/README.md`](infra/README.md).

@@ -32,5 +32,15 @@
         ".next/types/**/*.ts",
         ".next/dev/types/**/*.ts"
     ],
-    "exclude": ["node_modules", "legacy-angular", ".next"]
+    // `pages-overrides` só compila depois de copiado para dentro de app/ pelo
+    // scripts/build-pages.mjs — no lugar em que está, os imports relativos
+    // (`./PageContent`) não resolvem. `.pages-build` é a cópia de trabalho
+    // desse mesmo script, e seria checada duas vezes.
+    "exclude": [
+        "node_modules",
+        "legacy-angular",
+        ".next",
+        ".pages-build",
+        "scripts/pages-overrides"
+    ]
 }
