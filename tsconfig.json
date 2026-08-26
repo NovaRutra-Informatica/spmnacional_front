@@ -1,42 +1,36 @@
-/* To learn more about Typescript configuration file: https://www.typescriptlang.org/docs/handbook/tsconfig-json.html. */
-/* To learn more about Angular compiler options: https://angular.dev/reference/configs/angular-compiler-options. */
 {
-    "compileOnSave": false,
     "compilerOptions": {
-        "strict": true,
-        "noImplicitOverride": true,
-        "noPropertyAccessFromIndexSignature": true,
-        "noImplicitReturns": true,
-        "noFallthroughCasesInSwitch": true,
-        "skipLibCheck": true,
-        "isolatedModules": true,
-        "experimentalDecorators": true,
-        "importHelpers": true,
         "target": "ES2022",
-        "module": "preserve"
-    },
-    "angularCompilerOptions": {
-        "enableI18nLegacyMessageIdFormat": false,
-        "strictInjectionParameters": true,
-        "strictInputAccessModifiers": true,
-        "strictTemplates": true,
+        "lib": ["dom", "dom.iterable", "esnext"],
+        "allowJs": true,
+        "skipLibCheck": true,
+        "strict": true,
+        "noEmit": true,
+        "esModuleInterop": true,
+        "module": "esnext",
+        "moduleResolution": "bundler",
+        "resolveJsonModule": true,
+        "isolatedModules": true,
+        "jsx": "react-jsx",
+        // O seed importa o client gerado pelo Prisma 7 com extensão .ts
+        // explícita, porque roda direto no tsx (sem passo de build).
+        "allowImportingTsExtensions": true,
+        "incremental": true,
+        "plugins": [
+            {
+                "name": "next"
+            }
+        ],
         "paths": {
-            "@core/*": ["./src/app/core/*"],
-            "@shared/*": ["./src/app/shared/*"],
-            "@features/*": ["./src/app/features/*"],
-            "@layout/*": ["./src/app/layout/*"],
-            "@env/*": ["./src/environments/*"],
-            "@assets/*": ["./src/assets/*"],
-            "@hooks/*": ["./src/app/shared/hooks/*"]
+            "@/*": ["./*"]
         }
     },
-    "files": [],
-    "references": [
-        {
-            "path": "./tsconfig.app.json"
-        },
-        {
-            "path": "./tsconfig.spec.json"
-        }
-    ]
+    "include": [
+        "next-env.d.ts",
+        "**/*.ts",
+        "**/*.tsx",
+        ".next/types/**/*.ts",
+        ".next/dev/types/**/*.ts"
+    ],
+    "exclude": ["node_modules", "legacy-angular", ".next"]
 }

@@ -1,64 +1,48 @@
-# See http://help.github.com/ignore-files/ for more about ignoring files.
-
-# Compiled output
-/dist
-/tmp
-/out-tsc
-# Only exists if Bazel was run
-/bazel-out
-
-# Dependencies
+# Dependências
 /node_modules
+/.pnp
+.pnp.*
 
-# Cordova
-/www
-/plugins
-/platforms
+# Build do Next.js
+/.next/
+/out/
+/build
+next-env.d.ts
 
-# Electron
-/dist-electron
-/dist-packages
-/electron.main.js
+# Produção
+/dist
 
-# IDEs and editors
-.idea/*
-!.idea/runConfigurations/
-!.idea/codeStyleSettings.xml
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-xcuserdata/
-*.sublime-workspace
+# Ambiente
+.env
+.env*.local
 
-# IDE - VSCode
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
 
-# Maven
-/target
-/log
-
-# Misc
-/.sass-cache
-/connect.lock
-/coverage
-/libpeerconnection.log
-npm-debug.log
-yarn-error.log
-testem.log
-/typings
-/reports
-/src/translations/template.*
-# /src/environments/.env.*
-
-# System Files
+# Sistema operacional
 .DS_Store
 Thumbs.db
 
-.env
-.angular
+# Editores
+.idea/
+.vscode/
+*.swp
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Backup temporário do projeto Angular anterior.
+# Pode ser removido assim que a migração for validada.
+/legacy-angular
+
+# Client gerado pelo Prisma — recriado por `prisma generate`.
+/lib/generated
+
+# Uploads locais quando STORAGE_DRIVER=local.
+/storage
