@@ -20,7 +20,7 @@ name: Deploy no Google Cloud
 on:
     push:
         branches:
-            - prod
+            - dev
     workflow_dispatch:
 
 # Um deploy por vez. Dois `gcloud run deploy` simultâneos no mesmo serviço
