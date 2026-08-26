@@ -7,9 +7,13 @@
 # durante o build. O painel, o login e as rotas de API ficam de fora — não há
 # como executá-los aqui.
 #
-# Requer, em Settings → Pages, a fonte configurada como **GitHub Actions**.
-# Nesse modo o site vem do artefato publicado por `actions/deploy-pages`, e não
-# de uma branch: a `gh-pages` deixa de ser lida e pode ser apagada.
+# Requer, em Settings → Pages, a fonte configurada como
+# **Deploy from a branch → gh-pages → / (root)**.
+#
+# O workflow escreve o site na branch `gh-pages` e quem publica dali é o
+# próprio GitHub, no job interno "pages build and deployment". Por isso aqui
+# não há `environment:` nem `deploy-pages`: este workflow termina no push, e a
+# publicação em si não passa por aprovação de ambiente.
 #
 # De onde vem o conteúdo do site:
 #   • com o segredo PAGES_DATABASE_URL configurado, do banco real;
@@ -28,19 +32,21 @@ on:
             - dev
     workflow_dispatch:
 
-permissions:
-    contents: read
-
-# Uma publicação por vez. `cancel-in-progress: false` de propósito: cancelar um
-# deploy do Pages no meio deixa o site num estado indefinido — melhor enfileirar.
+# Duas publicações ao mesmo tempo brigam pelo push na gh-pages. A mais nova
+# ganha: cancelar a anterior é seguro porque o build é reprodutível e o que
+# vale é sempre o último commit.
 concurrency:
     group: github-pages
-    cancel-in-progress: false
+    cancel-in-progress: true
 
 jobs:
-    construir:
-        name: Build do site estático
+    publicar:
+        name: Build estático e publicação
         runs-on: ubuntu-latest
+
+        permissions:
+            # Único poder que o job precisa: escrever na branch gh-pages.
+            contents: write
 
         services:
             # Banco descartável, usado só quando não há PAGES_DATABASE_URL.
@@ -75,13 +81,6 @@ jobs:
               # que o build importa.
               run: npm ci
 
-            - name: Ler a configuração do Pages
-              # Devolve o endereço real do site. Enquanto for um site de projeto,
-              # `base_path` é /<nome-do-repo>; se um dia entrar um domínio
-              # próprio, vira "/" e o build se ajusta sozinho.
-              id: pages
-              uses: actions/configure-pages@v5
-
             - name: Escolher o banco do build
               id: banco
               env:
@@ -107,53 +106,33 @@ jobs:
 
             - name: Gerar o site estático
               env:
-                  # O `||` é rede de segurança: se o passo acima não devolver
-                  # nada, o build assume o site de projeto em vez de gerar um
-                  # site com todos os caminhos apontando para a raiz do domínio.
-                  PAGES_BASE_PATH: ${{ steps.pages.outputs.base_path || format('/{0}', github.event.repository.name) }}
-                  PAGES_SITE_URL: ${{ steps.pages.outputs.base_url || format('https://{0}.github.io/{1}', github.repository_owner, github.event.repository.name) }}
+                  # Site de projeto: tudo vive sob /<nome-do-repo>. Se um dia o
+                  # site ganhar domínio próprio, estas duas viram a raiz e a URL
+                  # do domínio, e os caminhos deixam de ser prefixados.
+                  PAGES_BASE_PATH: /${{ github.event.repository.name }}
+                  PAGES_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
               run: npm run build:pages
 
-            - name: Enviar o site como artefato do Pages
-              uses: actions/upload-pages-artifact@v3
+            - name: Publicar na branch gh-pages
+              uses: peaceiris/actions-gh-pages@v4
               with:
-                  path: ./out
+                  github_token: ${{ secrets.GITHUB_TOKEN }}
+                  publish_dir: ./out
+                  publish_branch: gh-pages
+                  # A branch ainda carrega o build do site Angular antigo. Com
+                  # órfão, cada publicação substitui a branch inteira em vez de
+                  # empilhar arquivos que ninguém mais usa.
+                  force_orphan: true
+                  commit_message: 'site: ${{ github.sha }}'
 
-            - name: Resumo do build
-              run: |
-                  {
-                      echo "### Site gerado"
-                      echo ""
-                      echo "| Item | Valor |"
-                      echo "| --- | --- |"
-                      echo "| Commit | \`${GITHUB_SHA::7}\` |"
-                      echo "| Conteúdo | ${{ steps.banco.outputs.semear == 'true' && 'seed de demonstração' || 'banco de PAGES_DATABASE_URL' }} |"
-                  } >> "$GITHUB_STEP_SUMMARY"
-
-    publicar:
-        name: Publicação no Pages
-        needs: construir
-        runs-on: ubuntu-latest
-
-        permissions:
-            # `pages: write` publica o artefato; `id-token: write` é o que
-            # permite ao deploy provar para o Pages que veio deste workflow.
-            pages: write
-            id-token: write
-
-        environment:
-            name: github-pages
-            url: ${{ steps.deploy.outputs.page_url }}
-
-        steps:
-            - name: Publicar
-              id: deploy
-              uses: actions/deploy-pages@v4
-
-            - name: Resumo da publicação
+            - name: Resumo
               run: |
                   {
                       echo "### Site publicado"
                       echo ""
-                      echo "${{ steps.deploy.outputs.page_url }}"
+                      echo "| Item | Valor |"
+                      echo "| --- | --- |"
+                      echo "| Commit | \`${GITHUB_SHA::7}\` |"
+                      echo "| Endereço | https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/ |"
+                      echo "| Conteúdo | ${{ steps.banco.outputs.semear == 'true' && 'seed de demonstração' || 'banco de PAGES_DATABASE_URL' }} |"
                   } >> "$GITHUB_STEP_SUMMARY"

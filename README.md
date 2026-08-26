@@ -136,9 +136,9 @@ O site público vai para <https://novarutra-informatica.github.io/spmnacional_fr
 [`.github/workflows/pages.yml`](.github/workflows/pages.yml), a cada push na `dev` (ou pelo botão
 "Run workflow" na aba Actions).
 
-Em **Settings → Pages**, a fonte precisa estar em **"GitHub Actions"**. Nesse modo o site vem do
-artefato publicado pelo workflow, e não de uma branch — a `gh-pages`, que ainda guarda o build do
-site Angular anterior, deixa de ser lida e pode ser apagada.
+Em **Settings → Pages**, a fonte precisa estar em **"Deploy from a branch" → `gh-pages` → `/ (root)`**.
+O workflow escreve o site na `gh-pages` (substituindo a branch inteira a cada publicação, o que
+apagou o build Angular que estava lá) e quem serve dali é o próprio GitHub.
 
 O Pages serve arquivo estático, e o app precisa de servidor Node. Quem faz a ponte é
 [`scripts/build-pages.mjs`](scripts/build-pages.mjs): ele copia o projeto para `.pages-build/`,
