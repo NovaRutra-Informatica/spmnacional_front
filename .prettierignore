@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+dist
+package-lock.json
+next-env.d.ts
+*.tsbuildinfo
+
+# Backup do projeto Angular anterior — não reformatar
+legacy-angular
+
+# Assets de terceiros (Font Awesome)
+public/assets/fonts

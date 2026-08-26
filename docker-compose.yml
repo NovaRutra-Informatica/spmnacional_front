@@ -1,0 +1,117 @@
+services:
+    # ---------------------------------------------------------
+    # Banco de dados
+    # ---------------------------------------------------------
+    db:
+        image: postgres:17-alpine
+        container_name: spm-db
+        environment:
+            POSTGRES_USER: spm
+            POSTGRES_PASSWORD: spm_dev_password
+            POSTGRES_DB: spmnacional
+            # Ordenação e acentuação corretas para português.
+            LANG: pt_BR.utf8
+        ports:
+            # Porta alta no host para não conflitar com outros Postgres que
+            # já rodem na máquina. Dentro da rede do compose os demais
+            # serviços continuam falando com `db:5432`.
+            - '${DB_HOST_PORT:-55432}:5432'
+        volumes:
+            - db_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ['CMD-SHELL', 'pg_isready -U spm -d spmnacional']
+            interval: 5s
+            timeout: 5s
+            retries: 20
+        restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Migrações — roda uma vez e sai
+    #   docker compose run --rm migrate
+    # ---------------------------------------------------------
+    migrate:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: migrator
+        image: spmnacional-migrate:latest
+        container_name: spm-migrate
+        depends_on:
+            db:
+                condition: service_healthy
+        environment:
+            DATABASE_URL: postgresql://spm:spm_dev_password@db:5432/spmnacional?schema=public
+        restart: 'no'
+
+    # ---------------------------------------------------------
+    # Aplicação (produção)
+    # ---------------------------------------------------------
+    web:
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: runner
+        image: spmnacional-front:latest
+        container_name: spm-web
+        depends_on:
+            db:
+                condition: service_healthy
+        ports:
+            # Porta do host configurável para conviver com outros projetos.
+            - '${WEB_HOST_PORT:-3000}:3000'
+        environment:
+            NODE_ENV: production
+            NEXT_TELEMETRY_DISABLED: '1'
+            DATABASE_URL: postgresql://spm:spm_dev_password@db:5432/spmnacional?schema=public
+            APP_URL: ${APP_URL:-http://localhost:3000}
+            AUTH_SECRET: ${AUTH_SECRET:-desenvolvimento-local-nao-use-em-producao-troque-este-segredo}
+            ENCRYPTION_KEY: ${ENCRYPTION_KEY:-MDAwMTAyMDMwNDA1MDYwNzA4MDkwYTBiMGMwZDBlMGY=}
+            STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+            STORAGE_LOCAL_DIR: /app/storage/uploads
+            SMTP_HOST: ${SMTP_HOST:-}
+            SMTP_PORT: ${SMTP_PORT:-587}
+            SMTP_SECURE: ${SMTP_SECURE:-false}
+            SMTP_USER: ${SMTP_USER:-}
+            SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+            MAIL_FROM: ${MAIL_FROM:-SPM Nacional <contato@spmnacional.org.br>}
+            MAIL_NOTIFY_TO: ${MAIL_NOTIFY_TO:-contato@spmnacional.org.br}
+            GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+            GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+            GOOGLE_OAUTH_ALLOWED_DOMAIN: ${GOOGLE_OAUTH_ALLOWED_DOMAIN:-}
+            GOOGLE_CALENDAR_ID: ${GOOGLE_CALENDAR_ID:-}
+            GOOGLE_CALENDAR_API_KEY: ${GOOGLE_CALENDAR_API_KEY:-}
+            CRON_SECRET: ${CRON_SECRET:-}
+        volumes:
+            - uploads:/app/storage/uploads
+        restart: unless-stopped
+
+    # ---------------------------------------------------------
+    # Desenvolvimento com hot reload
+    #   docker compose --profile dev up
+    # ---------------------------------------------------------
+    dev:
+        profiles: ['dev']
+        image: node:22-alpine
+        container_name: spm-dev
+        working_dir: /app
+        depends_on:
+            db:
+                condition: service_healthy
+        command: sh -c "npm install && npx prisma migrate deploy && npm run dev -- --hostname 0.0.0.0"
+        ports:
+            - '3000:3000'
+        volumes:
+            - .:/app
+            - dev_node_modules:/app/node_modules
+            - dev_next_cache:/app/.next
+        environment:
+            NODE_ENV: development
+            NEXT_TELEMETRY_DISABLED: '1'
+            WATCHPACK_POLLING: 'true'
+            DATABASE_URL: postgresql://spm:spm_dev_password@db:5432/spmnacional?schema=public
+
+volumes:
+    db_data:
+    uploads:
+    dev_node_modules:
+    dev_next_cache:
