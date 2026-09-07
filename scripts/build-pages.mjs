@@ -16,7 +16,7 @@
  *   app/api ............... rotas dinâmicas (login Google, arquivos, cron)
  *   app/convite/[token] ... token só existe no e-mail; não há como pré-gerar
  *   app/newsletter/confirmar  idem: a URL vem do e-mail de confirmação
- *   middleware.ts ......... não existe middleware em export estático
+ *   proxy.ts .............. não existe proxy de autenticação em export estático
  *
  * Uso:
  *   DATABASE_URL=... npm run build:pages
@@ -57,7 +57,7 @@ const NAO_COPIAR = new Set([
     '.idea',
     '.next',
     '.pages-build',
-    'docs',
+    'devdocs',
     'infra',
     'node_modules',
     'out',
@@ -72,7 +72,7 @@ const PODAR = [
     'app/convite',
     'app/newsletter/confirmar',
     'components/admin',
-    'middleware.ts',
+    'proxy.ts',
 ];
 
 /**

@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { env } from './env';
 import { getGoogleAccessToken, GOOGLE_SCOPES } from './google-auth';
+import { ActionInputError } from './actions';
 
 /**
  * Armazenamento de arquivos com dois provedores:
@@ -46,12 +47,8 @@ export function buildStorageKey(originalName: string, prefix = 'uploads'): strin
 }
 
 export function publicUrlFor(storageKey: string): string {
-    if (env.storage.driver === 'gcs') {
-        const base =
-            env.storage.gcsPublicBaseUrl ||
-            `https://storage.googleapis.com/${env.storage.gcsBucket}`;
-        return `${base.replace(/\/$/, '')}/${storageKey}`;
-    }
+    // O bucket permanece privado também em produção. A rota da aplicação
+    // decide se o arquivo já está publicado ou se exige sessão administrativa.
     return `/api/arquivos/${storageKey}`;
 }
 
@@ -99,6 +96,11 @@ export async function readLocalFile(
     } catch {
         return null;
     }
+}
+
+export interface StoredFileBody {
+    body: Uint8Array | ReadableStream<Uint8Array>;
+    contentLength: string | null;
 }
 
 const MIME_BY_EXT: Record<string, string> = {
@@ -169,41 +171,124 @@ async function deleteGcs(storageKey: string): Promise<void> {
     ).catch(() => undefined);
 }
 
+async function readGcsFile(storageKey: string): Promise<StoredFileBody | null> {
+    if (!env.storage.gcsBucket) return null;
+
+    const token = await getGoogleAccessToken([GOOGLE_SCOPES.storageReadWrite]);
+    if (!token) return null;
+
+    const response = await fetch(
+        `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(env.storage.gcsBucket)}/o/${encodeURIComponent(storageKey)}?alt=media`,
+        { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' },
+    );
+
+    if (!response.ok || !response.body) return null;
+
+    return {
+        body: response.body,
+        contentLength: response.headers.get('content-length'),
+    };
+}
+
+/** Lê um objeto sem torná-lo público no provedor de armazenamento. */
+export async function readStoredFile(storageKey: string): Promise<StoredFileBody | null> {
+    if (env.storage.driver === 'gcs') {
+        return readGcsFile(storageKey);
+    }
+
+    const file = await readLocalFile(storageKey);
+    if (!file) return null;
+    return {
+        body: new Uint8Array(file.data),
+        contentLength: String(file.data.length),
+    };
+}
+
 // ---------------------------------------------------------
 // API pública
 // ---------------------------------------------------------
 
-export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024;
 
-export const ALLOWED_MIME_TYPES = new Set([
-    'image/png',
-    'image/jpeg',
-    'image/webp',
-    'image/gif',
-    'image/svg+xml',
-    'application/pdf',
-    'application/zip',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-]);
+interface UploadType {
+    mimeType: string;
+    matches: (data: Buffer) => boolean;
+}
 
-export async function storeFile(
-    file: File,
+const startsWith = (signature: number[]) => (data: Buffer) =>
+    data.length >= signature.length && signature.every((byte, index) => data[index] === byte);
+
+const isZip = (data: Buffer) =>
+    startsWith([0x50, 0x4b, 0x03, 0x04])(data) ||
+    startsWith([0x50, 0x4b, 0x05, 0x06])(data) ||
+    startsWith([0x50, 0x4b, 0x07, 0x08])(data);
+
+const isOle = startsWith([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
+
+const UPLOAD_TYPES: Record<string, UploadType> = {
+    '.png': { mimeType: 'image/png', matches: startsWith([0x89, 0x50, 0x4e, 0x47]) },
+    '.jpg': { mimeType: 'image/jpeg', matches: startsWith([0xff, 0xd8, 0xff]) },
+    '.jpeg': { mimeType: 'image/jpeg', matches: startsWith([0xff, 0xd8, 0xff]) },
+    '.webp': {
+        mimeType: 'image/webp',
+        matches: (data) =>
+            data.length >= 12 &&
+            data.subarray(0, 4).toString('ascii') === 'RIFF' &&
+            data.subarray(8, 12).toString('ascii') === 'WEBP',
+    },
+    '.gif': {
+        mimeType: 'image/gif',
+        matches: (data) => ['GIF87a', 'GIF89a'].includes(data.subarray(0, 6).toString('ascii')),
+    },
+    '.pdf': {
+        mimeType: 'application/pdf',
+        matches: (data) => data.subarray(0, 5).toString('ascii') === '%PDF-',
+    },
+    '.zip': { mimeType: 'application/zip', matches: isZip },
+    '.docx': {
+        mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        matches: isZip,
+    },
+    '.xlsx': {
+        mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        matches: isZip,
+    },
+    '.doc': { mimeType: 'application/msword', matches: isOle },
+    '.xls': { mimeType: 'application/vnd.ms-excel', matches: isOle },
+};
+
+export const ALLOWED_MIME_TYPES = new Set(
+    Object.values(UPLOAD_TYPES).map(({ mimeType }) => mimeType),
+);
+
+/** Valida e armazena bytes já limitados por uma rota autenticada. */
+export async function storeBuffer(
+    data: Buffer,
+    originalName: string,
     options: { prefix?: string } = {},
 ): Promise<StoredFile> {
-    if (file.size > MAX_UPLOAD_BYTES) {
-        throw new Error('Arquivo maior que o limite de 20 MB.');
+    if (data.length <= 0) {
+        throw new ActionInputError('O arquivo está vazio.');
     }
 
-    const mimeType = file.type || guessMimeType(file.name);
-    if (!ALLOWED_MIME_TYPES.has(mimeType)) {
-        throw new Error(`Tipo de arquivo não permitido: ${mimeType}`);
+    if (data.length > MAX_UPLOAD_BYTES) {
+        throw new ActionInputError('Arquivo maior que o limite de 10 MB.');
     }
 
-    const storageKey = buildStorageKey(file.name, options.prefix);
-    const data = Buffer.from(await file.arrayBuffer());
+    const extension = path.extname(originalName).toLowerCase();
+    const type = UPLOAD_TYPES[extension];
+    if (!type) {
+        throw new ActionInputError(
+            'Formato não permitido. Use JPG, PNG, WebP, GIF, PDF, ZIP, DOC, DOCX, XLS ou XLSX.',
+        );
+    }
+
+    if (!type.matches(data)) {
+        throw new ActionInputError('O conteúdo do arquivo não corresponde à extensão informada.');
+    }
+
+    const mimeType = type.mimeType;
+    const storageKey = buildStorageKey(originalName, options.prefix);
 
     if (env.storage.driver === 'gcs') {
         await putGcs(storageKey, data, mimeType);

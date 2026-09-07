@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-const SESSION_COOKIE = 'spm_session';
+const SESSION_COOKIE = process.env.NODE_ENV === 'production' ? '__Host-spm_session' : 'spm_session';
 
 /**
  * Barreira barata na borda: sem cookie de sessão, nem chega a renderizar o
@@ -9,7 +9,7 @@ const SESSION_COOKIE = 'spm_session';
  * ativa, permissão) acontece no servidor, em `app/admin/layout.tsx` e em cada
  * Server Action — o middleware só evita trabalho inútil e o piscar de tela.
  */
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
     const hasSession = Boolean(request.cookies.get(SESSION_COOKIE)?.value);
 
     if (!hasSession) {

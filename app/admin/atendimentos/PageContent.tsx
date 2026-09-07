@@ -194,6 +194,7 @@ export default function PageContent({
                     <input
                         className="atoolbar__search"
                         type="search"
+                        aria-label="Buscar atendimentos pelo código"
                         placeholder="Buscar pelo código do atendimento…"
                         value={busca}
                         onChange={(event) => setBusca(event.target.value)}
@@ -245,7 +246,7 @@ export default function PageContent({
                     </select>
 
                     <span className="atoolbar__spacer"></span>
-                    <span style={{ fontSize: '0.82rem', color: '#7b8a9a' }}>
+                    <span className="atoolbar__count">
                         {filtradas.length} de {total} fichas
                     </span>
                 </div>

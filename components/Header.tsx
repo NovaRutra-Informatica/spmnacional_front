@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 export interface NavChild {
     label: string;
@@ -120,6 +120,13 @@ export default function Header() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+    const mobileToggleRef = useRef<HTMLButtonElement | null>(null);
+    const navRef = useRef<HTMLElement | null>(null);
+
+    const closeMenu = useCallback(() => {
+        setIsMenuOpen(false);
+        setOpenSubmenu(null);
+    }, []);
 
     useEffect(() => {
         const onScroll = () => setIsScrolled(window.scrollY > 50);
@@ -134,13 +141,53 @@ export default function Header() {
         setOpenSubmenu(null);
     }, [pathname]);
 
+    useEffect(() => {
+        if (!isMenuOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        const focusable = () =>
+            [
+                mobileToggleRef.current,
+                ...Array.from(
+                    navRef.current?.querySelectorAll<HTMLElement>(
+                        'a[href]:not([tabindex="-1"]), button:not([disabled]), input:not([disabled])',
+                    ) ?? [],
+                ),
+            ].filter((element): element is HTMLElement => Boolean(element));
+
+        const closeOrTrapFocus = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                closeMenu();
+                window.requestAnimationFrame(() => mobileToggleRef.current?.focus());
+                return;
+            }
+
+            if (event.key !== 'Tab') return;
+            const elements = focusable();
+            const first = elements[0];
+            const last = elements[elements.length - 1];
+            if (!first || !last) return;
+
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        };
+
+        document.body.style.overflow = 'hidden';
+        document.addEventListener('keydown', closeOrTrapFocus);
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+            document.removeEventListener('keydown', closeOrTrapFocus);
+        };
+    }, [closeMenu, isMenuOpen]);
+
     const isActive = (link: string, exact = false) =>
         exact ? pathname === link : pathname === link || pathname.startsWith(`${link}/`);
-
-    const closeMenu = () => {
-        setIsMenuOpen(false);
-        setOpenSubmenu(null);
-    };
 
     const toggleMenu = () => {
         setIsMenuOpen((open) => {
@@ -177,20 +224,38 @@ export default function Header() {
                 </div>
 
                 <button
+                    ref={mobileToggleRef}
+                    type="button"
                     className="mobile-toggle"
                     onClick={toggleMenu}
                     aria-expanded={isMenuOpen}
-                    aria-label="Abrir menu de navegação"
+                    aria-controls="site-main-navigation"
+                    aria-label={isMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
                 >
-                    <i className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'}`}></i>
+                    <i
+                        className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'}`}
+                        aria-hidden="true"
+                    />
                 </button>
 
+                {isMenuOpen && (
+                    <button
+                        type="button"
+                        className="header-backdrop"
+                        aria-label="Fechar menu de navegação"
+                        onClick={closeMenu}
+                        tabIndex={-1}
+                    />
+                )}
+
                 <nav
+                    ref={navRef}
+                    id="site-main-navigation"
                     className={`nav-menu${isMenuOpen ? ' active' : ''}`}
                     aria-label="Navegação principal"
                 >
                     <ul className="nav-list">
-                        {navItems.map((item) => (
+                        {navItems.map((item, index) => (
                             <li
                                 key={item.label}
                                 className={`nav-item${item.children ? ' has-children' : ''}`}
@@ -199,6 +264,9 @@ export default function Header() {
                                     <Link
                                         href={item.link!}
                                         className={isActive(item.link!, item.exact) ? 'active' : ''}
+                                        aria-current={
+                                            isActive(item.link!, item.exact) ? 'page' : undefined
+                                        }
                                         onClick={closeMenu}
                                     >
                                         {item.label}
@@ -206,20 +274,26 @@ export default function Header() {
                                 ) : (
                                     <>
                                         <button
-                                            className="nav-trigger"
+                                            className={`nav-trigger${
+                                                item.children.some((child) => isActive(child.link))
+                                                    ? ' active'
+                                                    : ''
+                                            }`}
                                             type="button"
                                             onClick={() => toggleSubmenu(item.label)}
                                             aria-expanded={openSubmenu === item.label}
+                                            aria-controls={`site-submenu-${index}`}
                                         >
                                             {item.label}
-                                            <i className="fas fa-chevron-down"></i>
+                                            <i className="fas fa-chevron-down" aria-hidden="true" />
                                         </button>
 
                                         <div
+                                            id={`site-submenu-${index}`}
                                             className={`dropdown${
                                                 openSubmenu === item.label ? ' is-open' : ''
                                             }`}
-                                            role="menu"
+                                            aria-hidden={openSubmenu !== item.label}
                                         >
                                             {item.children.map((child) => (
                                                 <Link
@@ -228,8 +302,13 @@ export default function Header() {
                                                         isActive(child.link) ? ' active' : ''
                                                     }`}
                                                     href={child.link}
+                                                    aria-current={
+                                                        isActive(child.link) ? 'page' : undefined
+                                                    }
                                                     onClick={closeMenu}
-                                                    role="menuitem"
+                                                    tabIndex={
+                                                        openSubmenu === item.label ? undefined : -1
+                                                    }
                                                 >
                                                     <strong>{child.label}</strong>
                                                     {child.desc && <small>{child.desc}</small>}

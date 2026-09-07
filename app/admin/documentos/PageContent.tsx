@@ -206,11 +206,13 @@ export default function PageContent({ documentos, midia }: Props) {
                             <input
                                 className="atoolbar__search"
                                 type="search"
+                                aria-label="Buscar documentos"
                                 placeholder="Buscar por título ou descrição…"
                                 value={busca}
                                 onChange={(event) => setBusca(event.target.value)}
                             />
                             <select
+                                aria-label="Filtrar documentos por categoria"
                                 value={filtroCategoria}
                                 onChange={(event) =>
                                     setFiltroCategoria(
@@ -226,7 +228,7 @@ export default function PageContent({ documentos, midia }: Props) {
                                 ))}
                             </select>
                             <span className="atoolbar__spacer"></span>
-                            <span style={{ fontSize: '0.82rem', color: '#7b8a9a' }}>
+                            <span className="atoolbar__count">
                                 {filtrados.length} de {documentos.length} registros
                             </span>
                         </div>

@@ -78,8 +78,8 @@ docs/                 Arquitetura, integrações Google, privacidade e fontes
 
 ## Painel administrativo
 
-Login em `/atendente`. A conta inicial vem das variáveis `SEED_ADMIN_*` do `.env`
-(por padrão `admin@spmnacional.org.br` / `soufoda` — **troque em produção**).
+Login em `/atendente`. A conta inicial vem das variáveis `SEED_ADMIN_*` do `.env`.
+`SEED_ADMIN_PASSWORD` é obrigatória para criar a primeira conta e não possui valor padrão.
 
 O painel cobre notícias, biblioteca de mídia, editais, testemunhos, documentos, Semana do Migrante,
 agenda, mensagens do site, atendimentos, usuários, perfis e permissões, e configurações.
@@ -92,7 +92,7 @@ Real, não de demonstração:
 - Sessão em banco, com token opaco; o cookie é `httpOnly`, `sameSite=lax` e `secure` em produção.
   No banco guardamos só o HMAC do token, então um vazamento não permite assumir sessões.
 - Expiração absoluta de 12 h e inatividade de 30 min.
-- Bloqueio de conta por 15 min após 5 tentativas malsucedidas.
+- Limitação de tentativas por origem e identificador, sem permitir que terceiros bloqueiem a conta.
 - Login opcional com **Google Workspace** (OAuth 2.0 + PKCE), restrito ao domínio da organização
   com verificação do claim `hd` no servidor. A conta precisa existir no painel: o site não cria
   usuário sozinho.
@@ -152,7 +152,7 @@ O que **não** existe no site estático, e por quê:
 | `app/admin`                                       | Sessão em cookie e Server Actions exigem servidor                                                          |
 | `app/api`                                         | Rotas dinâmicas (login Google, arquivos, cron)                                                             |
 | `app/convite/[token]`, `app/newsletter/confirmar` | A URL vem do e-mail; não há como pré-gerar                                                                 |
-| `middleware.ts`                                   | Não existe middleware em export estático                                                                   |
+| `proxy.ts`                                        | Não existe proxy de autenticação em export estático                                                        |
 | Envio do Fale Conosco e da newsletter             | Sem banco e sem SMTP; os formulários passam a indicar o e-mail de contato (ver `scripts/pages-overrides/`) |
 
 **O conteúdo do site é congelado no momento do build.** Publicar uma notícia pelo painel não muda o
@@ -164,7 +164,7 @@ Para rodar o build localmente:
 
 ```bash
 npm run db:up
-DATABASE_URL="postgresql://spm:spm_dev_password@localhost:55432/spmnacional?schema=public" \
+DATABASE_URL="postgresql://spm:<senha-do-seu-.env>@localhost:55432/spmnacional?schema=public" \
   npm run build:pages
 # resultado em out/
 ```

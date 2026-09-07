@@ -27,7 +27,6 @@ interface UserDetail {
     roleId: string;
     roleName: string;
     regionalId: string;
-    mfaRequired: boolean;
     lastAccess: string;
     createdAt: string;
     inviteExpiresAt: string | null;
@@ -39,6 +38,8 @@ interface Props {
     regionais: RegionalOption[];
     sessoesAtivas: number;
     isSelf: boolean;
+    canManagePermissions: boolean;
+    allowNoRegional: boolean;
 }
 
 /** Espelha `ActionState`; o módulo original é server-only e não pode vir para cá. */
@@ -51,7 +52,15 @@ interface FormState {
 
 const ERROR_STYLE = { color: '#c2185b' };
 
-export default function PageContent({ user, roles, regionais, sessoesAtivas, isSelf }: Props) {
+export default function PageContent({
+    user,
+    roles,
+    regionais,
+    sessoesAtivas,
+    isSelf,
+    canManagePermissions,
+    allowNoRegional,
+}: Props) {
     const [state, formAction, pending] = useActionState<FormState, FormData>(atualizarUsuario, {
         ok: false,
     });
@@ -194,7 +203,9 @@ export default function PageContent({ user, roles, regionais, sessoesAtivas, isS
                                         name="regionalId"
                                         defaultValue={user.regionalId}
                                     >
-                                        <option value="">Sem regional definida</option>
+                                        {allowNoRegional && (
+                                            <option value="">Sem regional definida</option>
+                                        )}
                                         {regionais.map((regional) => (
                                             <option value={regional.id} key={regional.id}>
                                                 {regional.name}
@@ -355,15 +366,6 @@ export default function PageContent({ user, roles, regionais, sessoesAtivas, isS
                                     <span>{user.createdAt}</span>
                                 </div>
                             </li>
-                            <li>
-                                <span className="activity-list__icon">
-                                    <i className="fas fa-shield-halved"></i>
-                                </span>
-                                <div>
-                                    <strong>Verificação em duas etapas</strong>
-                                    <span>{user.mfaRequired ? 'Exigida' : 'Não exigida'}</span>
-                                </div>
-                            </li>
                             {user.status === 'PENDENTE' && user.inviteExpiresAt && (
                                 <li>
                                     <span className="activity-list__icon">
@@ -391,12 +393,14 @@ export default function PageContent({ user, roles, regionais, sessoesAtivas, isS
                                 'Escolha um perfil para ver a descrição dele.'}
                         </p>
 
-                        <Link
-                            className="abtn abtn--ghost abtn--sm abtn--block"
-                            href="/admin/acessos"
-                        >
-                            Ver a matriz de permissões
-                        </Link>
+                        {canManagePermissions && (
+                            <Link
+                                className="abtn abtn--ghost abtn--sm abtn--block"
+                                href="/admin/acessos"
+                            >
+                                Ver a matriz de permissões
+                            </Link>
+                        )}
                     </div>
                 </div>
             </div>

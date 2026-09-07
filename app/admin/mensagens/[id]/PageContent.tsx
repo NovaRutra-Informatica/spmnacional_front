@@ -30,8 +30,6 @@ interface MessageDetail {
     respondedAt: string | null;
     createdAt: string;
     updatedAt: string;
-    ip: string | null;
-    userAgent: string | null;
 }
 
 interface UserOption {
@@ -45,11 +43,12 @@ interface UserOption {
 interface PageContentProps {
     message: MessageDetail;
     users: UserOption[];
+    canAssign: boolean;
 }
 
 const STATUS_OPTIONS: ContactStatus[] = ['NOVA', 'EM_ATENDIMENTO', 'RESPONDIDA', 'ARQUIVADA'];
 
-export default function PageContent({ message, users }: PageContentProps) {
+export default function PageContent({ message, users, canAssign }: PageContentProps) {
     const [state, formAction, pending] = useActionState<FormState, FormData>(salvarMensagem, {
         ok: false,
     });
@@ -187,30 +186,32 @@ export default function PageContent({ message, users }: PageContentProps) {
                     <div className="acard">
                         <div className="acard__head">
                             <div>
-                                <h3>Origem do envio</h3>
-                                <p>Guardado apenas para identificar abuso do formulário.</p>
+                                <h3>Privacidade do envio</h3>
+                                <p>Proteções aplicadas aos dados de quem escreveu.</p>
                             </div>
                         </div>
 
                         <ul className="activity-list">
                             <li>
                                 <span className="activity-list__icon">
-                                    <i className="fas fa-network-wired"></i>
+                                    <i className="fas fa-lock"></i>
                                 </span>
                                 <div>
-                                    <strong>{message.ip ?? 'IP não registrado'}</strong>
-                                    <span>Endereço de origem</span>
+                                    <strong>Dados pessoais cifrados</strong>
+                                    <span>
+                                        Nome, contato, texto e nota interna ficam protegidos.
+                                    </span>
                                 </div>
                             </li>
                             <li>
                                 <span className="activity-list__icon">
-                                    <i className="fas fa-desktop"></i>
+                                    <i className="fas fa-user-shield"></i>
                                 </span>
                                 <div>
-                                    <strong>
-                                        {message.userAgent ?? 'Navegador não registrado'}
-                                    </strong>
-                                    <span>Navegador informado</span>
+                                    <strong>IP e navegador não são armazenados</strong>
+                                    <span>
+                                        O controle de abuso usa identificadores não reversíveis.
+                                    </span>
                                 </div>
                             </li>
                             <li>
@@ -240,19 +241,37 @@ export default function PageContent({ message, users }: PageContentProps) {
 
                             <div className="afield">
                                 <label htmlFor="assignedToId">Responsável</label>
-                                <select
-                                    id="assignedToId"
-                                    name="assignedToId"
-                                    defaultValue={message.assignedToId}
-                                >
-                                    <option value="">Sem responsável definido</option>
-                                    {users.map((option) => (
-                                        <option value={option.id} key={option.id}>
-                                            {option.name} ({option.email})
-                                            {option.inactive ? ' — conta inativa' : ''}
-                                        </option>
-                                    ))}
-                                </select>
+                                {canAssign ? (
+                                    <select
+                                        id="assignedToId"
+                                        name="assignedToId"
+                                        defaultValue={message.assignedToId}
+                                    >
+                                        <option value="">Sem responsável definido</option>
+                                        {users.map((option) => (
+                                            <option value={option.id} key={option.id}>
+                                                {option.name} ({option.email})
+                                                {option.inactive ? ' — conta inativa' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <>
+                                        <input
+                                            id="assignedToId"
+                                            value={message.assignedToName ?? 'Você'}
+                                            disabled
+                                        />
+                                        <input
+                                            type="hidden"
+                                            name="assignedToId"
+                                            value={message.assignedToId}
+                                        />
+                                        <span className="afield__hint">
+                                            Somente o administrador geral pode transferir mensagens.
+                                        </span>
+                                    </>
+                                )}
                                 {state.fieldErrors?.assignedToId && (
                                     <span className="afield__hint" style={{ color: '#c2185b' }}>
                                         {state.fieldErrors.assignedToId}

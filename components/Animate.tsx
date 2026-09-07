@@ -24,9 +24,10 @@ export default function Animate({ as = 'div', className, style, children }: Anim
 
     useEffect(() => {
         const element = ref.current;
+        const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
         // Ambientes sem IntersectionObserver: mostra o conteúdo direto.
-        if (!element || typeof IntersectionObserver === 'undefined') {
+        if (!element || typeof IntersectionObserver === 'undefined' || reduceMotion) {
             setPhase('visible');
             return;
         }

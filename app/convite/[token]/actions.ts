@@ -18,8 +18,11 @@ import { prisma } from '@/lib/server/db';
 
 const schema = z
     .object({
-        senha: z.string().min(10, 'A senha precisa ter pelo menos 10 caracteres.'),
-        confirmacao: z.string().min(1, 'Repita a senha para confirmar.'),
+        senha: z
+            .string()
+            .min(12, 'A senha precisa ter pelo menos 12 caracteres.')
+            .max(128, 'A senha deve ter no máximo 128 caracteres.'),
+        confirmacao: z.string().min(1, 'Repita a senha para confirmar.').max(128),
     })
     .refine((valores) => valores.senha === valores.confirmacao, {
         path: ['confirmacao'],

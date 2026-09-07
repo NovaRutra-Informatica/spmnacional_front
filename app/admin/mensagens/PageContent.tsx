@@ -130,12 +130,14 @@ export default function PageContent({ messages, counts }: PageContentProps) {
                     <input
                         className="atoolbar__search"
                         type="search"
+                        aria-label="Buscar mensagens"
                         placeholder="Buscar por nome, e-mail, assunto ou cidade…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
 
                     <select
+                        aria-label="Filtrar mensagens por status"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as 'todos' | ContactStatus)}
                     >
@@ -147,7 +149,7 @@ export default function PageContent({ messages, counts }: PageContentProps) {
                     </select>
 
                     <span className="atoolbar__spacer"></span>
-                    <span style={{ fontSize: '0.82rem', color: '#7b8a9a' }}>
+                    <span className="atoolbar__count">
                         {filtered.length} de {messages.length} registros
                     </span>
                 </div>

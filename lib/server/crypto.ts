@@ -58,10 +58,24 @@ export function generateToken(bytes = 32): string {
     return randomBytes(bytes).toString('base64url');
 }
 
+const REJECTED_AUTH_SECRETS = new Set([
+    'spm-dev-secret',
+    'troque-este-valor-em-producao-com-48-bytes-aleatorios',
+    'desenvolvimento-local-nao-use-em-producao-troque-este-segredo',
+]);
+
+function authSecret(): string {
+    const secret = env.authSecret;
+    if (Buffer.byteLength(secret, 'utf8') < 32 || REJECTED_AUTH_SECRETS.has(secret)) {
+        throw new Error(
+            'AUTH_SECRET ausente, previsível ou curto: gere um segredo aleatório com pelo menos 32 bytes.',
+        );
+    }
+    return secret;
+}
+
 export function hashToken(token: string): string {
-    return createHmac('sha256', env.authSecret || 'spm-dev-secret')
-        .update(token)
-        .digest('hex');
+    return createHmac('sha256', authSecret()).update(token).digest('hex');
 }
 
 // ---------------------------------------------------------
@@ -72,9 +86,13 @@ export function hashToken(token: string): string {
 // ---------------------------------------------------------
 
 const ENCRYPTION_PREFIX = 'v1';
+const REJECTED_ENCRYPTION_KEYS = new Set([
+    // Base64 do placeholder hexadecimal usado em versões iniciais do projeto.
+    'MDAwMTAyMDMwNDA1MDYwNzA4MDkwYTBiMGMwZDBlMGY=',
+]);
 
 function encryptionKey(): Buffer | null {
-    if (!env.encryptionKey) return null;
+    if (!env.encryptionKey || REJECTED_ENCRYPTION_KEYS.has(env.encryptionKey)) return null;
     try {
         const key = Buffer.from(env.encryptionKey, 'base64');
         return key.length === 32 ? key : null;
@@ -132,6 +150,19 @@ export function decryptSensitive(payload: string | null | undefined): string | n
     } catch {
         return null;
     }
+}
+
+/**
+ * Compatibilidade temporária para registros criados antes da cifra em repouso.
+ * O marcador vem do banco; nunca tentamos adivinhar pelo conteúdo. A rotina de
+ * retenção converte esses registros em lotes e elimina este caminho legado.
+ */
+export function decryptSensitiveOrLegacy(
+    payload: string | null | undefined,
+    encryptedAt: Date | null,
+): string | null {
+    if (!payload) return null;
+    return encryptedAt ? decryptSensitive(payload) : payload;
 }
 
 /** Máscara para exibir um dado cifrado sem revelá-lo por inteiro. */

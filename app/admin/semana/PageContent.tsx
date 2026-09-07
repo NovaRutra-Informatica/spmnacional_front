@@ -131,17 +131,31 @@ export default function PageContent({ edicoes }: PageContentProps) {
                                                 >
                                                     <i className="fas fa-pen"></i>
                                                 </Link>
-                                                <form action={excluirEdicao}>
+                                                <form
+                                                    action={excluirEdicao}
+                                                    onSubmit={(submitEvent) => {
+                                                        const confirmed = window.confirm(
+                                                            `Excluir a edição de ${item.ano}, incluindo seus materiais e sua programação? Esta ação não pode ser desfeita.`,
+                                                        );
+                                                        if (!confirmed)
+                                                            submitEvent.preventDefault();
+                                                    }}
+                                                >
                                                     <input
                                                         type="hidden"
                                                         name="id"
                                                         value={item.id}
                                                     />
                                                     <button
+                                                        type="submit"
                                                         className="abtn abtn--danger abtn--sm"
                                                         title="Excluir edição, materiais e programação"
+                                                        aria-label={`Excluir a edição de ${item.ano}, seus materiais e sua programação`}
                                                     >
-                                                        <i className="fas fa-trash"></i>
+                                                        <i
+                                                            className="fas fa-trash"
+                                                            aria-hidden="true"
+                                                        ></i>
                                                     </button>
                                                 </form>
                                             </div>

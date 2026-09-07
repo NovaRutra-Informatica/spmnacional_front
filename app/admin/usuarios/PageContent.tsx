@@ -34,6 +34,7 @@ interface Props {
     users: UserRow[];
     roles: RoleOption[];
     currentUserId: string;
+    canManagePermissions: boolean;
     counts: Counts;
 }
 
@@ -45,7 +46,13 @@ interface FormState {
     data?: Record<string, unknown>;
 }
 
-export default function PageContent({ users, roles, currentUserId, counts }: Props) {
+export default function PageContent({
+    users,
+    roles,
+    currentUserId,
+    canManagePermissions,
+    counts,
+}: Props) {
     const [state, formAction, pending] = useActionState<FormState, FormData>(executarAcaoUsuario, {
         ok: false,
     });
@@ -91,9 +98,11 @@ export default function PageContent({ users, roles, currentUserId, counts }: Pro
                     </p>
                 </div>
                 <div className="admin-page-head__actions">
-                    <Link className="abtn abtn--ghost" href="/admin/acessos">
-                        <i className="fas fa-shield-halved"></i> Perfis e permissões
-                    </Link>
+                    {canManagePermissions && (
+                        <Link className="abtn abtn--ghost" href="/admin/acessos">
+                            <i className="fas fa-shield-halved"></i> Perfis e permissões
+                        </Link>
+                    )}
                     <Link className="abtn abtn--action" href="/admin/usuarios/novo">
                         <i className="fas fa-user-plus"></i> Convidar usuário
                     </Link>
@@ -163,12 +172,17 @@ export default function PageContent({ users, roles, currentUserId, counts }: Pro
                     <input
                         className="atoolbar__search"
                         type="search"
+                        aria-label="Buscar usuários"
                         placeholder="Buscar por nome, e-mail ou regional…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
 
-                    <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
+                    <select
+                        aria-label="Filtrar usuários por perfil"
+                        value={roleFilter}
+                        onChange={(e) => setRoleFilter(e.target.value)}
+                    >
                         <option value="todos">Todos os perfis</option>
                         {roles.map((role) => (
                             <option value={role.id} key={role.id}>
@@ -178,6 +192,7 @@ export default function PageContent({ users, roles, currentUserId, counts }: Pro
                     </select>
 
                     <select
+                        aria-label="Filtrar usuários por status"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as 'todos' | UserStatus)}
                     >
@@ -188,7 +203,7 @@ export default function PageContent({ users, roles, currentUserId, counts }: Pro
                     </select>
 
                     <span className="atoolbar__spacer"></span>
-                    <span style={{ fontSize: '0.82rem', color: '#7b8a9a' }}>
+                    <span className="atoolbar__count">
                         {filtered.length} de {counts.total} contas
                     </span>
                 </div>

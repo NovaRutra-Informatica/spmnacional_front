@@ -3,7 +3,7 @@
  *
  * Os dados institucionais (regionais, coordenação, edições da Semana do
  * Migrante, contatos) vieram de fontes públicas do próprio SPM, da CNBB e da
- * CEPAST — as referências estão em docs/FONTES.md.
+ * CEPAST — as referências estão em devdocs/FONTES.md.
  *
  * O que é conteúdo de demonstração está marcado como tal, para a equipe saber
  * o que precisa substituir antes de publicar.
@@ -27,6 +27,42 @@ async function hashPassword(password: string): Promise<string> {
     const salt = randomBytes(16);
     const derived = await scrypt(password.normalize('NFKC'), salt, 64);
     return `scrypt$${salt.toString('base64')}$${derived.toString('base64')}`;
+}
+
+/**
+ * A senha só é exigida quando ainda não existe um hash para a conta inicial.
+ * Não há valor padrão: um seed executado sem segredo explícito deve falhar em
+ * vez de publicar uma credencial conhecida.
+ */
+function requireSeedAdminPassword(): string {
+    const password = process.env.SEED_ADMIN_PASSWORD;
+    if (!password) {
+        throw new Error(
+            'SEED_ADMIN_PASSWORD é obrigatória para criar a senha inicial do administrador.',
+        );
+    }
+
+    const normalized = password.normalize('NFKC');
+    if (normalized !== normalized.trim()) {
+        throw new Error('SEED_ADMIN_PASSWORD não pode começar ou terminar com espaços.');
+    }
+
+    if (normalized.length < 12) {
+        throw new Error('SEED_ADMIN_PASSWORD deve ter pelo menos 12 caracteres.');
+    }
+
+    const compact = normalized.toLowerCase().replace(/\s/g, '');
+    const placeholder =
+        /^(admin|password|senha|changeme|change-me|trocar|temporaria|temporario|placeholder|example|exemplo|soufoda)[0-9!@#$%^&*._-]*$/;
+    if (placeholder.test(compact)) {
+        throw new Error('SEED_ADMIN_PASSWORD não pode ser uma senha padrão ou placeholder.');
+    }
+
+    if (new Set(compact).size < 6) {
+        throw new Error('SEED_ADMIN_PASSWORD é repetitiva demais; use uma senha mais forte.');
+    }
+
+    return normalized;
 }
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
@@ -61,7 +97,7 @@ const PERMISSIONS = [
     {
         key: 'usuarios',
         label: 'Gerenciar usuários',
-        hint: 'Convidar, editar e desativar',
+        hint: 'Convidar, editar e desativar no escopo autorizado',
         order: 5,
     },
     {
@@ -1028,9 +1064,10 @@ async function main() {
 
     const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@spmnacional.org.br').toLowerCase();
     const adminName = process.env.SEED_ADMIN_NAME || 'Administrador do SPM';
-    const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'soufoda';
-
     const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
+    const initialPasswordHash = existingAdmin?.passwordHash
+        ? existingAdmin.passwordHash
+        : await hashPassword(requireSeedAdminPassword());
 
     await prisma.user.upsert({
         where: { email: adminEmail },
@@ -1039,19 +1076,16 @@ async function main() {
             roleId: adminRole.id,
             status: 'ATIVO',
             // Não sobrescreve uma senha já trocada pela equipe.
-            ...(existingAdmin?.passwordHash
-                ? {}
-                : { passwordHash: await hashPassword(adminPassword) }),
+            ...(existingAdmin?.passwordHash ? {} : { passwordHash: initialPasswordHash }),
         },
         create: {
             name: adminName,
             email: adminEmail,
             initials: 'AD',
-            passwordHash: await hashPassword(adminPassword),
+            passwordHash: initialPasswordHash,
             roleId: adminRole.id,
             regionalId: sede?.id ?? null,
             status: 'ATIVO',
-            mfaRequired: false,
         },
     });
     console.log(`  administrador: ${adminEmail}`);

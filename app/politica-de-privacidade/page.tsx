@@ -77,15 +77,16 @@ export default function Page() {
                         <h3>5. Por quanto tempo guardamos</h3>
                         <p>
                             Mensagens de contato são mantidas por até 24 meses. Registros de
-                            atendimento seguem os prazos exigidos pelos projetos e convênios aos
-                            quais estão vinculados. Depois disso, são anonimizados ou eliminados.
+                            atendimento são anonimizados na data definida para o caso ou após 24
+                            meses sem atualização, o que ocorrer primeiro. Mensagens vencidas são
+                            eliminadas por uma rotina automática.
                         </p>
 
                         <h3>6. Cookies</h3>
                         <p>
-                            Utilizamos cookies essenciais ao funcionamento do site e cookies de
-                            análise estatística agregada. Você pode bloquear cookies nas
-                            configurações do seu navegador — o site continuará funcionando.
+                            O painel usa um cookie essencial de sessão, protegido contra acesso por
+                            scripts. O site público guarda localmente apenas sua preferência sobre o
+                            aviso de privacidade; não há rastreamento publicitário.
                         </p>
 
                         <h3>7. Seus direitos</h3>
@@ -107,9 +108,10 @@ export default function Page() {
 
                         <h3>8. Segurança</h3>
                         <p>
-                            Adotamos controles de acesso individuais e registrados para sistemas que
-                            contenham dados de atendimento. Agentes e voluntários assinam termo de
-                            sigilo.
+                            Nome, contato e conteúdo enviados pelo formulário e os identificadores
+                            dos atendimentos são cifrados em repouso. Adotamos acesso individual por
+                            função, sessões revogáveis e auditoria das consultas a dados pessoais.
+                            IP e navegador não são associados às mensagens recebidas.
                         </p>
 
                         <h3>9. Como falar sobre privacidade</h3>
@@ -125,7 +127,7 @@ export default function Page() {
                         <h3>10. Atualizações</h3>
                         <p>
                             Esta política pode ser atualizada. Alterações relevantes serão
-                            comunicadas nesta página. Última revisão: agosto de 2026.
+                            comunicadas nesta página. Última revisão: setembro de 2026.
                         </p>
                     </div>
                 </div>

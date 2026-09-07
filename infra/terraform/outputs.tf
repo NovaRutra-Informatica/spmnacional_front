@@ -120,6 +120,11 @@ output "agenda_scheduler_job" {
   value       = one(google_cloud_scheduler_job.agenda[*].name)
 }
 
+output "retention_scheduler_job" {
+  description = "Job diário do Cloud Scheduler que aplica a política de retenção de dados."
+  value       = google_cloud_scheduler_job.retencao.name
+}
+
 # --- Próximos passos ---
 
 output "proximos_passos" {

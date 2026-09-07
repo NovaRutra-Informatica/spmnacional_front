@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/server/db';
 import { recordAudit } from '@/lib/server/audit';
+import { encryptSensitive } from '@/lib/server/crypto';
 import {
     actionError,
     actionOk,
@@ -14,6 +15,7 @@ import {
     type ActionState,
 } from '@/lib/server/actions';
 import { CONTACT_STATUS_LABEL } from '@/lib/labels';
+import { escopoMensagens, podeAtribuirMensagens } from './politica';
 
 const STATUS_VALUES = ['NOVA', 'EM_ATENDIMENTO', 'RESPONDIDA', 'ARQUIVADA'] as const;
 
@@ -47,38 +49,58 @@ export async function salvarMensagem(_prev: ActionState, formData: FormData): Pr
         const { id, status, assignedToId, internalNote } = parsed.data;
         const marcarRespondida = formBoolean(formData, 'marcarRespondida');
 
-        const atual = await prisma.contactMessage.findUnique({
-            where: { id },
+        const atual = await prisma.contactMessage.findFirst({
+            where: { id, ...escopoMensagens(user) },
             select: {
                 id: true,
-                name: true,
-                subject: true,
                 status: true,
                 respondedAt: true,
                 assignedToId: true,
+                name: true,
+                email: true,
+                phone: true,
+                city: true,
+                message: true,
+                encryptedAt: true,
             },
         });
 
         if (!atual) {
-            return actionError('Mensagem não encontrada — talvez tenha sido removida.');
+            return actionError('Mensagem não encontrada ou fora do seu escopo de atendimento.');
+        }
+
+        const podeAtribuir = podeAtribuirMensagens(user);
+        if (!podeAtribuir && assignedToId !== user.id) {
+            return actionError('Você não pode transferir esta mensagem para outra pessoa.', {
+                assignedToId: 'A mensagem deve permanecer atribuída a você.',
+            });
         }
 
         // Responsável só é aceito se a conta estiver ativa. A exceção é quem já
         // respondia pela mensagem antes de ser desativado: manter a atribuição
         // preserva o histórico de quem atendeu.
-        let responsavel: { id: string; name: string } | null = null;
-        if (assignedToId) {
+        let responsavel: { id: string; name: string } | null = podeAtribuir
+            ? null
+            : { id: user.id, name: user.name };
+        if (podeAtribuir && assignedToId) {
             responsavel = await prisma.user.findFirst({
                 where: {
                     id: assignedToId,
-                    ...(assignedToId === atual.assignedToId ? {} : { status: 'ATIVO' }),
+                    ...(assignedToId === atual.assignedToId
+                        ? {}
+                        : {
+                              status: 'ATIVO',
+                              role: {
+                                  permissions: { some: { permissionKey: 'atendimentos' } },
+                              },
+                          }),
                 },
                 select: { id: true, name: true },
             });
 
             if (!responsavel) {
                 return actionError('Verifique os campos destacados.', {
-                    assignedToId: 'Selecione uma pessoa com conta ativa.',
+                    assignedToId: 'Selecione uma pessoa ativa com permissão de atendimento.',
                 });
             }
         }
@@ -87,22 +109,42 @@ export async function salvarMensagem(_prev: ActionState, formData: FormData): Pr
         // a equipe desmarcar a mensagem como respondida.
         const respondedAt = marcarRespondida ? (atual.respondedAt ?? new Date()) : null;
 
-        await prisma.contactMessage.update({
-            where: { id },
+        const atualizado = await prisma.contactMessage.updateMany({
+            where: { id, ...escopoMensagens(user) },
             data: {
                 status,
                 assignedToId: responsavel?.id ?? null,
-                internalNote: internalNote || null,
+                internalNote: encryptSensitive(internalNote),
                 respondedAt,
+                // Qualquer atualização também converte uma linha legada por
+                // completo, sem deixar uma mistura de texto claro e cifrado.
+                ...(atual.encryptedAt
+                    ? {}
+                    : {
+                          name: encryptSensitive(atual.name)!,
+                          email: encryptSensitive(atual.email)!,
+                          phone: encryptSensitive(atual.phone),
+                          city: encryptSensitive(atual.city),
+                          message: encryptSensitive(atual.message)!,
+                          ip: null,
+                          userAgent: null,
+                          encryptedAt: new Date(),
+                      }),
             },
         });
+
+        if (atualizado.count !== 1) {
+            return actionError(
+                'A mensagem deixou de pertencer ao seu escopo. Recarregue a página.',
+            );
+        }
 
         await recordAudit({
             action:
                 atual.status === status
                     ? 'Mensagem de contato atualizada'
                     : `Mensagem movida para "${CONTACT_STATUS_LABEL[status]}"`,
-            target: `${atual.subject} — ${atual.name}`,
+            target: `Mensagem ${id}`,
             userId: user.id,
             actorLabel: user.email,
             metadata: {
@@ -131,17 +173,17 @@ export async function definirStatusMensagem(formData: FormData): Promise<void> {
 
         const status = parsedStatus.data;
 
-        const atual = await prisma.contactMessage.findUnique({
-            where: { id },
-            select: { name: true, subject: true, status: true, respondedAt: true },
+        const atual = await prisma.contactMessage.findFirst({
+            where: { id, ...escopoMensagens(user) },
+            select: { status: true, respondedAt: true },
         });
 
         if (!atual) {
-            return actionError('Mensagem não encontrada.');
+            return actionError('Mensagem não encontrada ou fora do seu escopo de atendimento.');
         }
 
-        await prisma.contactMessage.update({
-            where: { id },
+        const atualizado = await prisma.contactMessage.updateMany({
+            where: { id, ...escopoMensagens(user) },
             data: {
                 status,
                 // Marcar como respondida pela listagem também carimba a data.
@@ -150,9 +192,15 @@ export async function definirStatusMensagem(formData: FormData): Promise<void> {
             },
         });
 
+        if (atualizado.count !== 1) {
+            return actionError(
+                'A mensagem deixou de pertencer ao seu escopo. Recarregue a página.',
+            );
+        }
+
         await recordAudit({
             action: `Mensagem movida para "${CONTACT_STATUS_LABEL[status]}"`,
-            target: `${atual.subject} — ${atual.name}`,
+            target: `Mensagem ${id}`,
             userId: user.id,
             actorLabel: user.email,
             metadata: { mensagemId: id, statusAnterior: atual.status, statusNovo: status },

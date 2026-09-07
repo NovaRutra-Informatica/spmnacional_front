@@ -26,9 +26,9 @@ function segredoConfere(recebido: string, esperado: string): boolean {
 function autorizado(request: Request): boolean {
     const esperado = env.cronSecret;
 
-    // Sem CRON_SECRET configurado a rota fica fechada. Um endpoint que dispara
-    // escrita no banco não pode ficar aberto por omissão de configuração.
-    if (!esperado) return false;
+    // Sem segredo forte a rota fica fechada. Um endpoint que dispara escrita
+    // no banco não pode aceitar um placeholder de desenvolvimento por engano.
+    if (Buffer.byteLength(esperado, 'utf8') < 32 || esperado === 'dev-cron-secret') return false;
 
     const header = request.headers.get('authorization') ?? '';
     const bearer = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';

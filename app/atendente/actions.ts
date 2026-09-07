@@ -11,8 +11,9 @@ import { loginWithPassword, type LoginResult } from '@/lib/server/auth';
  */
 
 const schema = z.object({
-    email: z.string().min(1, 'Informe seu usuário ou e-mail.'),
-    senha: z.string().min(1, 'Informe sua senha.'),
+    email: z.string().min(1, 'Informe seu usuário ou e-mail.').max(254),
+    // O limite impede que entradas enormes monopolizem CPU no scrypt.
+    senha: z.string().min(1, 'Informe sua senha.').max(128),
 });
 
 /**

@@ -14,6 +14,7 @@
 #                                     └── Cloud Storage (uploads)
 #
 #   Cloud Scheduler ──(header com CRON_SECRET)──> /api/cron/agenda
+#                                            └──> /api/cron/retencao
 #
 # Princípio de custo: tudo que consegue escalar a zero escala a zero. O único
 # item que cobra 24 horas por dia é o Cloud SQL — ver a tabela em
@@ -85,7 +86,6 @@ locals {
       NEXT_TELEMETRY_DISABLED = "1"
       STORAGE_DRIVER          = "gcs"
       GCS_BUCKET              = google_storage_bucket.uploads.name
-      GCS_PUBLIC_BASE_URL     = "https://storage.googleapis.com/${google_storage_bucket.uploads.name}"
       SEED_ADMIN_EMAIL        = var.seed_admin_email
     },
     # NEXT_PUBLIC_* só entra no bundle do cliente em tempo de build; hoje
@@ -377,9 +377,9 @@ resource "google_storage_bucket" "uploads" {
   # quem pode ler é decidido só pelo IAM do bucket.
   uniform_bucket_level_access = true
 
-  # "enforced" bloqueia até o binding de leitura pública. Ver a variável
-  # `uploads_bucket_public` para o porquê do padrão.
-  public_access_prevention = var.uploads_bucket_public ? "inherited" : "enforced"
+  # O bucket guarda conteúdo administrado e jamais aceita concessão pública.
+  # A aplicação autenticada acessa os objetos pela conta de serviço do runtime.
+  public_access_prevention = "enforced"
 
   # Trava contra exclusão acidental de um bucket com conteúdo dentro.
   force_destroy = false
@@ -419,13 +419,6 @@ resource "google_storage_bucket" "uploads" {
   }
 
   depends_on = [google_project_service.apis]
-}
-
-resource "google_storage_bucket_iam_member" "uploads_publico" {
-  count  = var.uploads_bucket_public ? 1 : 0
-  bucket = google_storage_bucket.uploads.name
-  role   = "roles/storage.objectViewer"
-  member = "allUsers"
 }
 
 # ---------------------------------------------------------
@@ -795,12 +788,44 @@ resource "google_cloud_run_v2_job" "migrate" {
 }
 
 # ---------------------------------------------------------
-# 9. Cloud Scheduler — sincronização da agenda
+# 9. Cloud Scheduler — rotinas periódicas
 #
-# Três jobs por conta de faturamento são gratuitos, então isto não entra na
-# conta. Só é criado quando a integração com o Calendar está ligada: sem ela a
-# rota devolveria zeros e só geraria ruído no log.
+# Três jobs por conta de faturamento são gratuitos; usamos dois. A retenção é
+# obrigatória e diária. A agenda só é criada quando a integração com o Calendar
+# está ligada: sem ela a rota devolveria zeros e só geraria ruído no log.
 # ---------------------------------------------------------
+
+resource "google_cloud_scheduler_job" "retencao" {
+  name        = "${var.name_prefix}-data-retention"
+  region      = var.region
+  description = "Executa o expurgo diário de dados pessoais conforme a política de retenção."
+  schedule    = var.data_retention_schedule
+  time_zone   = "America/Sao_Paulo"
+
+  attempt_deadline = "320s"
+
+  retry_config {
+    retry_count          = 2
+    min_backoff_duration = "30s"
+    max_backoff_duration = "300s"
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "${google_cloud_run_v2_service.site.uri}/api/cron/retencao"
+
+    headers = {
+      # Mesmo segredo operacional forte injetado no Cloud Run. O cabeçalho
+      # próprio evita conflito com os tokens reservados pelo Scheduler.
+      "X-Cron-Secret" = random_password.cron_secret.result
+      "Content-Type"  = "application/json"
+    }
+
+    body = base64encode("{}")
+  }
+
+  depends_on = [google_project_service.apis]
+}
 
 resource "google_cloud_scheduler_job" "agenda" {
   count = var.enable_google_calendar ? 1 : 0

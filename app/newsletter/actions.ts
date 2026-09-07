@@ -3,19 +3,19 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { formString } from '@/lib/server/actions';
-import { recordAudit } from '@/lib/server/audit';
+import { recordAudit, requestMeta } from '@/lib/server/audit';
 import { generateToken, hashToken } from '@/lib/server/crypto';
 import { prisma } from '@/lib/server/db';
 import { env, isMailEnabled } from '@/lib/server/env';
 import { sendNewsletterConfirmation } from '@/lib/server/mail';
+import { consumeRateLimit } from '@/lib/server/rate-limit';
 
 /**
  * Inscrição no boletim, a partir do rodapé da home.
  *
  * Ação pública: sem sessão e sem `runAction`. O e-mail só entra na lista depois
  * de confirmado por link (dupla confirmação) — assim ninguém inscreve terceiros.
- * Quando não há SMTP configurado, não existe como confirmar: a inscrição é
- * aceita direto e a mensagem de retorno deixa isso explícito.
+ * Sem SMTP a inscrição não é ativada: a dupla confirmação nunca é contornada.
  */
 
 interface NewsletterFormState {
@@ -47,54 +47,93 @@ export async function inscrever(
 
         const email = parsed.data.email.toLowerCase();
 
+        if (!isMailEnabled()) {
+            return {
+                ok: false,
+                message: 'O boletim está temporariamente indisponível. Tente novamente mais tarde.',
+            };
+        }
+
+        const meta = await requestMeta();
+        const limits = [
+            consumeRateLimit({
+                scope: 'newsletter-global',
+                identifier: 'all',
+                limit: 100,
+                windowMs: 60 * 60 * 1000,
+            }),
+            consumeRateLimit({
+                scope: 'newsletter-address',
+                identifier: email,
+                limit: 3,
+                windowMs: 60 * 60 * 1000,
+            }),
+        ];
+
+        if (meta.ip) {
+            limits.push(
+                consumeRateLimit({
+                    scope: 'newsletter-source',
+                    identifier: meta.ip,
+                    limit: 10,
+                    windowMs: 60 * 60 * 1000,
+                }),
+            );
+        }
+
+        const limitResults = await Promise.all(limits);
+
+        if (limitResults.some((result) => !result.allowed)) {
+            return {
+                ok: false,
+                message:
+                    'Muitas solicitações foram feitas desta conexão. Aguarde antes de tentar novamente.',
+            };
+        }
+
         const existing = await prisma.newsletterSubscriber.findUnique({
             where: { email },
             select: { confirmed: true },
         });
 
         if (existing?.confirmed) {
-            return { ok: true, message: 'Este e-mail já está na lista. Obrigado por acompanhar!' };
+            return {
+                ok: true,
+                message:
+                    'Se este endereço puder receber o boletim, enviaremos as instruções necessárias.',
+            };
         }
 
-        const mailEnabled = isMailEnabled();
         const token = generateToken();
-        const confirmedNow = mailEnabled ? null : new Date();
+        const confirmExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
         await prisma.newsletterSubscriber.upsert({
             where: { email },
             create: {
                 email,
                 source: 'site',
-                confirmed: !mailEnabled,
-                confirmedAt: confirmedNow,
-                confirmTokenHash: mailEnabled ? hashToken(token) : null,
+                confirmed: false,
+                confirmedAt: null,
+                confirmTokenHash: hashToken(token),
+                confirmExpiresAt,
             },
             update: {
-                confirmed: !mailEnabled,
-                confirmedAt: confirmedNow,
-                confirmTokenHash: mailEnabled ? hashToken(token) : null,
+                confirmed: false,
+                confirmedAt: null,
+                confirmTokenHash: hashToken(token),
+                confirmExpiresAt,
                 // Reinscrição depois de um cancelamento volta a valer.
                 unsubscribedAt: null,
             },
         });
 
         await recordAudit({
-            action: mailEnabled
-                ? 'Inscrição no boletim (aguardando confirmação)'
-                : 'Inscrição no boletim',
-            target: email,
+            action: 'Inscrição no boletim (aguardando confirmação)',
+            target: 'Endereço de boletim não confirmado',
             actorLabel: 'site público',
         });
 
         revalidatePath('/admin/configuracoes');
-
-        if (!mailEnabled) {
-            return {
-                ok: true,
-                message:
-                    'Inscrição confirmada. O envio de e-mails ainda não está configurado neste ambiente, então já ativamos seu cadastro sem o passo de confirmação.',
-            };
-        }
 
         const base = env.appUrl.replace(/\/$/, '');
         const confirmUrl = `${base}/newsletter/confirmar?token=${encodeURIComponent(token)}`;

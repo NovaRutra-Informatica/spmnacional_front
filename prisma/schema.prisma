@@ -191,12 +191,12 @@ model User {
   resetTokenHash String?   @unique
   resetExpiresAt DateTime?
 
-  sessions          Session[]
-  auditEntries      AuditLog[]
-  posts             Post[]
-  uploads           Media[]
-  assignedMessages  ContactMessage[]
-  atendimentosAbertos Atendimento[]  @relation("AtendimentoAutor")
+  sessions            Session[]
+  auditEntries        AuditLog[]
+  posts               Post[]
+  uploads             Media[]
+  assignedMessages    ContactMessage[]
+  atendimentosAbertos Atendimento[]    @relation("AtendimentoAutor")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -204,22 +204,25 @@ model User {
   @@index([roleId])
   @@index([regionalId])
   @@index([status])
+  @@index([inviteExpiresAt])
+  @@index([resetExpiresAt])
 }
 
 model Session {
-  id        String   @id @default(cuid())
-  tokenHash String   @unique
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userAgent String?
-  ip        String?
-  createdAt DateTime @default(now())
-  lastSeenAt DateTime @default(now())
-  expiresAt DateTime
-  revokedAt DateTime?
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  ip         String?
+  createdAt  DateTime  @default(now())
+  lastSeenAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
 
   @@index([userId])
   @@index([expiresAt])
+  @@index([revokedAt])
 }
 
 model LoginAttempt {
@@ -232,22 +235,38 @@ model LoginAttempt {
 
   @@index([email, createdAt])
   @@index([ip, createdAt])
+  @@index([createdAt])
+}
+
+/// Contador compartilhado entre instâncias para limitar abuso em rotas públicas.
+/// A chave é um HMAC: IP e e-mail nunca são gravados aqui em texto claro.
+model RateLimitBucket {
+  key         String   @id
+  count       Int      @default(0)
+  windowStart DateTime
+  expiresAt   DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt])
 }
 
 model AuditLog {
-  id         String     @id @default(cuid())
-  userId     String?
-  user       User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  actorLabel String
-  action     String
-  target     String
-  level      AuditLevel @default(INFO)
-  ip         String?
-  userAgent  String?
-  metadata   Json?
-  createdAt  DateTime   @default(now())
+  id           String     @id @default(cuid())
+  userId       String?
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actorLabel   String
+  action       String
+  target       String
+  level        AuditLevel @default(INFO)
+  ip           String?
+  userAgent    String?
+  metadata     Json?
+  createdAt    DateTime   @default(now())
+  /// Marca o momento em que identificadores e metadados pessoais foram removidos.
+  anonymizedAt DateTime?
 
   @@index([createdAt])
+  @@index([createdAt, anonymizedAt])
   @@index([userId])
   @@index([level])
   @@index([action])
@@ -338,10 +357,10 @@ model Media {
   uploadedById String?
   uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
 
-  posts    Post[]
-  editais  Edital[]
+  posts      Post[]
+  editais    Edital[]
   documentos Documento[]
-  materiais SemanaMaterial[]
+  materiais  SemanaMaterial[]
 
   createdAt DateTime @default(now())
 
@@ -350,12 +369,12 @@ model Media {
 }
 
 model Edital {
-  id          String       @id @default(cuid())
-  code        String       @unique
-  slug        String       @unique
-  title       String
-  description String
-  status      EditalStatus @default(ABERTO)
+  id           String       @id @default(cuid())
+  code         String       @unique
+  slug         String       @unique
+  title        String
+  description  String
+  status       EditalStatus @default(ABERTO)
   /// Texto exibido ("Inscrições até 30 de setembro de 2026").
   deadlineText String
   deadlineAt   DateTime?
@@ -376,22 +395,22 @@ model Edital {
 }
 
 model Testemunho {
-  id       String  @id @default(cuid())
-  text     String
+  id         String  @id @default(cuid())
+  text       String
   /// Pode ser um pseudônimo quando a pessoa pede anonimato.
   personName String
-  origin   String
-  initials String
-  photoUrl String?
+  origin     String
+  initials   String
+  photoUrl   String?
 
   /// Registro do consentimento — exigência da nossa política editorial e da LGPD.
-  consent       Boolean  @default(false)
-  consentNote   String?
-  anonymized    Boolean  @default(false)
-  featured      Boolean  @default(false)
-  published     Boolean  @default(true)
-  publishedAt   DateTime @default(now())
-  order         Int      @default(0)
+  consent     Boolean  @default(false)
+  consentNote String?
+  anonymized  Boolean  @default(false)
+  featured    Boolean  @default(false)
+  published   Boolean  @default(true)
+  publishedAt DateTime @default(now())
+  order       Int      @default(0)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -400,12 +419,12 @@ model Testemunho {
 }
 
 model Documento {
-  id        String             @id @default(cuid())
-  title     String
-  category  DocumentoCategoria
+  id       String             @id @default(cuid())
+  title    String
+  category DocumentoCategoria
   /// Linha de metadados exibida ("PDF · 1,2 MB · Atualizado em 2023").
-  meta      String
-  icon      String             @default("fa-file-lines")
+  meta     String
+  icon     String             @default("fa-file-lines")
 
   mediaId String?
   media   Media?  @relation(fields: [mediaId], references: [id], onDelete: SetNull)
@@ -422,14 +441,14 @@ model Documento {
 }
 
 model Regional {
-  id     String @id @default(cuid())
-  slug   String @unique
-  uf     String
-  name   String
-  region Regiao
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  uf          String
+  name        String
+  region      Regiao
   description String
   /// Frentes prioritárias da equipe.
-  focus  String[]
+  focus       String[]
 
   address String?
   city    String?
@@ -439,7 +458,7 @@ model Regional {
   active Boolean @default(true)
   order  Int     @default(0)
 
-  users User[]
+  users        User[]
   atendimentos Atendimento[]
 
   createdAt DateTime @default(now())
@@ -453,21 +472,21 @@ model Regional {
 // ---------------------------------------------------------
 
 model SemanaEdicao {
-  id      String  @id @default(cuid())
-  ano     Int     @unique
-  slug    String  @unique
-  edicao  String
-  tema    String
-  lema    String
-  periodo String
-  startsOn DateTime?
-  endsOn   DateTime?
-  coverUrl String?
+  id        String    @id @default(cuid())
+  ano       Int       @unique
+  slug      String    @unique
+  edicao    String
+  tema      String
+  lema      String
+  periodo   String
+  startsOn  DateTime?
+  endsOn    DateTime?
+  coverUrl  String?
   /// Texto de abertura em Markdown simplificado.
-  resumo   String
+  resumo    String
   objetivos String[]
   citacao   String?
-  published Boolean @default(true)
+  published Boolean   @default(true)
 
   materiais   SemanaMaterial[]
   programacao SemanaPrograma[]
@@ -477,28 +496,28 @@ model SemanaEdicao {
 }
 
 model SemanaMaterial {
-  id        String @id @default(cuid())
-  edicaoId  String
-  edicao    SemanaEdicao @relation(fields: [edicaoId], references: [id], onDelete: Cascade)
-  icon      String
-  title     String
-  meta      String
-  mediaId   String?
-  media     Media?  @relation(fields: [mediaId], references: [id], onDelete: SetNull)
-  fileUrl   String?
-  order     Int     @default(0)
+  id       String       @id @default(cuid())
+  edicaoId String
+  edicao   SemanaEdicao @relation(fields: [edicaoId], references: [id], onDelete: Cascade)
+  icon     String
+  title    String
+  meta     String
+  mediaId  String?
+  media    Media?       @relation(fields: [mediaId], references: [id], onDelete: SetNull)
+  fileUrl  String?
+  order    Int          @default(0)
 
   @@index([edicaoId, order])
 }
 
 model SemanaPrograma {
-  id       String @id @default(cuid())
+  id       String       @id @default(cuid())
   edicaoId String
   edicao   SemanaEdicao @relation(fields: [edicaoId], references: [id], onDelete: Cascade)
   dia      String
   title    String
   text     String
-  order    Int    @default(0)
+  order    Int          @default(0)
 
   @@index([edicaoId, order])
 }
@@ -508,18 +527,18 @@ model SemanaPrograma {
 // ---------------------------------------------------------
 
 model AgendaEvent {
-  id             String       @id @default(cuid())
-  googleEventId  String?      @unique
-  calendarId     String?
-  title          String
-  description    String?
-  location       String?
-  url            String?
-  startsAt       DateTime
-  endsAt         DateTime
-  allDay         Boolean      @default(false)
-  source         AgendaSource @default(MANUAL)
-  published      Boolean      @default(true)
+  id            String       @id @default(cuid())
+  googleEventId String?      @unique
+  calendarId    String?
+  title         String
+  description   String?
+  location      String?
+  url           String?
+  startsAt      DateTime
+  endsAt        DateTime
+  allDay        Boolean      @default(false)
+  source        AgendaSource @default(MANUAL)
+  published     Boolean      @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -549,28 +568,36 @@ model ContactMessage {
   internalNote String?
   respondedAt  DateTime?
 
-  ip        String?
-  userAgent String?
+  ip          String?
+  userAgent   String?
+  /// Todos os campos pessoais desta linha já estão cifrados com AES-256-GCM.
+  encryptedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status, createdAt])
   @@index([createdAt])
+  @@index([updatedAt])
+  @@index([encryptedAt])
 }
 
 model NewsletterSubscriber {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  name           String?
-  confirmed      Boolean   @default(false)
-  confirmTokenHash String? @unique
-  source         String    @default("site")
-  createdAt      DateTime  @default(now())
-  confirmedAt    DateTime?
-  unsubscribedAt DateTime?
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String?
+  confirmed        Boolean   @default(false)
+  confirmTokenHash String?   @unique
+  confirmExpiresAt DateTime?
+  source           String    @default("site")
+  createdAt        DateTime  @default(now())
+  confirmedAt      DateTime?
+  unsubscribedAt   DateTime?
 
   @@index([confirmed])
+  @@index([createdAt])
+  @@index([confirmExpiresAt])
+  @@index([unsubscribedAt])
 }
 
 model SiteSetting {
@@ -616,10 +643,12 @@ model Atendimento {
 
   encaminhamentos AtendimentoEncaminhamento[]
 
-  abertoEm      DateTime  @default(now())
-  encerradoEm   DateTime?
+  abertoEm     DateTime  @default(now())
+  encerradoEm  DateTime?
   /// Data de expurgo automático — política de retenção.
-  retencaoAte   DateTime
+  retencaoAte  DateTime
+  /// Preenchido uma única vez pelo expurgo para impedir reprocessamento.
+  anonymizedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -627,6 +656,8 @@ model Atendimento {
   @@index([regionalId, status])
   @@index([abertoEm])
   @@index([retencaoAte])
+  @@index([retencaoAte, anonymizedAt])
+  @@index([updatedAt, anonymizedAt])
 }
 
 model AtendimentoEncaminhamento {

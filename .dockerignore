@@ -11,7 +11,11 @@ lib/generated
 .vscode
 legacy-angular
 npm-debug.log*
-.env*.local
+# Segredos nunca entram no contexto de build, nem na raiz nem em subpastas.
+.env
+.env.*
+**/.env
+**/.env.*
 Dockerfile
 docker-compose.yml
 .dockerignore

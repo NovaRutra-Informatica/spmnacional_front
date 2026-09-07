@@ -22,7 +22,13 @@ export default function SiteChrome() {
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
-    const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
+    const scrollToTop = () =>
+        window.scrollTo({
+            top: 0,
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+                ? 'auto'
+                : 'smooth',
+        });
 
     const acceptCookies = () => {
         setCookiesAccepted(true);
@@ -35,15 +41,17 @@ export default function SiteChrome() {
                 className={`btn-back-to-top${showBackToTop ? ' show' : ''}`}
                 onClick={scrollToTop}
                 aria-label="Voltar ao topo"
+                aria-hidden={!showBackToTop}
+                tabIndex={showBackToTop ? 0 : -1}
             >
-                <i className="fas fa-arrow-up"></i>
+                <i className="fas fa-arrow-up" aria-hidden="true" />
             </button>
 
             <div className="mobile-sticky-bar">
                 <div className="sticky-content">
                     <span className="sticky-text">Ajude a transformar vidas</span>
                     <Link href="/como-ajudar" className="btn-sticky-donate">
-                        DOAR AGORA <i className="fas fa-heart pulse-icon"></i>
+                        DOAR AGORA <i className="fas fa-heart pulse-icon" aria-hidden="true" />
                     </Link>
                 </div>
             </div>
@@ -52,13 +60,13 @@ export default function SiteChrome() {
                 <div className="cookie-banner">
                     <div className="cookie-content">
                         <p>
-                            Utilizamos cookies para oferecer a melhor experiência e analisar o uso
-                            do nosso site. Ao continuar, você concorda com nossa{' '}
+                            Este site guarda apenas preferências essenciais no seu navegador. Saiba
+                            como protegemos seus dados na{' '}
                             <Link href="/politica-de-privacidade">Política de Privacidade</Link>.
                         </p>
                         <div className="cookie-actions">
                             <button className="btn-accept" onClick={acceptCookies}>
-                                Aceitar e Fechar
+                                Entendi e fechar
                             </button>
                         </div>
                     </div>

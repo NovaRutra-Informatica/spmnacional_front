@@ -40,7 +40,6 @@ interface AccountInfo {
     roleName: string;
     regionalName: string | null;
     lastAccess: string | null;
-    mfaRequired: boolean;
     hasPassword: boolean;
     sessoesAtivas: number;
 }
@@ -129,8 +128,7 @@ export default function PageContent({ settings, account, googleOAuthEnabled }: P
                 <div>
                     <strong>Sobre a autenticação deste painel.</strong> A autenticação agora é real:
                     a senha fica guardada como hash scrypt, a sessão é emitida e revogada pelo
-                    servidor, e cada acesso passa pelo banco. O que ainda falta habilitar é a
-                    verificação em duas etapas (MFA) e o login por Google Workspace — este último só
+                    servidor, e cada acesso passa pelo banco. O login por Google Workspace só
                     aparece na tela de entrada quando as credenciais OAuth estiverem configuradas
                     {googleOAuthEnabled
                         ? ', o que já está feito neste servidor.'
@@ -489,19 +487,6 @@ function ContaTab({
                     </li>
                     <li>
                         <span className="activity-list__icon">
-                            <i className="fas fa-shield-halved"></i>
-                        </span>
-                        <div>
-                            <strong>
-                                {account.mfaRequired
-                                    ? 'Exigida pelo perfil'
-                                    : 'Não exigida neste perfil'}
-                            </strong>
-                            <span>Verificação em duas etapas</span>
-                        </div>
-                    </li>
-                    <li>
-                        <span className="activity-list__icon">
                             <i className="fab fa-google"></i>
                         </span>
                         <div>
@@ -544,7 +529,7 @@ function ContaTab({
                                 type="password"
                                 autoComplete="new-password"
                             />
-                            <span className="afield__hint">Mínimo de 10 caracteres.</span>
+                            <span className="afield__hint">Mínimo de 12 caracteres.</span>
                             <FieldError message={state.fieldErrors?.newPassword} />
                         </div>
                         <div className="afield">

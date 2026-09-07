@@ -31,10 +31,18 @@ async function confirmar(token: string | undefined): Promise<Resultado> {
     try {
         const subscriber = await prisma.newsletterSubscriber.findUnique({
             where: { confirmTokenHash: hashToken(token) },
-            select: { id: true, email: true },
+            select: { id: true, email: true, confirmExpiresAt: true },
         });
 
         if (!subscriber) return { ok: false, motivo: 'invalido' };
+
+        if (!subscriber.confirmExpiresAt || subscriber.confirmExpiresAt.getTime() <= Date.now()) {
+            await prisma.newsletterSubscriber.update({
+                where: { id: subscriber.id },
+                data: { confirmTokenHash: null, confirmExpiresAt: null },
+            });
+            return { ok: false, motivo: 'invalido' };
+        }
 
         await prisma.newsletterSubscriber.update({
             where: { id: subscriber.id },
@@ -43,13 +51,14 @@ async function confirmar(token: string | undefined): Promise<Resultado> {
                 confirmedAt: new Date(),
                 // O token é de uso único: some assim que cumpre seu papel.
                 confirmTokenHash: null,
+                confirmExpiresAt: null,
                 unsubscribedAt: null,
             },
         });
 
         await recordAudit({
             action: 'Inscrição no boletim confirmada',
-            target: subscriber.email,
+            target: `Inscrição ${subscriber.id}`,
             actorLabel: 'site público',
         });
 

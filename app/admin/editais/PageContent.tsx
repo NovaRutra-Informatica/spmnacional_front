@@ -226,11 +226,13 @@ export default function PageContent({ editais, midia }: Props) {
                             <input
                                 className="atoolbar__search"
                                 type="search"
+                                aria-label="Buscar editais"
                                 placeholder="Buscar por código, título ou abrangência…"
                                 value={busca}
                                 onChange={(event) => setBusca(event.target.value)}
                             />
                             <select
+                                aria-label="Filtrar editais por situação"
                                 value={filtroStatus}
                                 onChange={(event) =>
                                     setFiltroStatus(event.target.value as 'todos' | EditalStatus)
@@ -244,7 +246,7 @@ export default function PageContent({ editais, midia }: Props) {
                                 ))}
                             </select>
                             <span className="atoolbar__spacer"></span>
-                            <span style={{ fontSize: '0.82rem', color: '#7b8a9a' }}>
+                            <span className="atoolbar__count">
                                 {filtrados.length} de {editais.length} registros
                             </span>
                         </div>

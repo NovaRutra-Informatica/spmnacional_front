@@ -7,7 +7,7 @@ services:
         container_name: spm-db
         environment:
             POSTGRES_USER: spm
-            POSTGRES_PASSWORD: spm_dev_password
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
             POSTGRES_DB: spmnacional
             # Ordenação e acentuação corretas para português.
             LANG: pt_BR.utf8
@@ -15,7 +15,7 @@ services:
             # Porta alta no host para não conflitar com outros Postgres que
             # já rodem na máquina. Dentro da rede do compose os demais
             # serviços continuam falando com `db:5432`.
-            - '${DB_HOST_PORT:-55432}:5432'
+            - '127.0.0.1:${DB_HOST_PORT:-55432}:5432'
         volumes:
             - db_data:/var/lib/postgresql/data
         healthcheck:
@@ -40,7 +40,7 @@ services:
             db:
                 condition: service_healthy
         environment:
-            DATABASE_URL: postgresql://spm:spm_dev_password@db:5432/spmnacional?schema=public
+            DATABASE_URL: postgresql://spm:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@db:5432/spmnacional?schema=public
         restart: 'no'
 
     # ---------------------------------------------------------
@@ -62,10 +62,11 @@ services:
         environment:
             NODE_ENV: production
             NEXT_TELEMETRY_DISABLED: '1'
-            DATABASE_URL: postgresql://spm:spm_dev_password@db:5432/spmnacional?schema=public
+            DATABASE_URL: postgresql://spm:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@db:5432/spmnacional?schema=public
             APP_URL: ${APP_URL:-http://localhost:3000}
-            AUTH_SECRET: ${AUTH_SECRET:-desenvolvimento-local-nao-use-em-producao-troque-este-segredo}
-            ENCRYPTION_KEY: ${ENCRYPTION_KEY:-MDAwMTAyMDMwNDA1MDYwNzA4MDkwYTBiMGMwZDBlMGY=}
+            AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no arquivo .env}
+            TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-}
+            ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Defina ENCRYPTION_KEY no arquivo .env}
             STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
             STORAGE_LOCAL_DIR: /app/storage/uploads
             SMTP_HOST: ${SMTP_HOST:-}
@@ -80,7 +81,7 @@ services:
             GOOGLE_OAUTH_ALLOWED_DOMAIN: ${GOOGLE_OAUTH_ALLOWED_DOMAIN:-}
             GOOGLE_CALENDAR_ID: ${GOOGLE_CALENDAR_ID:-}
             GOOGLE_CALENDAR_API_KEY: ${GOOGLE_CALENDAR_API_KEY:-}
-            CRON_SECRET: ${CRON_SECRET:-}
+            CRON_SECRET: ${CRON_SECRET:?Defina CRON_SECRET no arquivo .env}
         volumes:
             - uploads:/app/storage/uploads
         restart: unless-stopped
@@ -108,7 +109,11 @@ services:
             NODE_ENV: development
             NEXT_TELEMETRY_DISABLED: '1'
             WATCHPACK_POLLING: 'true'
-            DATABASE_URL: postgresql://spm:spm_dev_password@db:5432/spmnacional?schema=public
+            DATABASE_URL: postgresql://spm:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@db:5432/spmnacional?schema=public
+            AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no arquivo .env}
+            TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-}
+            ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Defina ENCRYPTION_KEY no arquivo .env}
+            CRON_SECRET: ${CRON_SECRET:?Defina CRON_SECRET no arquivo .env}
 
 volumes:
     db_data:

@@ -244,17 +244,31 @@ export default function PageContent({ events, counts, calendarConfigured }: Page
                                                 </button>
 
                                                 {event.source === 'MANUAL' && (
-                                                    <form action={excluirEvento}>
+                                                    <form
+                                                        action={excluirEvento}
+                                                        onSubmit={(submitEvent) => {
+                                                            const confirmed = window.confirm(
+                                                                `Excluir o evento “${event.title}”? Esta ação não pode ser desfeita.`,
+                                                            );
+                                                            if (!confirmed)
+                                                                submitEvent.preventDefault();
+                                                        }}
+                                                    >
                                                         <input
                                                             type="hidden"
                                                             name="id"
                                                             value={event.id}
                                                         />
                                                         <button
+                                                            type="submit"
                                                             className="abtn abtn--danger abtn--sm"
                                                             title="Excluir evento"
+                                                            aria-label={`Excluir o evento ${event.title}`}
                                                         >
-                                                            <i className="fas fa-trash"></i>
+                                                            <i
+                                                                className="fas fa-trash"
+                                                                aria-hidden="true"
+                                                            ></i>
                                                         </button>
                                                     </form>
                                                 )}

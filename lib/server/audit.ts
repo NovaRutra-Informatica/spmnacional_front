@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { isIP } from 'node:net';
 import { headers } from 'next/headers';
 import type { AuditLevel } from '@/lib/generated/prisma/enums';
 import { prisma } from './db';
@@ -13,13 +14,36 @@ export interface AuditInput {
     metadata?: Record<string, unknown>;
 }
 
-/** Lê IP e user-agent da requisição atual, quando houver uma. */
+/**
+ * Extrai o cliente somente quando a quantidade de proxies confiáveis foi
+ * configurada explicitamente. Cabeçalhos encaminhados vêm do próprio cliente
+ * quando a aplicação é acessada diretamente; confiar neles por padrão permite
+ * falsificar IPs e contornar limites.
+ *
+ * `TRUSTED_PROXY_HOPS=0` usa o endereço mais à direita do X-Forwarded-For;
+ * valores maiores pulam essa quantidade de endereços de proxies à direita.
+ */
+function trustedClientIp(forwarded: string | null): string | null {
+    const configured = process.env.TRUSTED_PROXY_HOPS?.trim();
+    if (configured === undefined || !/^\d+$/.test(configured) || !forwarded) return null;
+
+    const trustedHops = Number.parseInt(configured, 10);
+    const chain = forwarded
+        .split(',')
+        .map((part) => part.trim())
+        .filter((part) => isIP(part) !== 0);
+    const candidate = chain[chain.length - trustedHops - 1];
+    return candidate && isIP(candidate) !== 0 ? candidate : null;
+}
+
+/** Lê metadados sanitizados da requisição atual, quando houver uma. */
 export async function requestMeta(): Promise<{ ip: string | null; userAgent: string | null }> {
     try {
         const headerList = await headers();
-        const forwarded = headerList.get('x-forwarded-for');
-        const ip = forwarded ? forwarded.split(',')[0]!.trim() : headerList.get('x-real-ip');
-        return { ip: ip || null, userAgent: headerList.get('user-agent') };
+        const ip = trustedClientIp(headerList.get('x-forwarded-for'));
+        const rawUserAgent = headerList.get('user-agent')?.trim() || null;
+        const userAgent = rawUserAgent ? rawUserAgent.slice(0, 512) : null;
+        return { ip, userAgent };
     } catch {
         return { ip: null, userAgent: null };
     }

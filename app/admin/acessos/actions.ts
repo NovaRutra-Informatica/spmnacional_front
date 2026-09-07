@@ -4,9 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/server/db';
 import { recordAudit } from '@/lib/server/audit';
 import { actionError, actionOk, formString, runAction } from '@/lib/server/actions';
-
-/** Perfil de sistema que precisa manter acesso irrestrito. */
-const ADMIN_ROLE_KEY = 'admin';
+import { ADMIN_ROLE_KEY, isAdminGeral } from '../usuarios/politica';
 
 /**
  * Concede ou revoga uma permissão de um perfil.
@@ -19,6 +17,10 @@ const ADMIN_ROLE_KEY = 'admin';
  */
 export async function alternarPermissao(formData: FormData): Promise<void> {
     await runAction('usuarios', async (user) => {
+        if (!isAdminGeral(user)) {
+            return actionError('Somente administradores gerais podem alterar permissões.');
+        }
+
         const roleId = formString(formData, 'roleId');
         const permissionKey = formString(formData, 'permissionKey');
 

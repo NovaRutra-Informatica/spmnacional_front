@@ -168,9 +168,12 @@ export async function salvarSite(_prev: ActionState, formData: FormData): Promis
 
 const senhaSchema = z
     .object({
-        currentPassword: z.string().min(1, 'Informe a senha atual.'),
-        newPassword: z.string().min(10, 'A nova senha precisa de pelo menos 10 caracteres.'),
-        confirmPassword: z.string().min(1, 'Repita a nova senha.'),
+        currentPassword: z.string().min(1, 'Informe a senha atual.').max(128),
+        newPassword: z
+            .string()
+            .min(12, 'A nova senha precisa de pelo menos 12 caracteres.')
+            .max(128, 'A nova senha deve ter no máximo 128 caracteres.'),
+        confirmPassword: z.string().min(1, 'Repita a nova senha.').max(128),
     })
     .refine((data) => data.newPassword === data.confirmPassword, {
         path: ['confirmPassword'],
