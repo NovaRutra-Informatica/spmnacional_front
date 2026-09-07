@@ -41,9 +41,6 @@ db_name         = "spmnacional"
 db_user         = "spm"
 
 # ---------- Uploads ----------
-# true porque capas de notícia e PDFs de edital são servidos direto do bucket.
-# Nenhum dado do módulo de atendimentos vai para arquivo.
-uploads_bucket_public             = true
 uploads_noncurrent_retention_days = 30
 
 # ---------- Integrações ----------
@@ -60,9 +57,10 @@ mail_notify_to = "contato@spmnacional.org.br"
 enable_google_oauth         = false
 google_oauth_allowed_domain = "spmnacional.org.br"
 
-enable_google_calendar = false
-google_calendar_id     = ""
-agenda_sync_schedule   = "0 */6 * * *"
+enable_google_calendar  = false
+google_calendar_id      = ""
+agenda_sync_schedule    = "0 */6 * * *"
+data_retention_schedule = "30 4 * * *"
 
 # ---------- Deploy ----------
 # Só esta branch consegue assumir a conta de serviço de deploy.

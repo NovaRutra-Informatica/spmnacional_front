@@ -1,9 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useActionState, useEffect, useRef, useState } from 'react';
+import { useActionState, useRef, useState } from 'react';
 import type { ChangeEvent } from 'react';
 import type { PostStatus } from '@/lib/generated/prisma/enums';
+import { MAX_ADMIN_UPLOAD_BYTES, uploadAdminFile } from '@/lib/client/admin-upload';
 import { salvarNoticia } from '../actions';
 import { slugify } from '../slug';
 
@@ -81,20 +82,10 @@ export default function PageContent({ categorias, imagens, autor, post, dataPadr
     const [cover, setCover] = useState<string>(post?.coverUrl ?? '');
     const [coverMediaId, setCoverMediaId] = useState<string>(post?.coverMediaId ?? '');
     const [uploadedName, setUploadedName] = useState<string | null>(null);
-    const arquivoPendente = useRef(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [uploadingCover, setUploadingCover] = useState(false);
+    const uploadVersion = useRef(0);
     const arquivoInput = useRef<HTMLInputElement>(null);
-
-    useEffect(() => {
-        // O input de arquivo é esvaziado pelo React a cada envio: se a ação
-        // voltou com erro, a prévia não pode continuar prometendo um upload que
-        // já não seria mais enviado.
-        if (state.ok || !state.message || !arquivoPendente.current) return;
-
-        arquivoPendente.current = false;
-        setUploadedName(null);
-        setCover(post?.coverUrl ?? '');
-        setCoverMediaId(post?.coverMediaId ?? '');
-    }, [state, post]);
 
     const onTitleChange = (value: string) => {
         setTitle(value);
@@ -109,32 +100,65 @@ export default function PageContent({ categorias, imagens, autor, post, dataPadr
     };
 
     const escolherDoAcervo = (imagem: ImagemEditor) => {
-        // O servidor dá prioridade ao arquivo enviado; sem limpar o input, a
-        // escolha feita no acervo seria ignorada.
+        uploadVersion.current += 1;
         if (arquivoInput.current) {
             arquivoInput.current.value = '';
         }
-        arquivoPendente.current = false;
 
         setCover(imagem.url);
         setCoverMediaId(imagem.id);
         setUploadedName(null);
+        setUploadError(null);
+        setUploadingCover(false);
     };
 
-    const onFileSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const onFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) {
             return;
         }
 
-        // O arquivo só é enviado ao servidor no submit; aqui é apenas a prévia.
-        arquivoPendente.current = true;
+        const version = ++uploadVersion.current;
+        setUploadError(null);
         setUploadedName(file.name);
         setCoverMediaId('');
+
+        if (!/\.(?:jpe?g|png|webp)$/i.test(file.name)) {
+            setUploadError('A capa precisa ser JPG, PNG ou WebP.');
+            setUploadedName(null);
+            event.target.value = '';
+            return;
+        }
+        if (file.size > MAX_ADMIN_UPLOAD_BYTES) {
+            setUploadError('Arquivo maior que o limite de 10 MB.');
+            setUploadedName(null);
+            event.target.value = '';
+            return;
+        }
 
         const reader = new FileReader();
         reader.onload = () => setCover(String(reader.result));
         reader.readAsDataURL(file);
+
+        setUploadingCover(true);
+        try {
+            const media = await uploadAdminFile(file, 'noticias');
+            if (version !== uploadVersion.current) return;
+            setCover(media.url);
+            setCoverMediaId(media.id);
+            setUploadedName(media.originalName);
+        } catch (error) {
+            if (version !== uploadVersion.current) return;
+            setCover(post?.coverUrl ?? '');
+            setCoverMediaId(post?.coverMediaId ?? '');
+            setUploadedName(null);
+            setUploadError(
+                error instanceof Error ? error.message : 'Não foi possível enviar a capa.',
+            );
+        } finally {
+            if (version === uploadVersion.current) setUploadingCover(false);
+            if (arquivoInput.current) arquivoInput.current.value = '';
+        }
     };
 
     // O `Set` evita chave repetida no React quando a pessoa digita a mesma tag duas vezes.
@@ -180,17 +204,21 @@ export default function PageContent({ categorias, imagens, autor, post, dataPadr
                         type="submit"
                         name="intencao"
                         value="salvar"
-                        disabled={pending}
+                        disabled={pending || uploadingCover}
                     >
                         <i className="fas fa-floppy-disk"></i>{' '}
-                        {pending ? 'Salvando…' : 'Salvar rascunho'}
+                        {pending
+                            ? 'Salvando…'
+                            : uploadingCover
+                              ? 'Enviando capa…'
+                              : 'Salvar rascunho'}
                     </button>
                     <button
                         className="abtn abtn--action"
                         type="submit"
                         name="intencao"
                         value="publicar"
-                        disabled={pending}
+                        disabled={pending || uploadingCover}
                     >
                         <i className="fas fa-paper-plane"></i> Publicar agora
                     </button>
@@ -323,20 +351,19 @@ export default function PageContent({ categorias, imagens, autor, post, dataPadr
                         <label className="adropzone">
                             <i className="fas fa-cloud-arrow-up"></i>
                             <strong>Clique para enviar uma imagem</strong>
-                            <span>JPG, PNG ou WebP · até 20 MB · recomendado 1200 × 675 px</span>
+                            <span>JPG, PNG ou WebP · até 10 MB · recomendado 1200 × 675 px</span>
                             <input
                                 ref={arquivoInput}
                                 type="file"
-                                name="cover"
-                                accept="image/*"
+                                accept=".jpg,.jpeg,.png,.webp"
                                 onChange={onFileSelected}
                             />
                         </label>
 
-                        {state.fieldErrors?.cover && (
+                        {(uploadError || state.fieldErrors?.cover) && (
                             <div className="anote anote--warning" style={{ margin: '1rem 0 0' }}>
                                 <i className="fas fa-triangle-exclamation"></i>
-                                <div>{state.fieldErrors.cover}</div>
+                                <div>{uploadError || state.fieldErrors?.cover}</div>
                             </div>
                         )}
 
@@ -344,8 +371,8 @@ export default function PageContent({ categorias, imagens, autor, post, dataPadr
                             <div className="anote anote--success" style={{ margin: '1rem 0 0' }}>
                                 <i className="fas fa-file-image"></i>
                                 <div>
-                                    Arquivo selecionado: <strong>{uploadedName}</strong> — ele vai
-                                    para a biblioteca ao salvar.
+                                    Arquivo enviado: <strong>{uploadedName}</strong> — ele já está
+                                    protegido na biblioteca.
                                 </div>
                             </div>
                         )}

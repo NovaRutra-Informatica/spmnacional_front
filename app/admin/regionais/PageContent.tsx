@@ -204,11 +204,13 @@ export default function PageContent({ regionais }: Props) {
                             <input
                                 className="atoolbar__search"
                                 type="search"
+                                aria-label="Buscar regionais"
                                 placeholder="Buscar por nome, cidade, UF ou identificador…"
                                 value={busca}
                                 onChange={(event) => setBusca(event.target.value)}
                             />
                             <select
+                                aria-label="Filtrar regionais por região"
                                 value={filtroRegiao}
                                 onChange={(event) =>
                                     setFiltroRegiao(event.target.value as 'todas' | Regiao)
@@ -222,7 +224,7 @@ export default function PageContent({ regionais }: Props) {
                                 ))}
                             </select>
                             <span className="atoolbar__spacer"></span>
-                            <span style={{ fontSize: '0.82rem', color: '#7b8a9a' }}>
+                            <span className="atoolbar__count">
                                 {filtrados.length} de {regionais.length} registros
                             </span>
                         </div>

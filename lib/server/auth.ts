@@ -5,16 +5,15 @@ import { redirect } from 'next/navigation';
 import { prisma } from './db';
 import { generateToken, hashToken, verifyPassword } from './crypto';
 import { recordAudit, requestMeta } from './audit';
+import { consumeRateLimit } from './rate-limit';
 
-export const SESSION_COOKIE = 'spm_session';
+export const SESSION_COOKIE =
+    process.env.NODE_ENV === 'production' ? '__Host-spm_session' : 'spm_session';
 
 /** Expiração absoluta da sessão. */
 const SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 /** Inatividade tolerada — coerente com a política exibida em Configurações. */
 const SESSION_IDLE_MS = 30 * 60 * 1000;
-/** Bloqueio após tentativas malsucedidas. */
-const MAX_FAILED_ATTEMPTS = 5;
-const LOCKOUT_MS = 15 * 60 * 1000;
 
 export interface SessionUser {
     id: string;
@@ -54,6 +53,7 @@ export async function createSession(userId: string): Promise<void> {
         secure: process.env.NODE_ENV === 'production',
         path: '/',
         maxAge: Math.floor(SESSION_MAX_AGE_MS / 1000),
+        priority: 'high',
     });
 }
 
@@ -181,20 +181,71 @@ export async function requirePermission(permission: string): Promise<SessionUser
 // Login
 // ---------------------------------------------------------
 
-export type LoginResult =
-    { ok: true; user: SessionUser } | { ok: false; error: string; lockedUntil?: Date };
+export type LoginResult = { ok: true; user: SessionUser } | { ok: false; error: string };
 
-async function registerAttempt(email: string, success: boolean, reason?: string): Promise<void> {
-    const meta = await requestMeta();
+async function registerAttempt(
+    email: string,
+    success: boolean,
+    reason?: string,
+    ip?: string | null,
+): Promise<void> {
+    const meta = ip === undefined ? await requestMeta() : { ip };
     await prisma.loginAttempt
         .create({ data: { email, ip: meta.ip, success, reason } })
         .catch(() => undefined);
 }
 
 const GENERIC_ERROR = 'Usuário ou senha incorretos. Verifique e tente novamente.';
+const RATE_LIMIT_ERROR =
+    'Muitas tentativas foram feitas. Aguarde alguns minutos e tente novamente.';
+// Executar o mesmo scrypt para e-mails inexistentes reduz enumeração por tempo de resposta.
+const DUMMY_PASSWORD_HASH =
+    'scrypt$a/r7cJy1FyEAjfhtqKXtdw==$5GSI/QkZ6oncIIcHDPCsQqfLCjAhJIP9r9LRlhIgd3zAYPhChh1pwVJ54h0MbpSb/D62N9eNd9xxceu2WR/fdw==';
 
 export async function loginWithPassword(email: string, password: string): Promise<LoginResult> {
     const normalized = email.trim().toLowerCase();
+    const meta = await requestMeta();
+    const limits = [
+        // Tetos globais e por conta não dependem de cabeçalhos de IP e não
+        // podem ser contornados trocando X-Forwarded-For ou user-agent.
+        consumeRateLimit({
+            scope: 'login-global',
+            identifier: 'all',
+            limit: 300,
+            windowMs: 15 * 60 * 1000,
+        }),
+        consumeRateLimit({
+            scope: 'login-account',
+            identifier: normalized,
+            limit: 8,
+            windowMs: 15 * 60 * 1000,
+        }),
+    ];
+
+    // O limite por origem é uma camada adicional, habilitada apenas quando o
+    // proxy confiável foi configurado. Nunca substitui o teto por conta.
+    if (meta.ip) {
+        limits.push(
+            consumeRateLimit({
+                scope: 'login-source',
+                identifier: meta.ip,
+                limit: 30,
+                windowMs: 15 * 60 * 1000,
+            }),
+        );
+    }
+
+    const limitResults = await Promise.all(limits);
+
+    if (limitResults.some((result) => !result.allowed)) {
+        await recordAudit({
+            action: 'Login limitado por excesso de tentativas',
+            target: 'Painel administrativo',
+            level: 'ALERTA',
+            actorLabel: 'origem não autenticada',
+        });
+        return { ok: false, error: RATE_LIMIT_ERROR };
+    }
 
     const user = await prisma.user.findUnique({
         where: { email: normalized },
@@ -204,68 +255,46 @@ export async function loginWithPassword(email: string, password: string): Promis
         },
     });
 
-    if (!user) {
-        await registerAttempt(normalized, false, 'usuario-inexistente');
+    const now = new Date();
+    if (user?.lockedUntil && user.lockedUntil > now) {
+        // Mantém custo semelhante ao caminho comum e não revela se a conta
+        // existe ou está temporariamente bloqueada.
+        await verifyPassword(password, DUMMY_PASSWORD_HASH);
+        await registerAttempt(normalized, false, 'bloqueio-temporario', meta.ip);
+        return { ok: false, error: GENERIC_ERROR };
+    }
+
+    const valid = await verifyPassword(password, user?.passwordHash ?? DUMMY_PASSWORD_HASH);
+    if (!user || !valid || user.status !== 'ATIVO') {
+        if (user) {
+            const previousFailures =
+                user.lockedUntil && user.lockedUntil <= now ? 0 : user.failedLoginCount;
+            const nextFailures = previousFailures + 1;
+            const shouldLock = nextFailures >= 5;
+            await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    failedLoginCount: shouldLock ? 0 : nextFailures,
+                    lockedUntil: shouldLock ? new Date(now.getTime() + 15 * 60 * 1000) : null,
+                },
+            });
+        }
+
+        const reason = !user
+            ? 'usuario-inexistente'
+            : !valid
+              ? 'senha-invalida'
+              : `status-${user.status.toLowerCase()}`;
+        await registerAttempt(normalized, false, reason, meta.ip);
         await recordAudit({
             action: 'Tentativa de login malsucedida',
             target: normalized,
             level: 'ALERTA',
+            userId: user?.id,
             actorLabel: normalized,
+            metadata: { reason },
         });
         return { ok: false, error: GENERIC_ERROR };
-    }
-
-    if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
-        await registerAttempt(normalized, false, 'conta-bloqueada');
-        return {
-            ok: false,
-            error: 'Conta temporariamente bloqueada por excesso de tentativas. Tente novamente em alguns minutos.',
-            lockedUntil: user.lockedUntil,
-        };
-    }
-
-    if (user.status !== 'ATIVO') {
-        await registerAttempt(normalized, false, `status-${user.status}`);
-        return {
-            ok: false,
-            error:
-                user.status === 'PENDENTE'
-                    ? 'Este convite ainda não foi aceito. Verifique o e-mail que enviamos.'
-                    : 'Esta conta está desativada. Fale com a coordenação.',
-        };
-    }
-
-    const valid = await verifyPassword(password, user.passwordHash);
-
-    if (!valid) {
-        const failed = user.failedLoginCount + 1;
-        const shouldLock = failed >= MAX_FAILED_ATTEMPTS;
-
-        await prisma.user.update({
-            where: { id: user.id },
-            data: {
-                failedLoginCount: shouldLock ? 0 : failed,
-                lockedUntil: shouldLock ? new Date(Date.now() + LOCKOUT_MS) : null,
-            },
-        });
-
-        await registerAttempt(normalized, false, 'senha-invalida');
-        await recordAudit({
-            action: shouldLock
-                ? `Conta bloqueada após ${MAX_FAILED_ATTEMPTS} tentativas`
-                : 'Tentativa de login malsucedida',
-            target: normalized,
-            level: shouldLock ? 'CRITICO' : 'ALERTA',
-            userId: user.id,
-            actorLabel: normalized,
-        });
-
-        return {
-            ok: false,
-            error: shouldLock
-                ? 'Conta bloqueada por 15 minutos após tentativas malsucedidas.'
-                : GENERIC_ERROR,
-        };
     }
 
     await prisma.user.update({
@@ -274,7 +303,7 @@ export async function loginWithPassword(email: string, password: string): Promis
     });
 
     await createSession(user.id);
-    await registerAttempt(normalized, true);
+    await registerAttempt(normalized, true, undefined, meta.ip);
     await recordAudit({
         action: 'Login realizado',
         target: 'Painel administrativo',
@@ -298,6 +327,22 @@ export async function loginWithGoogleProfile(profile: {
 }): Promise<LoginResult> {
     const normalized = profile.email.trim().toLowerCase();
 
+    const linkedAccount = await prisma.user.findUnique({
+        where: { googleSub: profile.sub },
+        select: { id: true, email: true },
+    });
+
+    if (linkedAccount && linkedAccount.email.toLowerCase() !== normalized) {
+        await registerAttempt(normalized, false, 'google-sub-ja-vinculado');
+        await recordAudit({
+            action: 'Login com Google recusado (identidade já vinculada)',
+            target: 'Painel administrativo',
+            level: 'CRITICO',
+            actorLabel: normalized,
+        });
+        return { ok: false, error: 'Esta conta Google não está autorizada para este acesso.' };
+    }
+
     const user = await prisma.user.findUnique({
         where: { email: normalized },
         include: {
@@ -314,18 +359,12 @@ export async function loginWithGoogleProfile(profile: {
             level: 'ALERTA',
             actorLabel: normalized,
         });
-        return {
-            ok: false,
-            error: 'Esta conta Google ainda não tem acesso ao painel. Peça à coordenação para cadastrá-la.',
-        };
+        return { ok: false, error: 'Esta conta Google não está autorizada para este acesso.' };
     }
 
-    if (user.status !== 'ATIVO') {
+    if (user.status !== 'ATIVO' || (user.googleSub && user.googleSub !== profile.sub)) {
         await registerAttempt(normalized, false, `google-status-${user.status}`);
-        return {
-            ok: false,
-            error: 'Esta conta está desativada ou pendente. Fale com a coordenação.',
-        };
+        return { ok: false, error: 'Esta conta Google não está autorizada para este acesso.' };
     }
 
     await prisma.user.update({

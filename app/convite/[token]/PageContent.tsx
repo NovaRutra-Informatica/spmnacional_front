@@ -73,7 +73,7 @@ export default function PageContent({ token, nome, email, papel }: PageContentPr
                                 >
                                     Seu acesso será criado para <strong>{email}</strong> com o
                                     perfil <strong>{papel}</strong>. Escolha uma senha de pelo menos
-                                    10 caracteres.
+                                    12 caracteres.
                                 </p>
                             </div>
 

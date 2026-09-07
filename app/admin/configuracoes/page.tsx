@@ -19,7 +19,7 @@ export default async function Page() {
         getSiteSettings(),
         prisma.user.findUnique({
             where: { id: user.id },
-            select: { lastAccessAt: true, mfaRequired: true, passwordHash: true },
+            select: { lastAccessAt: true, passwordHash: true },
         }),
         prisma.session.count({
             where: { userId: user.id, revokedAt: null, expiresAt: { gt: new Date() } },
@@ -36,7 +36,6 @@ export default async function Page() {
                 roleName: user.role.name,
                 regionalName: user.regionalName,
                 lastAccess: conta?.lastAccessAt ? formatDateTimeShort(conta.lastAccessAt) : null,
-                mfaRequired: Boolean(conta?.mfaRequired),
                 hasPassword: Boolean(conta?.passwordHash),
                 sessoesAtivas,
             }}

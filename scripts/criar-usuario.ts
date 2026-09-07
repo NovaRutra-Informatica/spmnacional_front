@@ -2,7 +2,7 @@
  * Cria ou atualiza um usuário do painel pela linha de comando.
  *
  * Uso:
- *   npm run user:create -- --email admin --senha admin --nome "Admin de Teste"
+ *   npm run user:create -- --email admin --senha "uma-frase-secreta-longa" --nome "Admin"
  *   npm run user:create -- --email maria@spmnacional.org.br --senha "..." --perfil editor
  *
  * Parâmetros:
@@ -61,8 +61,13 @@ async function main() {
     if (!email || !senha) {
         console.error('Faltam parâmetros. Exemplo:');
         console.error(
-            '  npm run user:create -- --email admin --senha admin --nome "Admin de Teste"',
+            '  npm run user:create -- --email admin --senha "uma-frase-secreta-longa" --nome "Admin"',
         );
+        process.exit(1);
+    }
+
+    if (senha.length < 12 || senha.length > 128) {
+        console.error('A senha deve ter entre 12 e 128 caracteres.');
         process.exit(1);
     }
 

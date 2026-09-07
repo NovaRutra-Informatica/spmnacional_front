@@ -36,12 +36,16 @@ terraform {
   #       --public-access-prevention
   #   gcloud storage buckets update gs://spm-tfstate --versioning
   #
-  # Depois descomente o bloco abaixo e rode `terraform init -migrate-state`.
+  # Informe o nome somente durante a inicialização, sem gravar credenciais ou
+  # nomes específicos do ambiente no repositório:
+  #
+  #   terraform init -backend-config="bucket=<BUCKET_PRIVADO>"
+  #
+  # Se já existir estado local, acrescente `-migrate-state` nesse primeiro uso.
   # -----------------------------------------------------
-  # backend "gcs" {
-  #     bucket = "spm-tfstate"
-  #     prefix = "spmnacional/prod"
-  # }
+  backend "gcs" {
+    prefix = "spmnacional/prod"
+  }
 }
 
 provider "google" {

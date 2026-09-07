@@ -50,6 +50,14 @@ export class PermissionError extends Error {
     }
 }
 
+/** Erro de entrada seguro para exibir ao usuário sem revelar detalhes internos. */
+export class ActionInputError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = 'ActionInputError';
+    }
+}
+
 /**
  * Garante que quem executa a ação está autenticado e tem a permissão.
  * Diferente de `requirePermission`, não redireciona: lança para que a ação
@@ -100,6 +108,10 @@ export async function runAction(
             return actionError('Verifique os campos destacados.', zodErrors(error));
         }
 
+        if (error instanceof ActionInputError) {
+            return actionError(error.message);
+        }
+
         // `redirect()` do Next sinaliza por exceção — deixa passar.
         if (
             error &&
@@ -112,11 +124,7 @@ export async function runAction(
         }
 
         console.error('[ação] falha inesperada:', error);
-        return actionError(
-            error instanceof Error && error.message
-                ? error.message
-                : 'Não foi possível concluir a operação.',
-        );
+        return actionError('Não foi possível concluir a operação. Tente novamente.');
     }
 }
 

@@ -102,7 +102,13 @@ jobs:
               run: |
                   set -euo pipefail
                   npx prisma migrate deploy
+                  # O banco é descartável e o painel é removido do artefato. Ainda
+                  # assim, o seed exige uma senha forte: gere uma exclusiva deste job,
+                  # mantenha-a somente no ambiente do processo e nunca a imprima.
+                  SEED_ADMIN_PASSWORD="$(node -e "process.stdout.write(require('node:crypto').randomBytes(48).toString('base64url'))")"
+                  export SEED_ADMIN_PASSWORD
                   npx prisma db seed
+                  unset SEED_ADMIN_PASSWORD
 
             - name: Gerar o site estático
               env:

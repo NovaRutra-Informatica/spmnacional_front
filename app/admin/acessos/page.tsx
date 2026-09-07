@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/server/db';
 import { requirePermission } from '@/lib/server/auth';
 import { formatDateTimeShort } from '@/lib/labels';
 import PageContent, { type AuditEntry, type PermissionInfo, type RoleMatrix } from './PageContent';
+import { isAdminGeral } from '../usuarios/politica';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +16,8 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-    await requirePermission('usuarios');
+    const current = await requirePermission('usuarios');
+    if (!isAdminGeral(current)) notFound();
 
     const [roles, permissions, audit, totalUsers] = await Promise.all([
         prisma.role.findMany({

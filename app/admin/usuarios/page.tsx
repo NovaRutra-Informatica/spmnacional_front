@@ -3,6 +3,7 @@ import { prisma } from '@/lib/server/db';
 import { requirePermission } from '@/lib/server/auth';
 import { formatDateTimeShort } from '@/lib/labels';
 import PageContent, { type RoleOption, type UserRow } from './PageContent';
+import { ADMIN_ROLE_KEY, escopoUsuarios, isAdminGeral } from './politica';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,7 @@ export default async function Page() {
         // `select` explícito: passwordHash e os hashes de convite/redefinição
         // nunca podem sair do servidor.
         prisma.user.findMany({
+            where: escopoUsuarios(current),
             select: {
                 id: true,
                 name: true,
@@ -30,6 +32,7 @@ export default async function Page() {
             orderBy: { name: 'asc' },
         }),
         prisma.role.findMany({
+            where: isAdminGeral(current) ? {} : { key: { not: ADMIN_ROLE_KEY } },
             select: { id: true, name: true },
             orderBy: { order: 'asc' },
         }),
@@ -57,6 +60,7 @@ export default async function Page() {
             users={rows}
             roles={roleOptions}
             currentUserId={current.id}
+            canManagePermissions={isAdminGeral(current)}
             counts={{
                 total: rows.length,
                 active: rows.filter((row) => row.status === 'ATIVO').length,

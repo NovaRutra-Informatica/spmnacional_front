@@ -23,10 +23,24 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# Defesa em profundidade: o .dockerignore deve impedir esses arquivos, mas o
+# build também falha caso um contexto mal configurado deixe algum segredo passar.
+RUN if find /app -path /app/node_modules -prune -o -type f \( -name '.env' -o -name '.env.*' \) -print -quit | grep -q .; then \
+        echo "ERRO: arquivo de ambiente detectado no contexto de build." >&2; \
+        exit 1; \
+    fi
+
 ENV NEXT_TELEMETRY_DISABLED=1
 # O client do Prisma é gerado em lib/generated/prisma e entra no bundle.
 RUN npx prisma generate
 RUN npm run build
+
+# O artefato standalone é exatamente o que entra na imagem final. Esta checagem
+# evita que uma mudança futura no build volte a empacotar arquivos de ambiente.
+RUN if find /app/.next/standalone -type f \( -name '.env' -o -name '.env.*' \) -print -quit | grep -q .; then \
+        echo "ERRO: arquivo de ambiente detectado no artefato standalone." >&2; \
+        exit 1; \
+    fi
 
 # ---------- Estágio 3: migrações ----------
 # Imagem separada, usada para rodar `prisma migrate deploy` antes de subir

@@ -220,11 +220,13 @@ export default function PageContent({ testemunhos }: Props) {
                             <input
                                 className="atoolbar__search"
                                 type="search"
+                                aria-label="Buscar testemunhos"
                                 placeholder="Buscar por nome, origem ou trecho do depoimento…"
                                 value={busca}
                                 onChange={(event) => setBusca(event.target.value)}
                             />
                             <select
+                                aria-label="Filtrar testemunhos por situação"
                                 value={filtro}
                                 onChange={(event) => setFiltro(event.target.value as Filtro)}
                             >
@@ -234,7 +236,7 @@ export default function PageContent({ testemunhos }: Props) {
                                 <option value="sem-consentimento">Sem consentimento</option>
                             </select>
                             <span className="atoolbar__spacer"></span>
-                            <span style={{ fontSize: '0.82rem', color: '#7b8a9a' }}>
+                            <span className="atoolbar__count">
                                 {filtrados.length} de {testemunhos.length} registros
                             </span>
                         </div>

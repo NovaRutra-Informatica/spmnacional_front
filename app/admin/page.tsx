@@ -9,6 +9,9 @@ import PageContent, {
     type RecentPost,
     type TopPost,
 } from './PageContent';
+import { escopoAtendimento } from './atendimentos/politica';
+import { escopoMensagens } from './mensagens/politica';
+import { escopoUsuarios, isAdminGeral } from './usuarios/politica';
 
 // O painel lê o Postgres a cada acesso; sem isto o build tentaria pré-renderizar.
 export const dynamic = 'force-dynamic';
@@ -33,6 +36,11 @@ interface PageProps {
 
 export default async function Page({ searchParams }: PageProps) {
     const [user, params] = await Promise.all([requireUser(), searchParams]);
+    const adminGeral = isAdminGeral(user);
+    const canManagePosts = hasPermission(user, 'noticias');
+    const canViewMessages = hasPermission(user, 'atendimentos');
+    const canViewAtendimentos = hasPermission(user, 'atendimentos');
+    const canManageUsers = hasPermission(user, 'usuarios');
 
     const [
         statusRows,
@@ -45,46 +53,71 @@ export default async function Page({ searchParams }: PageProps) {
         auditRows,
         topRows,
     ] = await Promise.all([
-        prisma.post.groupBy({ by: ['status'], _count: { _all: true } }),
-        prisma.post.count(),
-        prisma.user.count({ where: { status: 'ATIVO' } }),
-        prisma.contactMessage.count({ where: { status: 'NOVA' } }),
-        prisma.atendimento.count({ where: { status: { not: 'ENCERRADO' } } }),
-        prisma.post.findMany({
-            take: 5,
-            orderBy: { updatedAt: 'desc' },
-            select: {
-                id: true,
-                title: true,
-                coverUrl: true,
-                authorName: true,
-                status: true,
-                updatedAt: true,
-                category: { select: { name: true } },
-            },
-        }),
-        prisma.category.findMany({
-            orderBy: { order: 'asc' },
-            select: { id: true, name: true, _count: { select: { posts: true } } },
-        }),
-        prisma.auditLog.findMany({
-            take: 6,
-            orderBy: { createdAt: 'desc' },
-            select: {
-                id: true,
-                action: true,
-                target: true,
-                level: true,
-                actorLabel: true,
-                createdAt: true,
-            },
-        }),
-        prisma.post.findMany({
-            where: { status: 'PUBLICADO' },
-            orderBy: { views: 'desc' },
-            take: 4,
-            select: { id: true, title: true, views: true, category: { select: { name: true } } },
-        }),
+        canManagePosts
+            ? prisma.post.groupBy({ by: ['status'], _count: { _all: true } })
+            : Promise.resolve([]),
+        canManagePosts ? prisma.post.count() : Promise.resolve(0),
+        canManageUsers
+            ? prisma.user.count({ where: { AND: [escopoUsuarios(user), { status: 'ATIVO' }] } })
+            : Promise.resolve(0),
+        canViewMessages
+            ? prisma.contactMessage.count({
+                  where: { AND: [escopoMensagens(user), { status: 'NOVA' }] },
+              })
+            : Promise.resolve(0),
+        canViewAtendimentos
+            ? prisma.atendimento.count({
+                  where: { AND: [escopoAtendimento(user), { status: { not: 'ENCERRADO' } }] },
+              })
+            : Promise.resolve(0),
+        canManagePosts
+            ? prisma.post.findMany({
+                  take: 5,
+                  orderBy: { updatedAt: 'desc' },
+                  select: {
+                      id: true,
+                      title: true,
+                      coverUrl: true,
+                      authorName: true,
+                      status: true,
+                      updatedAt: true,
+                      category: { select: { name: true } },
+                  },
+              })
+            : Promise.resolve([]),
+        canManagePosts
+            ? prisma.category.findMany({
+                  orderBy: { order: 'asc' },
+                  select: { id: true, name: true, _count: { select: { posts: true } } },
+              })
+            : Promise.resolve([]),
+        adminGeral
+            ? prisma.auditLog.findMany({
+                  take: 6,
+                  orderBy: { createdAt: 'desc' },
+                  select: {
+                      id: true,
+                      action: true,
+                      target: true,
+                      level: true,
+                      actorLabel: true,
+                      createdAt: true,
+                  },
+              })
+            : Promise.resolve([]),
+        canManagePosts
+            ? prisma.post.findMany({
+                  where: { status: 'PUBLICADO' },
+                  orderBy: { views: 'desc' },
+                  take: 4,
+                  select: {
+                      id: true,
+                      title: true,
+                      views: true,
+                      category: { select: { name: true } },
+                  },
+              })
+            : Promise.resolve([]),
     ]);
 
     const countByStatus = (status: string): number =>
@@ -169,7 +202,11 @@ export default async function Page({ searchParams }: PageProps) {
     ];
 
     const shortcuts: DashboardShortcut[] = allShortcuts
-        .filter((item) => !item.permission || hasPermission(user, item.permission))
+        .filter(
+            (item) =>
+                (!item.permission || hasPermission(user, item.permission)) &&
+                (item.href !== '/admin/acessos' || adminGeral),
+        )
         .map(({ href, icon, label }) => ({ href, icon, label }));
 
     const recurso = params.recurso ?? '';
@@ -180,9 +217,12 @@ export default async function Page({ searchParams }: PageProps) {
         <PageContent
             userName={user.name}
             roleName={user.role.name}
-            canCreatePost={hasPermission(user, 'noticias')}
-            canInviteUser={hasPermission(user, 'usuarios')}
-            canSeeAudit={hasPermission(user, 'usuarios')}
+            canCreatePost={canManagePosts}
+            canInviteUser={canManageUsers}
+            canViewMessages={canViewMessages}
+            canViewAtendimentos={canViewAtendimentos}
+            canManageUsers={canManageUsers}
+            canSeeAudit={adminGeral}
             blockedResource={blockedResource}
             lastActivity={log[0]?.when ?? null}
             stats={{

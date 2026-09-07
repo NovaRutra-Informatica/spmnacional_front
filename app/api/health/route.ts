@@ -22,11 +22,7 @@ export async function GET() {
     const healthy = database === 'ok';
 
     return NextResponse.json(
-        {
-            status: healthy ? 'ok' : 'degradado',
-            uptime: Math.round(process.uptime()),
-            database,
-        },
+        { status: healthy ? 'ok' : 'indisponivel' },
         {
             status: healthy ? 200 : 503,
             headers: { 'Cache-Control': 'no-store' },

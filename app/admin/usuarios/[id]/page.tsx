@@ -4,6 +4,7 @@ import { prisma } from '@/lib/server/db';
 import { requirePermission } from '@/lib/server/auth';
 import { formatDateTimeShort } from '@/lib/labels';
 import PageContent, { type RegionalOption, type RoleOption } from './PageContent';
+import { ADMIN_ROLE_KEY, escopoUsuarios, isAdminGeral } from '../politica';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,10 +15,11 @@ export const metadata: Metadata = {
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
     const current = await requirePermission('usuarios');
     const { id } = await params;
+    const adminGeral = isAdminGeral(current);
 
     // `select` explícito: nenhum hash de senha ou de token sai do servidor.
-    const user = await prisma.user.findUnique({
-        where: { id },
+    const user = await prisma.user.findFirst({
+        where: { id, ...escopoUsuarios(current) },
         select: {
             id: true,
             name: true,
@@ -26,7 +28,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             status: true,
             roleId: true,
             regionalId: true,
-            mfaRequired: true,
             lastAccessAt: true,
             createdAt: true,
             inviteExpiresAt: true,
@@ -38,11 +39,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
     const [roles, regionais, sessoesAtivas] = await Promise.all([
         prisma.role.findMany({
+            where: adminGeral ? {} : { key: { not: ADMIN_ROLE_KEY } },
             select: { id: true, name: true, description: true },
             orderBy: { order: 'asc' },
         }),
         prisma.regional.findMany({
-            where: { active: true },
+            where: adminGeral
+                ? { active: true }
+                : current.regionalId
+                  ? { id: current.regionalId }
+                  : { id: { in: [] } },
             select: { id: true, name: true },
             orderBy: [{ region: 'asc' }, { order: 'asc' }],
         }),
@@ -73,7 +79,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
                 roleId: user.roleId,
                 roleName: user.role.name,
                 regionalId: user.regionalId ?? '',
-                mfaRequired: user.mfaRequired,
                 lastAccess: user.lastAccessAt
                     ? formatDateTimeShort(user.lastAccessAt)
                     : 'Nunca acessou',
@@ -86,6 +91,8 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
             regionais={regionalOptions}
             sessoesAtivas={sessoesAtivas}
             isSelf={user.id === current.id}
+            canManagePermissions={adminGeral}
+            allowNoRegional={adminGeral}
         />
     );
 }

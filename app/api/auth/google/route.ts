@@ -13,8 +13,10 @@ import { env, isGoogleOAuthEnabled } from '@/lib/server/env';
 
 export const dynamic = 'force-dynamic';
 
-const STATE_COOKIE = 'g_state';
-const VERIFIER_COOKIE = 'g_verifier';
+const COOKIE_PREFIX = process.env.NODE_ENV === 'production' ? '__Host-' : '';
+const STATE_COOKIE = `${COOKIE_PREFIX}g_state`;
+const VERIFIER_COOKIE = `${COOKIE_PREFIX}g_verifier`;
+const NONCE_COOKIE = `${COOKIE_PREFIX}g_nonce`;
 /** Tempo suficiente para escolher a conta no Google, e nada além disso. */
 const TEMP_COOKIE_MAX_AGE = 10 * 60;
 
@@ -26,6 +28,7 @@ export async function GET(): Promise<NextResponse> {
 
     const state = generateToken(24);
     const verifier = generateToken(48);
+    const nonce = generateToken(24);
     const challenge = createHash('sha256').update(verifier).digest('base64url');
 
     const store = await cookies();
@@ -35,10 +38,12 @@ export async function GET(): Promise<NextResponse> {
         secure: process.env.NODE_ENV === 'production',
         path: '/',
         maxAge: TEMP_COOKIE_MAX_AGE,
+        priority: 'high' as const,
     };
 
     store.set(STATE_COOKIE, state, opcoes);
     store.set(VERIFIER_COOKIE, verifier, opcoes);
+    store.set(NONCE_COOKIE, nonce, opcoes);
 
     const autorizacao = new URL('https://accounts.google.com/o/oauth2/v2/auth');
     autorizacao.searchParams.set('client_id', env.google.clientId);
@@ -49,6 +54,7 @@ export async function GET(): Promise<NextResponse> {
     autorizacao.searchParams.set('response_type', 'code');
     autorizacao.searchParams.set('scope', 'openid email profile');
     autorizacao.searchParams.set('state', state);
+    autorizacao.searchParams.set('nonce', nonce);
     autorizacao.searchParams.set('code_challenge', challenge);
     autorizacao.searchParams.set('code_challenge_method', 'S256');
     autorizacao.searchParams.set('access_type', 'online');

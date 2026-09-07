@@ -33,7 +33,8 @@ export default function CountUp({
 
     useEffect(() => {
         const element = ref.current;
-        if (!element || typeof IntersectionObserver === 'undefined') {
+        const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+        if (!element || typeof IntersectionObserver === 'undefined' || reduceMotion) {
             return;
         }
 

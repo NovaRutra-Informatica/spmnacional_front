@@ -27,6 +27,8 @@ interface Props {
     permissions: PermissionInfo[];
     regionais: RegionalOption[];
     mailEnabled: boolean;
+    canManagePermissions: boolean;
+    allowNoRegional: boolean;
 }
 
 /** Espelha `ActionState`; o módulo original é server-only e não pode vir para cá. */
@@ -39,7 +41,14 @@ interface FormState {
 
 const ERROR_STYLE = { color: '#c2185b' };
 
-export default function PageContent({ roles, permissions, regionais, mailEnabled }: Props) {
+export default function PageContent({
+    roles,
+    permissions,
+    regionais,
+    mailEnabled,
+    canManagePermissions,
+    allowNoRegional,
+}: Props) {
     const [state, formAction, pending] = useActionState<FormState, FormData>(convidarUsuario, {
         ok: false,
     });
@@ -47,7 +56,7 @@ export default function PageContent({ roles, permissions, regionais, mailEnabled
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [roleId, setRoleId] = useState(roles[0]?.id ?? '');
-    const [regionalId, setRegionalId] = useState('');
+    const [regionalId, setRegionalId] = useState(allowNoRegional ? '' : (regionais[0]?.id ?? ''));
 
     const initials = name.trim() ? initialsFrom(name) : '??';
     const selectedRole = roles.find((role) => role.id === roleId) ?? null;
@@ -189,7 +198,9 @@ export default function PageContent({ roles, permissions, regionais, mailEnabled
                                         value={regionalId}
                                         onChange={(e) => setRegionalId(e.target.value)}
                                     >
-                                        <option value="">Sem regional definida</option>
+                                        {allowNoRegional && (
+                                            <option value="">Sem regional definida</option>
+                                        )}
                                         {regionais.map((regional) => (
                                             <option value={regional.id} key={regional.id}>
                                                 {regional.name}
@@ -221,18 +232,10 @@ export default function PageContent({ roles, permissions, regionais, mailEnabled
                         <div className="acard">
                             <div className="acard__head">
                                 <div>
-                                    <h2>Segurança</h2>
-                                    <p>Regras aplicadas a esta conta no primeiro acesso.</p>
+                                    <h2>Cuidados de acesso</h2>
+                                    <p>Informações importantes antes de criar a conta.</p>
                                 </div>
                             </div>
-
-                            <label className="aswitch">
-                                <input type="checkbox" name="mfaRequired" defaultChecked />
-                                <span className="aswitch__track"></span>
-                                <span className="aswitch__label">
-                                    Exigir verificação em duas etapas para esta conta
-                                </span>
-                            </label>
 
                             {!mailEnabled && (
                                 <div className="anote" style={{ margin: '1.5rem 0 0' }}>
@@ -334,13 +337,15 @@ export default function PageContent({ roles, permissions, regionais, mailEnabled
                                         })}
                                     </ul>
 
-                                    <Link
-                                        className="abtn abtn--ghost abtn--sm abtn--block"
-                                        href="/admin/acessos"
-                                        style={{ marginTop: '1rem' }}
-                                    >
-                                        Editar permissões do perfil
-                                    </Link>
+                                    {canManagePermissions && (
+                                        <Link
+                                            className="abtn abtn--ghost abtn--sm abtn--block"
+                                            href="/admin/acessos"
+                                            style={{ marginTop: '1rem' }}
+                                        >
+                                            Editar permissões do perfil
+                                        </Link>
+                                    )}
                                 </>
                             ) : (
                                 <div className="aempty">

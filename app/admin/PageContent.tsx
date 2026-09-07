@@ -57,6 +57,9 @@ interface PageContentProps {
     roleName: string;
     canCreatePost: boolean;
     canInviteUser: boolean;
+    canViewMessages: boolean;
+    canViewAtendimentos: boolean;
+    canManageUsers: boolean;
     canSeeAudit: boolean;
     blockedResource: string | null;
     lastActivity: string | null;
@@ -73,6 +76,9 @@ export default function PageContent({
     roleName,
     canCreatePost,
     canInviteUser,
+    canViewMessages,
+    canViewAtendimentos,
+    canManageUsers,
     canSeeAudit,
     blockedResource,
     lastActivity,
@@ -122,261 +128,321 @@ export default function PageContent({
                 </div>
             )}
 
-            <div className="agrid agrid--4" style={{ marginBottom: '1.5rem' }}>
-                <div className="stat-tile">
-                    <span className="stat-tile__icon">
-                        <i className="fas fa-newspaper"></i>
-                    </span>
+            <section className="admin-dashboard-block" aria-labelledby="dashboard-pendencias">
+                <div className="admin-dashboard-block__head">
                     <div>
-                        <strong>{stats.totalPosts}</strong>
-                        <span>Notícias cadastradas</span>
+                        <span className="admin-section-label">Prioridades</span>
+                        <h2 id="dashboard-pendencias">O que pede atenção</h2>
                     </div>
+                    <p>Abra cada área para revisar e concluir as pendências.</p>
                 </div>
-                <div className="stat-tile is-success">
-                    <span className="stat-tile__icon">
-                        <i className="fas fa-circle-check"></i>
-                    </span>
-                    <div>
-                        <strong>{stats.published}</strong>
-                        <span>Publicadas no site</span>
-                    </div>
-                </div>
-                <div className="stat-tile is-warning">
-                    <span className="stat-tile__icon">
-                        <i className="fas fa-pen-ruler"></i>
-                    </span>
-                    <div>
-                        <strong>{stats.drafts + stats.inReview}</strong>
-                        <span>Rascunhos e revisões</span>
-                    </div>
-                </div>
-                <div className="stat-tile is-action">
-                    <span className="stat-tile__icon">
-                        <i className="fas fa-users"></i>
-                    </span>
-                    <div>
-                        <strong>{stats.activeUsers}</strong>
-                        <span>Usuários ativos</span>
-                    </div>
-                </div>
-            </div>
 
-            <div className="agrid agrid--3" style={{ marginBottom: '1.5rem' }}>
-                <div className="stat-tile">
-                    <span className="stat-tile__icon">
-                        <i className="fas fa-clock"></i>
-                    </span>
-                    <div>
-                        <strong>{stats.scheduled}</strong>
-                        <span>Notícias agendadas</span>
-                    </div>
+                <div className="agrid agrid--4 admin-priority-grid">
+                    {canCreatePost && (
+                        <>
+                            <Link
+                                className="stat-tile stat-tile--link is-warning"
+                                href="/admin/noticias"
+                                aria-label={`${stats.drafts + stats.inReview} rascunhos e revisões. Abrir notícias.`}
+                            >
+                                <span className="stat-tile__icon">
+                                    <i className="fas fa-pen-ruler" aria-hidden="true"></i>
+                                </span>
+                                <span className="stat-tile__body">
+                                    <strong>{stats.drafts + stats.inReview}</strong>
+                                    <span>Rascunhos e revisões</span>
+                                </span>
+                                <i
+                                    className="fas fa-arrow-right stat-tile__arrow"
+                                    aria-hidden="true"
+                                ></i>
+                            </Link>
+                            <Link
+                                className="stat-tile stat-tile--link"
+                                href="/admin/noticias"
+                                aria-label={`${stats.scheduled} notícias agendadas. Abrir notícias.`}
+                            >
+                                <span className="stat-tile__icon">
+                                    <i className="fas fa-clock" aria-hidden="true"></i>
+                                </span>
+                                <span className="stat-tile__body">
+                                    <strong>{stats.scheduled}</strong>
+                                    <span>Notícias agendadas</span>
+                                </span>
+                                <i
+                                    className="fas fa-arrow-right stat-tile__arrow"
+                                    aria-hidden="true"
+                                ></i>
+                            </Link>
+                        </>
+                    )}
+                    {canViewMessages && (
+                        <Link
+                            className="stat-tile stat-tile--link is-action"
+                            href="/admin/mensagens"
+                            aria-label={`${stats.newMessages} mensagens novas. Abrir mensagens.`}
+                        >
+                            <span className="stat-tile__icon">
+                                <i className="fas fa-envelope-open-text" aria-hidden="true"></i>
+                            </span>
+                            <span className="stat-tile__body">
+                                <strong>{stats.newMessages}</strong>
+                                <span>Mensagens novas</span>
+                            </span>
+                            <i
+                                className="fas fa-arrow-right stat-tile__arrow"
+                                aria-hidden="true"
+                            ></i>
+                        </Link>
+                    )}
+                    {canViewAtendimentos && (
+                        <Link
+                            className="stat-tile stat-tile--link is-success"
+                            href="/admin/atendimentos"
+                            aria-label={`${stats.openAtendimentos} atendimentos em aberto. Abrir atendimentos.`}
+                        >
+                            <span className="stat-tile__icon">
+                                <i className="fas fa-hand-holding-heart" aria-hidden="true"></i>
+                            </span>
+                            <span className="stat-tile__body">
+                                <strong>{stats.openAtendimentos}</strong>
+                                <span>Atendimentos em aberto</span>
+                            </span>
+                            <i
+                                className="fas fa-arrow-right stat-tile__arrow"
+                                aria-hidden="true"
+                            ></i>
+                        </Link>
+                    )}
                 </div>
-                <div className="stat-tile is-action">
-                    <span className="stat-tile__icon">
-                        <i className="fas fa-envelope-open-text"></i>
-                    </span>
-                    <div>
-                        <strong>{stats.newMessages}</strong>
-                        <span>Mensagens novas</span>
-                    </div>
-                </div>
-                <div className="stat-tile is-warning">
-                    <span className="stat-tile__icon">
-                        <i className="fas fa-hand-holding-heart"></i>
-                    </span>
-                    <div>
-                        <strong>{stats.openAtendimentos}</strong>
-                        <span>Atendimentos em aberto</span>
-                    </div>
-                </div>
-            </div>
+            </section>
 
-            <div className="agrid agrid--sidebar">
-                <div>
-                    <div className="acard">
-                        <div className="acard__head">
+            {(canCreatePost || canManageUsers) && (
+                <section className="admin-summary" aria-labelledby="dashboard-resumo">
+                    <div className="admin-summary__intro">
+                        <span className="admin-section-label">Visão geral</span>
+                        <h2 id="dashboard-resumo">Resumo do acervo</h2>
+                    </div>
+                    <dl className="admin-summary__list">
+                        {canCreatePost && (
+                            <>
+                                <div>
+                                    <dt>Notícias cadastradas</dt>
+                                    <dd>{stats.totalPosts}</dd>
+                                </div>
+                                <div>
+                                    <dt>Publicadas no site</dt>
+                                    <dd>{stats.published}</dd>
+                                </div>
+                            </>
+                        )}
+                        {canManageUsers && (
                             <div>
-                                <h2>Publicações recentes</h2>
-                                <p>As últimas notícias alteradas no sistema.</p>
+                                <dt>Usuários ativos</dt>
+                                <dd>{stats.activeUsers}</dd>
                             </div>
-                            {/* Sem a permissão de notícias o atalho levaria a uma
+                        )}
+                    </dl>
+                </section>
+            )}
+
+            <div className={`agrid agrid--sidebar${canCreatePost ? '' : ' agrid--single'}`}>
+                {canCreatePost && (
+                    <div>
+                        <div className="acard">
+                            <div className="acard__head">
+                                <div>
+                                    <h2>Publicações recentes</h2>
+                                    <p>As últimas notícias alteradas no sistema.</p>
+                                </div>
+                                {/* Sem a permissão de notícias o atalho levaria a uma
                                 tela que o próprio guard devolveria — melhor não oferecer. */}
-                            {canCreatePost && (
-                                <Link className="abtn abtn--ghost abtn--sm" href="/admin/noticias">
-                                    Ver todas <i className="fas fa-arrow-right"></i>
-                                </Link>
+                                {canCreatePost && (
+                                    <Link
+                                        className="abtn abtn--ghost abtn--sm"
+                                        href="/admin/noticias"
+                                    >
+                                        Ver todas <i className="fas fa-arrow-right"></i>
+                                    </Link>
+                                )}
+                            </div>
+
+                            {recent.length ? (
+                                <div className="atable-wrap">
+                                    <table className="atable">
+                                        <thead>
+                                            <tr>
+                                                <th>Título</th>
+                                                <th>Categoria</th>
+                                                <th>Atualizada em</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {recent.map((item) => (
+                                                <tr key={item.id}>
+                                                    <td>
+                                                        <div className="atable__cell-media">
+                                                            {item.cover && (
+                                                                <span
+                                                                    className="atable__thumb"
+                                                                    style={{
+                                                                        backgroundImage: `url(${item.cover})`,
+                                                                    }}
+                                                                ></span>
+                                                            )}
+                                                            <span>
+                                                                <span className="atable__title">
+                                                                    {item.title}
+                                                                </span>
+                                                                <span className="atable__sub">
+                                                                    por {item.author}
+                                                                </span>
+                                                            </span>
+                                                        </div>
+                                                    </td>
+                                                    <td>{item.category}</td>
+                                                    <td>{item.updatedAt}</td>
+                                                    <td>
+                                                        <span
+                                                            className={
+                                                                POST_STATUS_CLASS[item.status]
+                                                            }
+                                                        >
+                                                            {POST_STATUS_LABEL[item.status]}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ) : (
+                                <div className="aempty">
+                                    <i className="fas fa-newspaper"></i>
+                                    <strong>Nenhuma notícia cadastrada</strong>
+                                    <span>Assim que a primeira for criada, ela aparece aqui.</span>
+                                </div>
                             )}
                         </div>
 
-                        {recent.length ? (
-                            <div className="atable-wrap">
-                                <table className="atable">
-                                    <thead>
-                                        <tr>
-                                            <th>Título</th>
-                                            <th>Categoria</th>
-                                            <th>Atualizada em</th>
-                                            <th>Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {recent.map((item) => (
-                                            <tr key={item.id}>
-                                                <td>
-                                                    <div className="atable__cell-media">
-                                                        {item.cover && (
-                                                            <span
-                                                                className="atable__thumb"
-                                                                style={{
-                                                                    backgroundImage: `url(${item.cover})`,
-                                                                }}
-                                                            ></span>
-                                                        )}
-                                                        <span>
-                                                            <span className="atable__title">
-                                                                {item.title}
-                                                            </span>
-                                                            <span className="atable__sub">
-                                                                por {item.author}
-                                                            </span>
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                                <td>{item.category}</td>
-                                                <td>{item.updatedAt}</td>
-                                                <td>
-                                                    <span
-                                                        className={POST_STATUS_CLASS[item.status]}
-                                                    >
-                                                        {POST_STATUS_LABEL[item.status]}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        ) : (
-                            <div className="aempty">
-                                <i className="fas fa-newspaper"></i>
-                                <strong>Nenhuma notícia cadastrada</strong>
-                                <span>Assim que a primeira for criada, ela aparece aqui.</span>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="acard">
-                        <div className="acard__head">
-                            <div>
-                                <h2>Distribuição por categoria</h2>
-                                <p>Como o conteúdo do site está equilibrado hoje.</p>
-                            </div>
-                        </div>
-
-                        {byCategory.length ? (
-                            byCategory.map((row) => (
-                                <div className="abar-row" key={row.id}>
-                                    <div className="abar-row__head">
-                                        <span>{row.name}</span>
-                                        <strong>
-                                            {row.count} · {row.pct}%
-                                        </strong>
-                                    </div>
-                                    <div className="abar">
-                                        <div style={{ width: `${row.pct}%` }}></div>
-                                    </div>
+                        <div className="acard">
+                            <div className="acard__head">
+                                <div>
+                                    <h2>Distribuição por categoria</h2>
+                                    <p>Como o conteúdo do site está equilibrado hoje.</p>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="aempty">
-                                <i className="fas fa-chart-simple"></i>
-                                <strong>Sem dados para comparar</strong>
-                                <span>Cadastre notícias para ver a distribuição.</span>
                             </div>
-                        )}
+
+                            {byCategory.length ? (
+                                byCategory.map((row) => (
+                                    <div className="abar-row" key={row.id}>
+                                        <div className="abar-row__head">
+                                            <span>{row.name}</span>
+                                            <strong>
+                                                {row.count} · {row.pct}%
+                                            </strong>
+                                        </div>
+                                        <div className="abar">
+                                            <div style={{ width: `${row.pct}%` }}></div>
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="aempty">
+                                    <i className="fas fa-chart-simple"></i>
+                                    <strong>Sem dados para comparar</strong>
+                                    <span>Cadastre notícias para ver a distribuição.</span>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 <div>
-                    <div className="acard">
-                        <div className="acard__head">
-                            <div>
-                                <h3>Atividade recente</h3>
-                                <p>Registro de acessos e alterações.</p>
+                    {canSeeAudit && (
+                        <div className="acard">
+                            <div className="acard__head">
+                                <div>
+                                    <h3>Atividade recente</h3>
+                                    <p>Registro de acessos e alterações.</p>
+                                </div>
                             </div>
-                        </div>
 
-                        {log.length ? (
-                            <ul className="activity-list">
-                                {log.map((entry) => (
-                                    <li key={entry.id}>
-                                        <span className="activity-list__icon">
-                                            <i
-                                                className={`fas ${AUDIT_LEVEL_ICON[entry.level]}`}
-                                            ></i>
-                                        </span>
-                                        <div>
-                                            <strong>
-                                                {entry.action} — {entry.target}
-                                            </strong>
-                                            <span>
-                                                {entry.actor} · {entry.when}
+                            {log.length ? (
+                                <ul className="activity-list">
+                                    {log.map((entry) => (
+                                        <li key={entry.id}>
+                                            <span className="activity-list__icon">
+                                                <i
+                                                    className={`fas ${AUDIT_LEVEL_ICON[entry.level]}`}
+                                                ></i>
                                             </span>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <div className="aempty">
-                                <i className="fas fa-clock-rotate-left"></i>
-                                <strong>Nenhum registro ainda</strong>
-                                <span>As ações do painel aparecem aqui.</span>
-                            </div>
-                        )}
+                                            <div>
+                                                <strong>
+                                                    {entry.action} — {entry.target}
+                                                </strong>
+                                                <span>
+                                                    {entry.actor} · {entry.when}
+                                                </span>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="aempty">
+                                    <i className="fas fa-clock-rotate-left"></i>
+                                    <strong>Nenhum registro ainda</strong>
+                                    <span>As ações do painel aparecem aqui.</span>
+                                </div>
+                            )}
 
-                        {canSeeAudit && (
-                            <Link
-                                className="abtn abtn--ghost abtn--sm abtn--block"
-                                href="/admin/acessos"
-                                style={{ marginTop: '1rem' }}
-                            >
-                                Ver registro completo
-                            </Link>
-                        )}
-                    </div>
-
-                    <div className="acard">
-                        <div className="acard__head">
-                            <div>
-                                <h3>Mais lidas</h3>
-                                <p>Publicações com maior audiência.</p>
-                            </div>
+                            {canSeeAudit && (
+                                <Link
+                                    className="abtn abtn--ghost abtn--sm abtn--block"
+                                    href="/admin/acessos"
+                                    style={{ marginTop: '1rem' }}
+                                >
+                                    Ver registro completo
+                                </Link>
+                            )}
                         </div>
+                    )}
 
-                        {topPosts.length ? (
-                            <ul className="activity-list">
-                                {topPosts.map((post) => (
-                                    <li key={post.id}>
-                                        <span className="activity-list__icon">
-                                            <i className="fas fa-eye"></i>
-                                        </span>
-                                        <div>
-                                            <strong>{post.title}</strong>
-                                            <span>
-                                                {post.views} visualizações · {post.category}
-                                            </span>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <div className="aempty">
-                                <i className="fas fa-eye"></i>
-                                <strong>Nada publicado ainda</strong>
-                                <span>A audiência começa a ser contada após a publicação.</span>
+                    {canCreatePost && (
+                        <div className="acard">
+                            <div className="acard__head">
+                                <div>
+                                    <h3>Mais lidas</h3>
+                                    <p>Publicações com maior audiência.</p>
+                                </div>
                             </div>
-                        )}
-                    </div>
+
+                            {topPosts.length ? (
+                                <ul className="activity-list">
+                                    {topPosts.map((post) => (
+                                        <li key={post.id}>
+                                            <span className="activity-list__icon">
+                                                <i className="fas fa-eye"></i>
+                                            </span>
+                                            <div>
+                                                <strong>{post.title}</strong>
+                                                <span>
+                                                    {post.views} visualizações · {post.category}
+                                                </span>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            ) : (
+                                <div className="aempty">
+                                    <i className="fas fa-eye"></i>
+                                    <strong>Nada publicado ainda</strong>
+                                    <span>A audiência começa a ser contada após a publicação.</span>
+                                </div>
+                            )}
+                        </div>
+                    )}
 
                     {shortcuts.length > 0 && (
                         <div className="acard">

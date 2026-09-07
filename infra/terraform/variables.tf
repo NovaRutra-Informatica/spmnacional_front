@@ -160,25 +160,6 @@ variable "db_retained_backups" {
   default     = 7
 }
 
-# ---------------------------------------------------------
-# Armazenamento de arquivos
-# ---------------------------------------------------------
-
-variable "uploads_bucket_public" {
-  description = <<-EOT
-        Concede leitura anônima ao bucket de uploads. É o modo como o site
-        entrega capas de notícia e PDFs de editais direto do Cloud Storage
-        (STORAGE_DRIVER=gcs), sem passar pelo servidor.
-
-        ATENÇÃO: só vale porque nada de dado pessoal do módulo de atendimentos
-        vai para arquivo — atendimento é só linha de banco, com os campos que
-        identificam a pessoa cifrados. Se um dia entrar anexo em atendimento,
-        isto tem que virar `false` e o download passar pela aplicação.
-    EOT
-  type        = bool
-  default     = true
-}
-
 variable "uploads_noncurrent_retention_days" {
   description = <<-EOT
         Dias que uma versão antiga de arquivo sobrevive antes de ser apagada.
@@ -190,8 +171,17 @@ variable "uploads_noncurrent_retention_days" {
 }
 
 # ---------------------------------------------------------
-# Agenda (Cloud Scheduler)
+# Rotinas agendadas (Cloud Scheduler)
 # ---------------------------------------------------------
+
+variable "data_retention_schedule" {
+  description = <<-EOT
+        Horário do expurgo diário de dados pessoais, em formato cron e no fuso
+        America/Sao_Paulo. O padrão roda às 04:30, depois da janela de backup.
+    EOT
+  type        = string
+  default     = "30 4 * * *"
+}
 
 variable "agenda_sync_schedule" {
   description = <<-EOT

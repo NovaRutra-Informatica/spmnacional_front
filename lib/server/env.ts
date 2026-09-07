@@ -33,7 +33,7 @@ export const env = {
     seed: {
         adminName: str('SEED_ADMIN_NAME', 'Administrador do SPM'),
         adminEmail: str('SEED_ADMIN_EMAIL', 'admin@spmnacional.org.br'),
-        adminPassword: str('SEED_ADMIN_PASSWORD', 'soufoda'),
+        adminPassword: str('SEED_ADMIN_PASSWORD'),
     },
 
     mail: {
@@ -58,7 +58,6 @@ export const env = {
         driver: str('STORAGE_DRIVER', 'local') as 'local' | 'gcs',
         localDir: str('STORAGE_LOCAL_DIR', './storage/uploads'),
         gcsBucket: str('GCS_BUCKET'),
-        gcsPublicBaseUrl: str('GCS_PUBLIC_BASE_URL'),
     },
 
     cronSecret: str('CRON_SECRET'),

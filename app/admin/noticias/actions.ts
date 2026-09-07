@@ -3,11 +3,10 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
-import type { MediaKind, PostStatus } from '@/lib/generated/prisma/enums';
+import type { PostStatus } from '@/lib/generated/prisma/enums';
 import { prisma } from '@/lib/server/db';
 import { requirePermission } from '@/lib/server/auth';
 import { recordAudit } from '@/lib/server/audit';
-import { storeFile } from '@/lib/server/storage';
 import {
     actionError,
     actionOk,
@@ -34,7 +33,10 @@ const noticiaSchema = z.object({
         .string()
         .min(20, 'Escreva um resumo — ele aparece nos cards do blog.')
         .max(400, 'O resumo deve ter no máximo 400 caracteres.'),
-    content: z.string().min(50, 'Escreva o texto da matéria (pelo menos 50 caracteres).'),
+    content: z
+        .string()
+        .min(50, 'Escreva o texto da matéria (pelo menos 50 caracteres).')
+        .max(100_000, 'O texto da matéria deve ter no máximo 100.000 caracteres.'),
     categoryId: z.string().min(1, 'Escolha uma categoria.'),
     status: z.enum(['RASCUNHO', 'REVISAO', 'AGENDADO', 'PUBLICADO']),
 });
@@ -43,7 +45,7 @@ const noticiaSchema = z.object({
  * Uma capa só pode apontar para um arquivo nosso ou para uma URL absoluta —
  * o campo é oculto no formulário, então nunca confiamos no que chega.
  */
-const URL_DE_CAPA = /^(?:https?:\/\/|\/)/;
+const URL_DE_CAPA = /^(?:https?:\/\/|\/(?!\/))/;
 
 /** Invalida o cache do painel e das telas públicas afetadas por uma notícia. */
 function revalidarNoticias(slug?: string | null): void {
@@ -54,19 +56,6 @@ function revalidarNoticias(slug?: string | null): void {
     if (slug) {
         revalidatePath(`/publicacoes/blog/${slug}`);
     }
-}
-
-/** Deriva o tipo da mídia pelo mimeType — o banco guarda a classificação já pronta. */
-function kindFromMime(mimeType: string): MediaKind {
-    if (mimeType.startsWith('image/')) return 'IMAGEM';
-    if (
-        mimeType === 'application/pdf' ||
-        mimeType.startsWith('application/vnd.') ||
-        mimeType === 'application/msword'
-    ) {
-        return 'DOCUMENTO';
-    }
-    return 'OUTRO';
 }
 
 // ---------------------------------------------------------
@@ -127,50 +116,24 @@ export async function salvarNoticia(_prev: ActionState, formData: FormData): Pro
 
         const publishedAt = dataInformada ?? (dados.status === 'PUBLICADO' ? new Date() : null);
 
-        // ----- capa: upload novo tem prioridade sobre a escolha no acervo -----
-        const arquivo = formData.get('cover');
+        // A capa já foi enviada pela rota autenticada e limitada de uploads;
+        // esta Server Action recebe somente o identificador leve da biblioteca.
         let coverMediaId: string | null = formString(formData, 'coverMediaId') || null;
         const urlInformada = formString(formData, 'coverUrl');
         let coverUrl: string | null = URL_DE_CAPA.test(urlInformada) ? urlInformada : null;
 
-        if (arquivo instanceof File && arquivo.size > 0) {
-            if (!arquivo.type.startsWith('image/')) {
-                return actionError('Verifique os campos destacados.', {
-                    cover: 'A capa precisa ser uma imagem (JPG, PNG ou WebP).',
-                });
-            }
-
-            const guardado = await storeFile(arquivo, { prefix: 'noticias' });
-            const media = await prisma.media.create({
-                data: {
-                    filename: guardado.filename,
-                    originalName: arquivo.name,
-                    mimeType: guardado.mimeType,
-                    size: guardado.size,
-                    kind: kindFromMime(guardado.mimeType),
-                    url: guardado.url,
-                    storageKey: guardado.storageKey,
-                    uploadedById: user.id,
-                },
-            });
-
-            coverMediaId = media.id;
-
-            // A capa entra na biblioteca: as telas que listam o acervo precisam vê-la.
-            revalidatePath('/admin/midia');
-            revalidatePath('/admin/noticias/nova');
-        }
-
         if (coverMediaId) {
             const media = await prisma.media.findUnique({
                 where: { id: coverMediaId },
-                select: { url: true },
+                select: { url: true, kind: true },
             });
 
-            if (media) {
+            if (media?.kind === 'IMAGEM') {
                 coverUrl = media.url;
             } else {
-                coverMediaId = null;
+                return actionError('Verifique os campos destacados.', {
+                    cover: 'Escolha uma imagem válida da biblioteca.',
+                });
             }
         }
 

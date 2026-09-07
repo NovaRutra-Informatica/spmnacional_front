@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import Animate from '@/components/Animate';
 import CountUp from '@/components/CountUp';
+import HomeHeroCarousel from '@/components/HomeHeroCarousel';
 import NewsletterForm from '@/components/NewsletterForm';
 import { getHomeStats, listPublishedPosts } from '@/lib/server/queries';
 
@@ -30,34 +31,7 @@ export default async function HomePage() {
 
     return (
         <div className="home-page">
-            <section className="hero-section relative">
-                <div className="hero-overlay"></div>
-                <Animate className="container hero-content relative z-10">
-                    <span className="hero-pill">Serviço Pastoral dos Migrantes</span>
-                    <h1 className="hero-title">Acolher, Proteger, Promover e Integrar.</h1>
-                    <p className="hero-subtitle">
-                        Inspiração baseada em &quot;Padre Alfredinho&quot;: O migrante não é um
-                        problema, é uma ponte entre povos.
-                    </p>
-                    <div className="hero-actions">
-                        <Link className="btn btn-cta" href="/como-ajudar">
-                            Faça sua Doação
-                        </Link>
-                        <Link className="btn btn-outline-light" href="/quem-somos/historia">
-                            Conheça Nossa História
-                        </Link>
-                    </div>
-                </Animate>
-                <div className="wave-bottom">
-                    <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-                        <path
-                            fill="#ffffff"
-                            fillOpacity="1"
-                            d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-                        ></path>
-                    </svg>
-                </div>
-            </section>
+            <HomeHeroCarousel />
 
             <Animate as="section" className="pillars-section section-padding">
                 <div className="container">
@@ -139,47 +113,34 @@ export default async function HomePage() {
                 </div>
             </section>
 
-            <Animate as="section" className="story-section relative">
-                <div className="wave-top">
-                    <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-                        <path
-                            fill="#f8f9fa"
-                            fillOpacity="1"
-                            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
-                        ></path>
-                    </svg>
-                </div>
-
-                <div
-                    className="bg-image"
-                    style={{ backgroundImage: "url('/assets/hero-bg-large.jpeg')" }}
-                ></div>
-                <div className="overlay-dark"></div>
-
-                <div className="container relative z-10 grid-story">
+            <Animate as="section" className="story-section">
+                <div className="container grid-story">
                     <div className="story-content">
-                        <i className="fas fa-quote-left quote-big"></i>
+                        <span className="story-kicker">40 anos no caminho com os migrantes</span>
+                        <i className="fas fa-quote-left quote-big" aria-hidden="true"></i>
                         <h2 className="story-title">
-                            &quot;Eu achei que tinha perdido tudo quando deixei a Venezuela. No SPM,
-                            eu não ganhei apenas comida, ganhei uma nova família.&quot;
+                            &quot;O migrante não é um problema. É uma ponte entre povos.&quot;
                         </h2>
                         <div className="story-author">
                             <div className="author-img">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src="/assets/venezuelana.jpeg" alt="Maria" />
+                                <img src="/assets/padre-alfredinho.png" alt="Padre Alfredinho" />
                             </div>
                             <div className="author-info">
-                                <strong>Maria González</strong>
-                                <span>Acolhida em São Paulo</span>
+                                <strong>Padre Alfredinho</strong>
+                                <span>Inspiração da caminhada do SPM</span>
                             </div>
                         </div>
                     </div>
                     <div className="story-cta">
-                        <p className="text-white mb-4">
-                            Existem milhares de Marias esperando por um recomeço.
+                        <span className="story-number">40</span>
+                        <h3>Uma história feita em rede</h3>
+                        <p>
+                            Desde 1985, formação, incidência e articulação aproximam pessoas,
+                            comunidades e territórios.
                         </p>
-                        <Link className="btn btn-cta btn-lg" href="/como-ajudar">
-                            Quero transformar uma vida
+                        <Link className="btn btn-outline-primary" href="/quem-somos/historia">
+                            Conheça essa história <i className="fas fa-arrow-right"></i>
                         </Link>
                     </div>
                 </div>
@@ -192,11 +153,23 @@ export default async function HomePage() {
                 </div>
 
                 <div className="scroller" data-direction="left" data-speed="slow">
-                    <div className="scroller__inner">
+                    <div
+                        className="scroller__inner"
+                        role="group"
+                        tabIndex={0}
+                        aria-label="Parceiros do SPM. A animação pausa enquanto este elemento está em foco."
+                    >
                         {partnersList.map((partner, index) => (
-                            <div className="partner-card-minimal" key={`${partner.name}-${index}`}>
+                            <div
+                                className="partner-card-minimal"
+                                key={`${partner.name}-${index}`}
+                                aria-hidden={index >= originalPartners.length}
+                            >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={partner.img} alt={partner.name} />
+                                <img
+                                    src={partner.img}
+                                    alt={index < originalPartners.length ? partner.name : ''}
+                                />
                             </div>
                         ))}
                     </div>
@@ -256,32 +229,23 @@ export default async function HomePage() {
                             ))}
                         </div>
                     )}
+                </div>
+            </Animate>
 
-                    <Animate as="section" className="newsletter-section relative">
-                        <div className="wave-top-news">
-                            <svg viewBox="0 0 1440 320" preserveAspectRatio="none">
-                                <path
-                                    fill="#f8f9fa"
-                                    fillOpacity="1"
-                                    d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
-                                ></path>
-                            </svg>
+            <Animate as="section" className="newsletter-section">
+                <div className="container">
+                    <div className="newsletter-wrapper">
+                        <div className="news-text">
+                            <span className="newsletter-kicker">Boletim do SPM</span>
+                            <h2>Histórias, direitos e mobilização no seu e-mail.</h2>
+                            <p>
+                                Receba uma seleção mensal de notícias, editais e materiais da nossa
+                                rede.
+                            </p>
                         </div>
 
-                        <div className="container relative z-10">
-                            <div className="newsletter-wrapper">
-                                <div className="news-text">
-                                    <h2 className="text-white mb-2">Não perca nenhuma história</h2>
-                                    <p className="text-white-50">
-                                        Receba mensalmente atualizações sobre nossos projetos,
-                                        transparência e como sua ajuda está salvando vidas.
-                                    </p>
-                                </div>
-
-                                <NewsletterForm />
-                            </div>
-                        </div>
-                    </Animate>
+                        <NewsletterForm />
+                    </div>
                 </div>
             </Animate>
         </div>

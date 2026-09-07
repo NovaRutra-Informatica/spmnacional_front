@@ -15,7 +15,7 @@ O que este diretório provisiona, todo na região **`southamerica-east1`
 | Cloud SQL PostgreSQL 17      | Banco de dados                                                 |
 | Secret Manager               | `DATABASE_URL`, `AUTH_SECRET`, `ENCRYPTION_KEY`, SMTP e Google |
 | Cloud Storage                | Uploads (capas, PDFs de editais, materiais)                    |
-| Cloud Scheduler              | Chama `/api/cron/agenda` para sincronizar o Google Calendar    |
+| Cloud Scheduler              | Executa a retenção diária e sincroniza a agenda                |
 | Workload Identity Federation | Deploy pelo GitHub Actions sem chave JSON                      |
 
 ```
@@ -29,7 +29,8 @@ GitHub Actions ──(OIDC)──> Workload Identity Federation
                                   ├── Secret Manager
                                   └── Cloud Storage
 
-Cloud Scheduler ──(X-Cron-Secret)──> /api/cron/agenda
+Cloud Scheduler ──(X-Cron-Secret)──┬──> /api/cron/retencao
+                                   └──> /api/cron/agenda
 ```
 
 ---
@@ -297,6 +298,14 @@ torne o calendário público. Não há OAuth nem escopo envolvido: `events.list`
 aceita autorização opcional em calendário público, e é só isso que
 `lib/server/google-calendar.ts` usa (o equivalente em escopo, se um dia a
 integração exigir OAuth, seria `calendar.readonly`).
+
+### Rotinas automáticas
+
+O Cloud Scheduler cria sempre o job de retenção, que envia `POST` para
+`/api/cron/retencao` diariamente às 04:30 no fuso de São Paulo. O job da agenda
+é opcional e só existe com `enable_google_calendar = true`. Ambos usam o mesmo
+`CRON_SECRET` forte no cabeçalho `X-Cron-Secret`; as rotas recusam chamadas sem
+esse segredo.
 
 ---
 

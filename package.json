@@ -9,6 +9,7 @@
         "start": "next start",
         "lint": "next lint",
         "typecheck": "tsc --noEmit",
+        "security:audit": "npm audit --audit-level=high",
         "format": "prettier . --write",
         "postinstall": "prisma generate",
         "db:up": "docker compose up -d db",
@@ -30,8 +31,9 @@
         "semi": true
     },
     "dependencies": {
-        "@prisma/adapter-pg": "^7.9.1",
-        "@prisma/client": "^7.9.1",
+        "@prisma/adapter-pg": "7.10.0",
+        "@prisma/client": "7.10.0",
+        "jose": "6.2.12",
         "next": "^16.3.1",
         "nodemailer": "^9.0.5",
         "pg": "^8.23.0",
@@ -48,9 +50,19 @@
         "@types/react-dom": "^19.1.6",
         "dotenv": "^17.4.2",
         "prettier": "^3.8.1",
-        "prisma": "^7.9.1",
+        "prisma": "7.10.0",
         "sass": "^1.93.2",
         "tsx": "^4.23.12",
         "typescript": "^5.9.2"
+    },
+    "overrides": {
+        "deepmerge-ts": "8.0.2",
+        "mysql2": "3.24.3"
+    },
+    "allowScripts": {
+        "@parcel/watcher@2.6.0": true,
+        "esbuild@0.28.2": true,
+        "prisma@7.10.0": true,
+        "@prisma/engines@7.10.0": true
     }
 }

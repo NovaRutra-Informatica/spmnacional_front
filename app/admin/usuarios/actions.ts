@@ -4,14 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/server/db';
 import { recordAudit } from '@/lib/server/audit';
-import { revokeAllSessions } from '@/lib/server/auth';
+import { revokeAllSessions, type SessionUser } from '@/lib/server/auth';
 import { generateToken, hashToken } from '@/lib/server/crypto';
 import { env } from '@/lib/server/env';
 import { sendUserInvite } from '@/lib/server/mail';
 import {
     actionError,
     actionOk,
-    formBoolean,
     formString,
     runAction,
     zodErrors,
@@ -19,12 +18,10 @@ import {
 } from '@/lib/server/actions';
 import type { UserStatus } from '@/lib/generated/prisma/enums';
 import { initialsFrom } from './initials';
+import { ADMIN_ROLE_KEY, escopoUsuarios, perfilPermitido, regionalPermitida } from './politica';
 
 /** Validade do convite — o mesmo prazo anunciado no e-mail enviado. */
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-/** Perfil que não pode desaparecer do sistema. */
-const ADMIN_ROLE_KEY = 'admin';
 
 // Regex simples de e-mail: a validação real é o convite chegar na caixa.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -53,15 +50,16 @@ async function ehUltimoAdminAtivo(alvo: { roleKey: string; status: UserStatus })
     return ativos <= 1;
 }
 
-async function carregarAlvo(id: string) {
-    return prisma.user.findUnique({
-        where: { id },
+async function carregarAlvo(user: SessionUser, id: string) {
+    return prisma.user.findFirst({
+        where: { id, ...escopoUsuarios(user) },
         select: {
             id: true,
             name: true,
             email: true,
             status: true,
             roleId: true,
+            regionalId: true,
             role: { select: { key: true, name: true } },
         },
     });
@@ -76,7 +74,6 @@ const conviteSchema = z.object({
     email: z.string().regex(EMAIL_RE, 'Informe um e-mail válido.'),
     roleId: z.string().min(1, 'Escolha o perfil de acesso.'),
     regionalId: z.string(),
-    mfaRequired: z.boolean(),
 });
 
 export async function convidarUsuario(
@@ -89,14 +86,13 @@ export async function convidarUsuario(
             email: formString(formData, 'email').toLowerCase(),
             roleId: formString(formData, 'roleId'),
             regionalId: formString(formData, 'regionalId'),
-            mfaRequired: formBoolean(formData, 'mfaRequired'),
         });
 
         if (!parsed.success) {
             return actionError('Verifique os campos destacados.', zodErrors(parsed.error));
         }
 
-        const { name, email, roleId, regionalId, mfaRequired } = parsed.data;
+        const { name, email, roleId, regionalId } = parsed.data;
 
         const role = await prisma.role.findUnique({
             where: { id: roleId },
@@ -106,6 +102,18 @@ export async function convidarUsuario(
         if (!role) {
             return actionError('Perfil de acesso não encontrado.', {
                 roleId: 'Escolha um perfil válido.',
+            });
+        }
+
+        if (!perfilPermitido(user, role.key)) {
+            return actionError('Você não pode atribuir o perfil de administrador geral.', {
+                roleId: 'Escolha um perfil não administrativo.',
+            });
+        }
+
+        if (!regionalPermitida(user, regionalId)) {
+            return actionError('Você só pode criar contas na sua própria regional.', {
+                regionalId: 'Escolha a sua regional.',
             });
         }
 
@@ -144,7 +152,6 @@ export async function convidarUsuario(
                 roleId: role.id,
                 regionalId: regionalId || null,
                 status: 'PENDENTE',
-                mfaRequired,
                 inviteTokenHash: hashToken(token),
                 inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS),
             },
@@ -222,8 +229,8 @@ export async function atualizarUsuario(
 
         const { id, name, roleId, regionalId } = parsed.data;
 
-        const alvo = await carregarAlvo(id);
-        if (!alvo) return actionError('Conta não encontrada.');
+        const alvo = await carregarAlvo(user, id);
+        if (!alvo) return actionError('Conta não encontrada ou fora do seu escopo de acesso.');
 
         const novoPerfil = await prisma.role.findUnique({
             where: { id: roleId },
@@ -233,6 +240,18 @@ export async function atualizarUsuario(
         if (!novoPerfil) {
             return actionError('Perfil de acesso não encontrado.', {
                 roleId: 'Escolha um perfil válido.',
+            });
+        }
+
+        if (!perfilPermitido(user, novoPerfil.key)) {
+            return actionError('Você não pode atribuir o perfil de administrador geral.', {
+                roleId: 'Escolha um perfil não administrativo.',
+            });
+        }
+
+        if (!regionalPermitida(user, regionalId)) {
+            return actionError('Você não pode transferir contas para outra regional.', {
+                regionalId: 'Mantenha a conta na sua própria regional.',
             });
         }
 
@@ -274,8 +293,8 @@ export async function atualizarUsuario(
             }
         }
 
-        await prisma.user.update({
-            where: { id: alvo.id },
+        const atualizado = await prisma.user.updateMany({
+            where: { id: alvo.id, ...escopoUsuarios(user) },
             data: {
                 name,
                 initials: initialsFrom(name),
@@ -290,6 +309,10 @@ export async function atualizarUsuario(
                 ...(status !== 'PENDENTE' ? { inviteTokenHash: null, inviteExpiresAt: null } : {}),
             },
         });
+
+        if (atualizado.count !== 1) {
+            return actionError('A conta deixou de pertencer ao seu escopo. Recarregue a página.');
+        }
 
         // Conta que deixa de estar ativa não pode continuar navegando.
         if (status !== 'ATIVO') {
@@ -327,8 +350,8 @@ export async function encerrarSessoesUsuario(
         const id = formString(formData, 'id');
         if (!id) return actionError('Conta não identificada.');
 
-        const alvo = await carregarAlvo(id);
-        if (!alvo) return actionError('Conta não encontrada.');
+        const alvo = await carregarAlvo(user, id);
+        if (!alvo) return actionError('Conta não encontrada ou fora do seu escopo de acesso.');
 
         const validas = await prisma.session.count({
             where: { userId: alvo.id, revokedAt: null, expiresAt: { gt: new Date() } },
@@ -378,16 +401,16 @@ export async function executarAcaoUsuario(
 
         if (!id || !intent) return actionError('Ação não reconhecida.');
 
-        const alvo = await carregarAlvo(id);
-        if (!alvo) return actionError('Conta não encontrada.');
+        const alvo = await carregarAlvo(user, id);
+        if (!alvo) return actionError('Conta não encontrada ou fora do seu escopo de acesso.');
 
         if (intent === 'ativar') {
             if (alvo.status === 'ATIVO') {
                 return actionError('Esta conta já está ativa.');
             }
 
-            await prisma.user.update({
-                where: { id: alvo.id },
+            const atualizado = await prisma.user.updateMany({
+                where: { id: alvo.id, ...escopoUsuarios(user) },
                 data: {
                     status: 'ATIVO',
                     failedLoginCount: 0,
@@ -398,6 +421,12 @@ export async function executarAcaoUsuario(
                     inviteExpiresAt: null,
                 },
             });
+
+            if (atualizado.count !== 1) {
+                return actionError(
+                    'A conta deixou de pertencer ao seu escopo. Recarregue a página.',
+                );
+            }
 
             await recordAudit({
                 action: alvo.status === 'PENDENTE' ? 'Acesso ativado' : 'Acesso reativado',
@@ -425,8 +454,8 @@ export async function executarAcaoUsuario(
                 );
             }
 
-            await prisma.user.update({
-                where: { id: alvo.id },
+            const atualizado = await prisma.user.updateMany({
+                where: { id: alvo.id, ...escopoUsuarios(user) },
                 data: {
                     status: 'INATIVO',
                     // Desativar também queima o convite ainda não aceito.
@@ -434,6 +463,12 @@ export async function executarAcaoUsuario(
                     inviteExpiresAt: null,
                 },
             });
+
+            if (atualizado.count !== 1) {
+                return actionError(
+                    'A conta deixou de pertencer ao seu escopo. Recarregue a página.',
+                );
+            }
 
             // Desativar sem encerrar a sessão deixaria a pessoa navegando até o
             // token expirar.
@@ -459,13 +494,19 @@ export async function executarAcaoUsuario(
             const token = generateToken();
             const inviteUrl = `${env.appUrl}/convite/${token}`;
 
-            await prisma.user.update({
-                where: { id: alvo.id },
+            const atualizado = await prisma.user.updateMany({
+                where: { id: alvo.id, ...escopoUsuarios(user) },
                 data: {
                     inviteTokenHash: hashToken(token),
                     inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS),
                 },
             });
+
+            if (atualizado.count !== 1) {
+                return actionError(
+                    'A conta deixou de pertencer ao seu escopo. Recarregue a página.',
+                );
+            }
 
             const enviado = await sendUserInvite({
                 name: alvo.name,
@@ -502,7 +543,12 @@ export async function executarAcaoUsuario(
             );
         }
 
-        await prisma.user.delete({ where: { id: alvo.id } });
+        const removido = await prisma.user.deleteMany({
+            where: { id: alvo.id, ...escopoUsuarios(user) },
+        });
+        if (removido.count !== 1) {
+            return actionError('A conta deixou de pertencer ao seu escopo. Recarregue a página.');
+        }
 
         await recordAudit({
             action: 'Usuário removido',

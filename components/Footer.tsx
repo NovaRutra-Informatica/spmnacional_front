@@ -16,17 +16,21 @@ export default function Footer() {
                             quem migra em todo o Brasil.
                         </p>
                         <div className="social-links">
-                            <a href="#" aria-label="Instagram">
-                                <i className="fab fa-instagram"></i>
+                            <a
+                                href="https://www.instagram.com/pastoraldosmigrantes/"
+                                aria-label="Instagram do Serviço Pastoral dos Migrantes"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <i className="fab fa-instagram" aria-hidden="true" />
                             </a>
-                            <a href="#" aria-label="Facebook">
-                                <i className="fab fa-facebook-f"></i>
-                            </a>
-                            <a href="#" aria-label="YouTube">
-                                <i className="fab fa-youtube"></i>
-                            </a>
-                            <a href="#" aria-label="WhatsApp">
-                                <i className="fab fa-whatsapp"></i>
+                            <a
+                                href="https://www.facebook.com/pastoraldosmigrantes/"
+                                aria-label="Facebook do Serviço Pastoral dos Migrantes"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <i className="fab fa-facebook-f" aria-hidden="true" />
                             </a>
                         </div>
                     </div>
@@ -97,19 +101,21 @@ export default function Footer() {
                     <div className="footer-col contact-col">
                         <h4>Fale conosco</h4>
                         <p>
-                            <i className="fas fa-map-marker-alt"></i> Rua Caiambé, 126 — Ipiranga
+                            <i className="fas fa-map-marker-alt" aria-hidden="true" /> Rua Caiambé,
+                            126 — Ipiranga
                             <br />
                             São Paulo — SP · 04264-060
                         </p>
                         <p>
-                            <i className="fas fa-envelope"></i> contato@spmnacional.org.br
+                            <i className="fas fa-envelope" aria-hidden="true" />{' '}
+                            contato@spmnacional.org.br
                         </p>
                         <p>
-                            <i className="fas fa-phone"></i> (11) 2063-7064
+                            <i className="fas fa-phone" aria-hidden="true" /> (11) 2063-7064
                         </p>
 
                         <Link href="/como-ajudar" className="footer-cta">
-                            <i className="fas fa-heart"></i> Apoie o SPM
+                            <i className="fas fa-heart" aria-hidden="true" /> Apoie o SPM
                         </Link>
                     </div>
                 </div>

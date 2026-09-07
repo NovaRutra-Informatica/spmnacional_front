@@ -7,6 +7,7 @@ import PageContent, {
     type RegionalOption,
     type RoleDetail,
 } from './PageContent';
+import { ADMIN_ROLE_KEY, isAdminGeral } from '../politica';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +16,12 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
-    await requirePermission('usuarios');
+    const current = await requirePermission('usuarios');
+    const adminGeral = isAdminGeral(current);
 
     const [roles, permissions, regionais] = await Promise.all([
         prisma.role.findMany({
+            where: adminGeral ? {} : { key: { not: ADMIN_ROLE_KEY } },
             select: {
                 id: true,
                 name: true,
@@ -31,7 +34,11 @@ export default async function Page() {
             orderBy: { order: 'asc' },
         }),
         prisma.regional.findMany({
-            where: { active: true },
+            where: adminGeral
+                ? { active: true }
+                : current.regionalId
+                  ? { id: current.regionalId }
+                  : { id: { in: [] } },
             select: { id: true, name: true },
             orderBy: [{ region: 'asc' }, { order: 'asc' }],
         }),
@@ -60,6 +67,8 @@ export default async function Page() {
             permissions={permissionList}
             regionais={regionalOptions}
             mailEnabled={isMailEnabled()}
+            canManagePermissions={adminGeral}
+            allowNoRegional={adminGeral}
         />
     );
 }

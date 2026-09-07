@@ -4,8 +4,10 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { formString, zodErrors } from '@/lib/server/actions';
 import { recordAudit, requestMeta } from '@/lib/server/audit';
+import { encryptSensitive } from '@/lib/server/crypto';
 import { prisma } from '@/lib/server/db';
 import { sendContactAcknowledgement, sendContactNotification } from '@/lib/server/mail';
+import { consumeRateLimit } from '@/lib/server/rate-limit';
 import { CONTACT_LANGUAGES, CONTACT_SUBJECTS, DEFAULT_CONTACT_LANGUAGE } from './options';
 
 /**
@@ -79,18 +81,66 @@ export async function enviarMensagem(
 
         const input = parsed.data;
         const meta = await requestMeta();
+        const normalizedEmail = input.email.toLowerCase();
+        const limits = [
+            // Limites globais e por endereço continuam efetivos mesmo sem IP
+            // confiável e impedem spam ilimitado por cabeçalhos falsificados.
+            consumeRateLimit({
+                scope: 'contact-global',
+                identifier: 'all',
+                limit: 200,
+                windowMs: 60 * 60 * 1000,
+            }),
+            consumeRateLimit({
+                scope: 'contact-address',
+                identifier: normalizedEmail,
+                limit: 5,
+                windowMs: 24 * 60 * 60 * 1000,
+            }),
+        ];
+
+        if (meta.ip) {
+            limits.push(
+                consumeRateLimit({
+                    scope: 'contact-source-short',
+                    identifier: meta.ip,
+                    limit: 5,
+                    windowMs: 15 * 60 * 1000,
+                }),
+                consumeRateLimit({
+                    scope: 'contact-source-daily',
+                    identifier: meta.ip,
+                    limit: 25,
+                    windowMs: 24 * 60 * 60 * 1000,
+                }),
+            );
+        }
+
+        const limitResults = await Promise.all(limits);
+
+        if (limitResults.some((result) => !result.allowed)) {
+            return {
+                ok: false,
+                message:
+                    'Recebemos muitas solicitações desta conexão. Aguarde alguns minutos antes de tentar novamente.',
+                data: { values },
+            };
+        }
 
         const saved = await prisma.contactMessage.create({
             data: {
-                name: input.name,
-                email: input.email.toLowerCase(),
-                phone: input.phone || null,
-                city: input.city || null,
+                name: encryptSensitive(input.name)!,
+                email: encryptSensitive(normalizedEmail)!,
+                phone: encryptSensitive(input.phone),
+                city: encryptSensitive(input.city),
                 subject: input.subject,
                 language: input.language,
-                message: input.message,
-                ip: meta.ip,
-                userAgent: meta.userAgent,
+                message: encryptSensitive(input.message)!,
+                // O controle de abuso usa somente chaves HMAC no RateLimitBucket;
+                // IP e navegador não precisam ficar ligados à mensagem.
+                ip: null,
+                userAgent: null,
+                encryptedAt: new Date(),
             },
             select: { id: true },
         });
@@ -112,9 +162,13 @@ export async function enviarMensagem(
 
         await recordAudit({
             action: 'Mensagem recebida pelo Fale Conosco',
-            target: `${input.subject} — ${input.name}`,
+            target: `Mensagem ${saved.id}`,
             actorLabel: 'site público',
-            metadata: { contactMessageId: saved.id, language: input.language },
+            metadata: {
+                contactMessageId: saved.id,
+                subject: input.subject,
+                language: input.language,
+            },
         });
 
         revalidatePath('/admin/mensagens');

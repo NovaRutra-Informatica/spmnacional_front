@@ -147,12 +147,14 @@ export default function PageContent({ noticias, categorias, contagens }: Props) 
                     <input
                         className="atoolbar__search"
                         type="search"
+                        aria-label="Buscar notícias"
                         placeholder="Buscar por título, autor ou tag…"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                     />
 
                     <select
+                        aria-label="Filtrar notícias por status"
                         value={statusFilter}
                         onChange={(e) => setStatusFilter(e.target.value as 'todos' | PostStatus)}
                     >
@@ -164,6 +166,7 @@ export default function PageContent({ noticias, categorias, contagens }: Props) 
                     </select>
 
                     <select
+                        aria-label="Filtrar notícias por categoria"
                         value={categoryFilter}
                         onChange={(e) => setCategoryFilter(e.target.value)}
                     >
@@ -176,7 +179,7 @@ export default function PageContent({ noticias, categorias, contagens }: Props) 
                     </select>
 
                     <span className="atoolbar__spacer"></span>
-                    <span style={{ fontSize: '0.82rem', color: '#7b8a9a' }}>
+                    <span className="atoolbar__count">
                         {filtered.length} de {noticias.length} registros
                     </span>
                 </div>

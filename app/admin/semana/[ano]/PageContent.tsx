@@ -166,17 +166,31 @@ export default function PageContent({
                                                 >
                                                     <i className="fas fa-pen"></i>
                                                 </button>
-                                                <form action={excluirMaterial}>
+                                                <form
+                                                    action={excluirMaterial}
+                                                    onSubmit={(submitEvent) => {
+                                                        const confirmed = window.confirm(
+                                                            `Remover o material “${item.title}”? Esta ação não pode ser desfeita.`,
+                                                        );
+                                                        if (!confirmed)
+                                                            submitEvent.preventDefault();
+                                                    }}
+                                                >
                                                     <input
                                                         type="hidden"
                                                         name="id"
                                                         value={item.id}
                                                     />
                                                     <button
+                                                        type="submit"
                                                         className="abtn abtn--danger abtn--sm"
                                                         title="Remover material"
+                                                        aria-label={`Remover o material ${item.title}`}
                                                     >
-                                                        <i className="fas fa-trash"></i>
+                                                        <i
+                                                            className="fas fa-trash"
+                                                            aria-hidden="true"
+                                                        ></i>
                                                     </button>
                                                 </form>
                                             </div>
@@ -250,17 +264,31 @@ export default function PageContent({
                                                 >
                                                     <i className="fas fa-pen"></i>
                                                 </button>
-                                                <form action={excluirPrograma}>
+                                                <form
+                                                    action={excluirPrograma}
+                                                    onSubmit={(submitEvent) => {
+                                                        const confirmed = window.confirm(
+                                                            `Remover a atividade “${item.title}” da programação? Esta ação não pode ser desfeita.`,
+                                                        );
+                                                        if (!confirmed)
+                                                            submitEvent.preventDefault();
+                                                    }}
+                                                >
                                                     <input
                                                         type="hidden"
                                                         name="id"
                                                         value={item.id}
                                                     />
                                                     <button
+                                                        type="submit"
                                                         className="abtn abtn--danger abtn--sm"
                                                         title="Remover atividade"
+                                                        aria-label={`Remover a atividade ${item.title}`}
                                                     >
-                                                        <i className="fas fa-trash"></i>
+                                                        <i
+                                                            className="fas fa-trash"
+                                                            aria-hidden="true"
+                                                        ></i>
                                                     </button>
                                                 </form>
                                             </div>

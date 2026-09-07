@@ -1,3 +1,5 @@
+import { timingSafeEqual } from 'node:crypto';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextResponse, type NextRequest } from 'next/server';
 import { recordAudit } from '@/lib/server/audit';
@@ -5,47 +7,25 @@ import { loginWithGoogleProfile } from '@/lib/server/auth';
 import { env, isGoogleOAuthEnabled } from '@/lib/server/env';
 
 /**
- * Retorno do Google: valida o `state`, troca o código por tokens usando o
- * `code_verifier` do PKCE e abre a sessão do painel.
+ * Retorno do Google: valida state, PKCE, nonce e a assinatura do ID token
+ * antes de abrir uma sessão administrativa.
  */
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
-const STATE_COOKIE = 'g_state';
-const VERIFIER_COOKIE = 'g_verifier';
+const COOKIE_PREFIX = process.env.NODE_ENV === 'production' ? '__Host-' : '';
+const STATE_COOKIE = `${COOKIE_PREFIX}g_state`;
+const VERIFIER_COOKIE = `${COOKIE_PREFIX}g_verifier`;
+const NONCE_COOKIE = `${COOKIE_PREFIX}g_nonce`;
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
-const EMISSORES_VALIDOS = ['accounts.google.com', 'https://accounts.google.com'];
+const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+const VALID_ISSUERS = ['accounts.google.com', 'https://accounts.google.com'];
 
-interface GoogleIdToken {
-    aud?: string;
-    iss?: string;
-    exp?: number;
-    sub?: string;
-    email?: string;
-    email_verified?: boolean | string;
-    name?: string;
-    hd?: string;
-}
-
-/**
- * Lê o payload do id_token sem conferir a assinatura.
- *
- * A verificação criptográfica é dispensada aqui porque o token não passou pelo
- * navegador: nós mesmos o buscamos no endpoint do Google, sobre TLS e
- * autenticando com o `client_secret`. Não há por onde um terceiro injetar outro
- * token nesse caminho. (No fluxo implícito, em que o token chega pela URL, a
- * conferência da assinatura seria obrigatória.)
- */
-function lerIdToken(idToken: string): GoogleIdToken | null {
-    const partes = idToken.split('.');
-    if (partes.length !== 3) return null;
-
-    try {
-        const payload = Buffer.from(partes[1] ?? '', 'base64url').toString('utf8');
-        return JSON.parse(payload) as GoogleIdToken;
-    } catch {
-        return null;
-    }
+function safeEqual(left: string, right: string): boolean {
+    const leftBuffer = Buffer.from(left);
+    const rightBuffer = Buffer.from(right);
+    return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer);
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
@@ -54,67 +34,61 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     const store = await cookies();
-    const stateEsperado = store.get(STATE_COOKIE)?.value ?? '';
+    const expectedState = store.get(STATE_COOKIE)?.value ?? '';
     const verifier = store.get(VERIFIER_COOKIE)?.value ?? '';
+    const expectedNonce = store.get(NONCE_COOKIE)?.value ?? '';
 
-    // Os temporários morrem em qualquer desfecho: sucesso, recusa ou erro.
-    const limparTemporarios = (): void => {
+    const clearTemporaryCookies = (): void => {
         store.delete(STATE_COOKIE);
         store.delete(VERIFIER_COOKIE);
+        store.delete(NONCE_COOKIE);
     };
 
-    const paraLogin = (mensagem: string): NextResponse =>
+    const toLogin = (message: string): NextResponse =>
         NextResponse.redirect(
-            new URL(`/atendente?erro=${encodeURIComponent(mensagem)}`, request.url),
+            new URL(`/atendente?erro=${encodeURIComponent(message)}`, request.url),
         );
 
-    /** Recusa auditada: a mensagem é curta e o motivo técnico fica no log. */
-    const recusar = async (
-        mensagem: string,
-        motivo: string,
+    const reject = async (
+        message: string,
+        reason: string,
         email?: string,
     ): Promise<NextResponse> => {
         await recordAudit({
             action: 'Login com Google recusado',
-            target: email || 'origem desconhecida',
+            target: email || 'origem não identificada',
             level: 'ALERTA',
             actorLabel: email || 'google-oauth',
-            metadata: { motivo },
+            metadata: { reason },
         });
-        limparTemporarios();
-        return paraLogin(mensagem);
+        clearTemporaryCookies();
+        return toLogin(message);
     };
 
-    const parametros = request.nextUrl.searchParams;
-    const erroGoogle = parametros.get('error');
-    const code = parametros.get('code');
-    const state = parametros.get('state');
+    const params = request.nextUrl.searchParams;
+    const googleError = params.get('error');
+    const code = params.get('code');
+    const state = params.get('state');
 
-    if (erroGoogle) {
-        // O motivo vem da URL: entra no log recortado, e nunca na tela.
-        return recusar(
-            'Autorização cancelada no Google.',
-            `google-error-${erroGoogle.slice(0, 60)}`,
-        );
+    // Inclusive respostas de cancelamento precisam pertencer ao fluxo iniciado
+    // neste navegador; isso evita apagar cookies ou poluir auditoria via CSRF.
+    if (!state || !expectedState || !safeEqual(state, expectedState)) {
+        return reject('Sessão de login expirada. Tente novamente.', 'state-invalido');
     }
 
-    if (!code || !state) {
-        return recusar('Resposta inválida do Google.', 'parametros-ausentes');
+    if (googleError) {
+        const safeError = googleError.replace(/[^a-z0-9_.-]/gi, '').slice(0, 60);
+        return reject('Autorização cancelada no Google.', `google-error-${safeError}`);
     }
 
-    // Sem `state` conferido, qualquer site poderia disparar o retorno por nós.
-    if (!stateEsperado || state !== stateEsperado) {
-        return recusar('Sessão de login expirada. Tente novamente.', 'state-invalido');
-    }
-
-    if (!verifier) {
-        return recusar('Sessão de login expirada. Tente novamente.', 'verifier-ausente');
+    if (!code || !verifier || !expectedNonce) {
+        return reject('Sessão de login expirada. Tente novamente.', 'parametros-ausentes');
     }
 
     let idToken: string | undefined;
 
     try {
-        const resposta = await fetch(TOKEN_ENDPOINT, {
+        const response = await fetch(TOKEN_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -128,77 +102,75 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             cache: 'no-store',
         });
 
-        if (!resposta.ok) {
-            return recusar(
+        if (!response.ok) {
+            return reject(
                 'Não foi possível concluir o login com o Google.',
-                `troca-de-codigo-${resposta.status}`,
+                `troca-de-codigo-${response.status}`,
             );
         }
 
-        const dados = (await resposta.json()) as { id_token?: string };
-        idToken = dados.id_token;
+        const data = (await response.json()) as { id_token?: string };
+        idToken = data.id_token;
     } catch (error) {
         console.error('[google oauth] falha na troca do código:', error);
-        return recusar('Não foi possível falar com o Google. Tente novamente.', 'token-endpoint');
+        return reject('Não foi possível falar com o Google. Tente novamente.', 'token-endpoint');
     }
 
     if (!idToken) {
-        return recusar('Não foi possível concluir o login com o Google.', 'id-token-ausente');
+        return reject('Não foi possível concluir o login com o Google.', 'id-token-ausente');
     }
 
-    const payload = lerIdToken(idToken);
-
-    if (!payload) {
-        return recusar('Não foi possível concluir o login com o Google.', 'id-token-ilegivel');
+    let payload;
+    try {
+        ({ payload } = await jwtVerify(idToken, GOOGLE_JWKS, {
+            algorithms: ['RS256'],
+            audience: env.google.clientId,
+            issuer: VALID_ISSUERS,
+            clockTolerance: 5,
+            maxTokenAge: '10m',
+        }));
+    } catch (error) {
+        console.error('[google oauth] ID token inválido:', error);
+        return reject('Credencial do Google não reconhecida.', 'id-token-invalido');
     }
 
-    if (payload.aud !== env.google.clientId) {
-        return recusar('Credencial do Google não reconhecida.', 'aud-invalido');
+    const email = typeof payload.email === 'string' ? payload.email : '';
+    const subject = typeof payload.sub === 'string' ? payload.sub : '';
+    const nonce = typeof payload.nonce === 'string' ? payload.nonce : '';
+    const hostedDomain = typeof payload.hd === 'string' ? payload.hd : '';
+    const name = typeof payload.name === 'string' ? payload.name : undefined;
+
+    if (!nonce || !safeEqual(nonce, expectedNonce)) {
+        return reject('Credencial do Google não reconhecida.', 'nonce-invalido', email);
     }
 
-    if (!payload.iss || !EMISSORES_VALIDOS.includes(payload.iss)) {
-        return recusar('Credencial do Google não reconhecida.', 'iss-invalido');
+    if (payload.email_verified !== true) {
+        return reject('Credencial do Google não reconhecida.', 'email-nao-verificado', email);
     }
 
-    if (typeof payload.exp !== 'number' || payload.exp * 1000 <= Date.now()) {
-        return recusar('Credencial do Google expirada. Tente novamente.', 'exp-vencido');
-    }
-
-    // O Google devolve booleano; alguns proxies serializam como texto.
-    const emailVerificado = payload.email_verified === true || payload.email_verified === 'true';
-
-    if (!emailVerificado) {
-        return recusar(
-            'O e-mail desta conta Google não está verificado.',
-            'email-nao-verificado',
-            payload.email,
-        );
-    }
-
-    if (env.google.allowedDomain && payload.hd !== env.google.allowedDomain) {
-        return recusar(
+    if (env.google.allowedDomain && hostedDomain !== env.google.allowedDomain) {
+        return reject(
             'Use a conta do domínio institucional do SPM.',
             'dominio-nao-permitido',
-            payload.email,
+            email,
         );
     }
 
-    if (!payload.sub || !payload.email) {
-        return recusar('Não foi possível concluir o login com o Google.', 'perfil-incompleto');
+    if (!subject || !email || subject.length > 255 || email.length > 254) {
+        return reject('Não foi possível concluir o login com o Google.', 'perfil-incompleto');
     }
 
-    const resultado = await loginWithGoogleProfile({
-        sub: payload.sub,
-        email: payload.email,
-        name: payload.name,
-        hd: payload.hd,
+    const result = await loginWithGoogleProfile({
+        sub: subject,
+        email,
+        name,
+        hd: hostedDomain || undefined,
     });
 
-    limparTemporarios();
+    clearTemporaryCookies();
 
-    if (!resultado.ok) {
-        // `loginWithGoogleProfile` já auditou a recusa; aqui só levamos de volta.
-        return paraLogin(resultado.error);
+    if (!result.ok) {
+        return toLogin(result.error);
     }
 
     return NextResponse.redirect(new URL('/admin', request.url));
