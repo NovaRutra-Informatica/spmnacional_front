@@ -56,6 +56,8 @@ services:
         depends_on:
             db:
                 condition: service_healthy
+            migrate:
+                condition: service_completed_successfully
         ports:
             # Porta do host configurável para conviver com outros projetos.
             - '${WEB_HOST_PORT:-3000}:3000'
@@ -88,27 +90,34 @@ services:
 
     # ---------------------------------------------------------
     # Desenvolvimento com hot reload
-    #   docker compose --profile dev up
+    #   docker compose up --build dev
+    # O serviço explícito inicia somente dev e suas dependências.
     # ---------------------------------------------------------
     dev:
         profiles: ['dev']
-        image: node:22-alpine
+        build:
+            context: .
+            dockerfile: Dockerfile
+            target: base
+        image: spmnacional-dev:latest
         container_name: spm-dev
         working_dir: /app
         depends_on:
             db:
                 condition: service_healthy
-        command: sh -c "npm install && npx prisma migrate deploy && npm run dev -- --hostname 0.0.0.0"
+        command: sh -c "npm ci && npx prisma migrate deploy && npm run dev -- --hostname 0.0.0.0"
         ports:
-            - '3000:3000'
+            - '${DEV_HOST_PORT:-3001}:3000'
         volumes:
             - .:/app
             - dev_node_modules:/app/node_modules
             - dev_next_cache:/app/.next
+            - dev_prisma_client:/app/lib/generated/prisma
         environment:
             NODE_ENV: development
             NEXT_TELEMETRY_DISABLED: '1'
             WATCHPACK_POLLING: 'true'
+            APP_URL: ${DEV_APP_URL:-http://localhost:${DEV_HOST_PORT:-3001}}
             DATABASE_URL: postgresql://spm:${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}@db:5432/spmnacional?schema=public
             AUTH_SECRET: ${AUTH_SECRET:?Defina AUTH_SECRET no arquivo .env}
             TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-}
@@ -120,3 +129,4 @@ volumes:
     uploads:
     dev_node_modules:
     dev_next_cache:
+    dev_prisma_client:

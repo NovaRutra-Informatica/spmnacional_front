@@ -10,48 +10,97 @@ no Google Cloud (Cloud Run + Cloud SQL) e integrado ao Google Workspace da organ
 
 ## Começar
 
-```bash
-cp .env.example .env      # ajuste o que precisar
-npm install
-npm run setup             # sobe o Postgres, aplica migrações e carrega os dados
+Use Node.js 22 e Docker Desktop iniciado, com contêineres Linux. No PowerShell, crie o
+arquivo local somente se ele ainda não existir:
+
+```powershell
+if (!(Test-Path .env)) { Copy-Item .env.example .env }
+```
+
+Antes de iniciar, preencha os segredos do `.env`. Estes comandos geram valores novos:
+
+```powershell
+node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" # POSTGRES_PASSWORD
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"    # AUTH_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"    # ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"    # CRON_SECRET
+```
+
+Use a mesma senha em `POSTGRES_PASSWORD` e no lugar de `SUA_SENHA` em `DATABASE_URL`.
+Preserve os valores de uma instalação existente, especialmente `ENCRYPTION_KEY`. Não
+sobrescreva o `.env` ao atualizar com `git pull`: alterar `POSTGRES_PASSWORD` no arquivo
+não muda a senha de um banco já criado no volume Docker.
+
+```powershell
+npm ci
+npm run setup             # espera o Postgres ficar pronto e aplica as migrações
 npm run dev
 ```
 
 Acesse <http://localhost:3000>. O painel fica em `/atendente`.
 
-O `npm run setup` sobe o Postgres em contêiner na porta **55432** do host (porta alta para não
-conflitar com outros bancos na máquina) e carrega os dados institucionais reais.
+Se a porta 3000 já estiver ocupada, use `npm run dev -- --port 3001` e configure
+`APP_URL` e `NEXT_PUBLIC_SITE_URL` como `http://localhost:3001` em
+`.env.development.local`. Esse arquivo vale apenas para desenvolvimento, mantendo
+as URLs de produção do `.env`. Para alternar do desenvolvimento Docker para o
+Next.js no Windows, libere a porta com `docker compose stop dev`.
+
+O Postgres usa a porta **55432** do host. Para a primeira carga de um banco vazio, defina
+`SEED_ADMIN_PASSWORD` no `.env` (mínimo de 12 caracteres, sem senha padrão; pode gerar com
+o primeiro comando acima) e execute `npm run db:seed` após o setup. Isso cria a conta
+`SEED_ADMIN_EMAIL` e os dados iniciais. Reexecutar o seed sobrescreve conteúdo e permissões
+existentes; ele não faz parte do setup.
 
 ### Docker (aplicação inteira)
 
-```bash
-docker compose run --rm migrate    # aplica as migrações
-docker compose up -d db web        # sobe banco e aplicação
+Com o `.env` preenchido:
+
+```powershell
+docker compose up --build -d
 ```
 
-Para mudar as portas do host: `WEB_HOST_PORT=3300 DB_HOST_PORT=55433 docker compose up`.
+Esse comando compila a aplicação, espera o banco, aplica as migrações e inicia o site.
+Acesse <http://localhost:3000>. A carga inicial do banco continua sendo um passo explícito,
+conforme descrito acima.
+
+Para conviver com outro serviço na porta 3000, configure no `.env` antes de subir:
+
+```dotenv
+WEB_HOST_PORT="3010"
+APP_URL="http://localhost:3010"
+NEXT_PUBLIC_SITE_URL="http://localhost:3010"
+```
+
+Nesse caso, acesse <http://localhost:3010>. Se alterar `DB_HOST_PORT`, ajuste também a
+porta de `DATABASE_URL` para os comandos npm executados no Windows.
 
 ### Docker (desenvolvimento com hot reload)
 
-```bash
-docker compose --profile dev up
+```powershell
+npm run docker:dev
 ```
+
+Equivale a `docker compose up --build dev`: inicia o desenvolvimento e o banco, com
+migrações automáticas e atualização ao salvar arquivos. Acesse <http://localhost:3001>.
+Configure `DEV_HOST_PORT` no `.env` para mudar essa porta; `DEV_APP_URL` é opcional quando
+o endereço público for diferente de `http://localhost:<DEV_HOST_PORT>`.
 
 ---
 
 ## Scripts
 
-| Comando               | O que faz                                         |
-| --------------------- | ------------------------------------------------- |
-| `npm run dev`         | Servidor de desenvolvimento                       |
-| `npm run build`       | Build de produção                                 |
-| `npm run build:pages` | Site público estático para o GitHub Pages         |
-| `npm run typecheck`   | Checagem de tipos                                 |
-| `npm run format`      | Prettier                                          |
-| `npm run setup`       | Banco + migrações + seed, em um comando           |
-| `npm run db:studio`   | Prisma Studio (interface visual do banco)         |
-| `npm run db:migrate`  | Cria e aplica uma migração a partir do schema     |
-| `npm run db:reset`    | Recria o banco do zero (apaga tudo) e roda o seed |
+| Comando               | O que faz                                               |
+| --------------------- | ------------------------------------------------------- |
+| `npm run dev`         | Servidor de desenvolvimento                             |
+| `npm run build`       | Build de produção                                       |
+| `npm run build:pages` | Site público estático para o GitHub Pages               |
+| `npm run typecheck`   | Checagem de tipos                                       |
+| `npm run format`      | Prettier                                                |
+| `npm run setup`       | Espera o banco ficar pronto e aplica migrações          |
+| `npm run db:seed`     | Carga inicial explícita; sobrescreve conteúdo existente |
+| `npm run db:studio`   | Prisma Studio (interface visual do banco)               |
+| `npm run db:migrate`  | Cria e aplica uma migração a partir do schema           |
+| `npm run db:reset`    | Recria o banco do zero (apaga tudo)                     |
 
 ---
 
@@ -160,12 +209,11 @@ site sozinho: é preciso rodar o workflow de novo. E, sem o segredo `PAGES_DATAB
 para um Postgres acessível pela internet, o build usa um banco descartável semeado com
 `prisma db seed` — ou seja, o site sai com o **conteúdo de demonstração**.
 
-Para rodar o build localmente:
+Para rodar o build localmente, usando o `DATABASE_URL` configurado no `.env`:
 
-```bash
+```powershell
 npm run db:up
-DATABASE_URL="postgresql://spm:<senha-do-seu-.env>@localhost:55432/spmnacional?schema=public" \
-  npm run build:pages
+node --env-file=.env scripts/build-pages.mjs
 # resultado em out/
 ```
 

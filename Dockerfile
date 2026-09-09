@@ -6,10 +6,14 @@
 # continua sendo Alpine e enxuta.
 # =========================================================
 
-# ---------- Estágio 1: dependências ----------
-FROM node:22-alpine AS deps
-RUN apk add --no-cache libc6-compat
+# O CLI de migrações ainda precisa de OpenSSL. Mantemos musl no Alpine,
+# sem libc6-compat, conforme os requisitos do Prisma.
+FROM node:22-alpine AS base
+RUN apk add --no-cache openssl
 WORKDIR /app
+
+# ---------- Estágio 1: dependências ----------
+FROM base AS deps
 
 # O schema entra antes do install porque o postinstall roda `prisma generate`.
 COPY package.json package-lock.json* prisma.config.ts ./
@@ -17,8 +21,7 @@ COPY prisma ./prisma
 RUN npm ci
 
 # ---------- Estágio 2: build ----------
-FROM node:22-alpine AS builder
-WORKDIR /app
+FROM base AS builder
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
@@ -45,9 +48,7 @@ RUN if find /app/.next/standalone -type f \( -name '.env' -o -name '.env.*' \) -
 # ---------- Estágio 3: migrações ----------
 # Imagem separada, usada para rodar `prisma migrate deploy` antes de subir
 # a aplicação (docker compose run --rm migrate, ou um Cloud Run Job).
-FROM node:22-alpine AS migrator
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
+FROM base AS migrator
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json prisma.config.ts tsconfig.json ./
@@ -58,8 +59,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 CMD ["npx", "prisma", "migrate", "deploy"]
 
 # ---------- Estágio 4: runtime ----------
-FROM node:22-alpine AS runner
-WORKDIR /app
+FROM base AS runner
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
