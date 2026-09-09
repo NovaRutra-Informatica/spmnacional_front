@@ -3,6 +3,9 @@ node_modules
 out
 dist
 storage
+# Backups e arquivos temporários locais não entram na imagem.
+tmp
+.pages-build
 # O client do Prisma é sempre gerado dentro da imagem.
 lib/generated
 .git

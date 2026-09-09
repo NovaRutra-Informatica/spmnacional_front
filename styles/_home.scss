@@ -108,9 +108,12 @@
     // Hero / carrossel
     // ---------------------------------------------------------
     .hero-carousel {
+        --hero-footer-offset: 1.4rem;
+        --hero-controls-height: calc(44px + 0.8rem + 2px);
+
         position: relative;
-        height: clamp(680px, 88svh, 820px);
-        min-height: 680px;
+        display: grid;
+        min-height: clamp(680px, 88svh, 820px);
         overflow: hidden;
         background: #dce9f3;
         color: #fff;
@@ -118,13 +121,16 @@
     }
 
     .hero-carousel__slides {
-        position: absolute;
-        inset: var(--header-height) 0 0;
+        position: relative;
+        display: grid;
+        margin-top: var(--header-height);
     }
 
     .hero-slide {
-        position: absolute;
-        inset: 0;
+        // Os slides compartilham a célula; o maior conteúdo determina a altura.
+        position: relative;
+        grid-area: 1 / 1;
+        min-width: 0;
         opacity: 0;
         pointer-events: none;
         transition: opacity 820ms ease;
@@ -170,7 +176,9 @@
         display: flex;
         height: 100%;
         align-items: center;
-        padding-bottom: 2rem;
+        padding-top: 2.5rem;
+        // Reserva a área dos controles, inclusive quando sobem no mobile.
+        padding-bottom: calc(var(--hero-footer-offset) + var(--hero-controls-height) + 1.5rem);
     }
 
     .hero-slide__content {
@@ -231,7 +239,7 @@
         position: absolute;
         z-index: 5;
         right: 0;
-        bottom: 1.4rem;
+        bottom: var(--hero-footer-offset);
         left: 0;
         display: flex;
         align-items: flex-end;
@@ -673,18 +681,23 @@
     }
 
     .partner-card-minimal {
-        display: grid;
+        display: flex;
         width: 210px;
         height: 106px;
         flex: 0 0 auto;
-        place-items: center;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem 1.4rem;
+        overflow: hidden;
         border: 1px solid #e3e9ee;
         border-radius: 12px;
         background: #fff;
 
         img {
-            max-width: 78%;
-            max-height: 70%;
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
             filter: grayscale(1);
             opacity: 0.72;
             transition:
@@ -941,7 +954,8 @@
 
     @media (max-width: 800px) {
         .hero-carousel {
-            height: 760px;
+            --hero-footer-offset: 1rem;
+
             min-height: 760px;
         }
 
@@ -956,7 +970,6 @@
 
         .hero-slide__inner {
             align-items: flex-end;
-            padding-bottom: 8.5rem;
         }
 
         .hero-slide__content {
@@ -970,10 +983,6 @@
             p {
                 max-width: 38rem;
             }
-        }
-
-        .hero-carousel__footer {
-            bottom: 1rem;
         }
 
         .impact-stats.grid-3,
@@ -997,8 +1006,8 @@
     }
 
     @media (max-width: 767px) {
-        .hero-carousel__footer {
-            bottom: 6.25rem;
+        .hero-carousel {
+            --hero-footer-offset: 6.25rem;
         }
     }
 
@@ -1008,16 +1017,11 @@
         }
 
         .hero-carousel {
-            height: 740px;
             min-height: 740px;
         }
 
         .hero-carousel__slides {
-            inset-block-start: 74px;
-        }
-
-        .hero-slide__inner {
-            padding-bottom: 9.3rem;
+            margin-top: 74px;
         }
 
         .hero-slide__content {
