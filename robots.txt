@@ -1,0 +1,11 @@
+User-Agent: *
+Allow: /
+Disallow: /admin
+Disallow: /atendente
+Disallow: /convite
+Disallow: /api/auth
+Disallow: /api/cron
+Disallow: /api/health
+
+Host: https://NovaRutra-Informatica.github.io/spmnacional_front
+Sitemap: https://NovaRutra-Informatica.github.io/spmnacional_front/sitemap.xml

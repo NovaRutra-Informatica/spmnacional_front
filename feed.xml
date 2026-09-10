@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <channel>
+        <title>SPM — Serviço Pastoral dos Migrantes</title>
+        <link>https://NovaRutra-Informatica.github.io/spmnacional_front</link>
+        <description>Notícias, editais e materiais de formação do Serviço Pastoral dos Migrantes.</description>
+        <language>pt-br</language>
+        <lastBuildDate>Mon, 22 Jun 2026 12:00:00 GMT</lastBuildDate>
+        <atom:link href="https://NovaRutra-Informatica.github.io/spmnacional_front/feed.xml" rel="self" type="application/rss+xml" />
+        <item>
+            <title>41ª Semana do Migrante reforça apelo por moradia digna</title>
+            <link>https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/41a-semana-do-migrante-moradia-digna</link>
+            <guid isPermaLink="true">https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/41a-semana-do-migrante-moradia-digna</guid>
+            <pubDate>Mon, 22 Jun 2026 12:00:00 GMT</pubDate>
+            <description>Com o tema “Migração e Moradia” e o lema “Eu não tenho onde morar!”, a edição de 2026 foi aberta no Santuário Nacional de Aparecida e encerrada no Arsenal da Esperança, em São Paulo.</description>
+            <category>Notícias</category>
+            <dc:creator>Secretariado Nacional</dc:creator>
+        </item>
+        <item>
+            <title>Saúde, escola e trabalho independem da situação migratória</title>
+            <link>https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/direitos-independem-da-situacao-migratoria</link>
+            <guid isPermaLink="true">https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/direitos-independem-da-situacao-migratoria</guid>
+            <pubDate>Fri, 10 Apr 2026 12:00:00 GMT</pubDate>
+            <description>A Lei de Migração é explícita: os direitos valem independentemente da condição migratória. Ainda assim, a recusa de atendimento continua sendo a violação mais relatada às nossas equipes.</description>
+            <category>Incidência</category>
+            <dc:creator>Equipe de Incidência</dc:creator>
+        </item>
+        <item>
+            <title>Nota pública: xenofobia nas redes não é opinião, é violência</title>
+            <link>https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/nota-publica-xenofobia-nas-redes</link>
+            <guid isPermaLink="true">https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/nota-publica-xenofobia-nas-redes</guid>
+            <pubDate>Mon, 09 Feb 2026 12:00:00 GMT</pubDate>
+            <description>O SPM se posiciona sobre a escalada de discurso de ódio contra comunidades migrantes nas plataformas digitais e cobra responsabilização.</description>
+            <category>Nota pública</category>
+            <dc:creator>Coordenação Nacional</dc:creator>
+        </item>
+        <item>
+            <title>40 anos de caminhada com quem migra</title>
+            <link>https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/spm-40-anos</link>
+            <guid isPermaLink="true">https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/spm-40-anos</guid>
+            <pubDate>Wed, 25 Jun 2025 12:00:00 GMT</pubDate>
+            <description>Quatro décadas depois da pergunta “Para onde vais?”, o Serviço Pastoral dos Migrantes olha para trás e para a frente: o que mudou nas rotas, no trabalho e na acolhida — e o que continua exatamente igual.</description>
+            <category>Reflexão</category>
+            <dc:creator>Secretariado Nacional</dc:creator>
+        </item>
+        <item>
+            <title>Migração e Casa Comum: o que ficou da 39ª Semana</title>
+            <link>https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/migracao-e-casa-comum-balanco</link>
+            <guid isPermaLink="true">https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/migracao-e-casa-comum-balanco</guid>
+            <pubDate>Mon, 24 Jun 2024 12:00:00 GMT</pubDate>
+            <description>A edição de 2024 colocou lado a lado duas realidades que quase nunca aparecem juntas no debate público: a degradação ambiental e o deslocamento humano forçado.</description>
+            <category>Reflexão</category>
+            <dc:creator>Equipe de Formação</dc:creator>
+        </item>
+        <item>
+            <title>Assembleia Nacional elege nova coordenação do SPM</title>
+            <link>https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/assembleia-nacional-elege-coordenacao</link>
+            <guid isPermaLink="true">https://NovaRutra-Informatica.github.io/spmnacional_front/publicacoes/blog/assembleia-nacional-elege-coordenacao</guid>
+            <pubDate>Tue, 14 Nov 2023 12:00:00 GMT</pubDate>
+            <description>Reunida em São Paulo, a Assembleia Nacional do SPM definiu as prioridades do período e elegeu a diretoria que conduz o serviço.</description>
+            <category>Notícias</category>
+            <dc:creator>Secretariado Nacional</dc:creator>
+        </item>
+    </channel>
+</rss>
