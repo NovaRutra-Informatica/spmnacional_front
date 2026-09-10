@@ -9,12 +9,12 @@ const SLIDES = [
     {
         image: '/assets/home/acolhimento-comunitario.webp',
         alt: 'Mulheres de diferentes origens se abraçam durante um encontro comunitário.',
-        eyebrow: 'Acolhida que gera pertencimento',
-        title: 'Acolher é abrir caminhos para um novo começo.',
+        eyebrow: 'Serviço Pastoral dos Migrantes',
+        title: 'Acolher, Proteger, Promover e Integrar.',
         description:
-            'O SPM caminha com pessoas migrantes, fortalece vínculos e transforma a chegada em possibilidade.',
-        primary: { label: 'Conheça nossa atuação', href: '/o-que-fazemos' },
-        secondary: { label: 'Como ajudar', href: '/como-ajudar' },
+            'O migrante não é um problema, é uma ponte entre povos. Caminhamos juntos pela dignidade de quem migra.',
+        primary: { label: 'Faça sua doação', href: '/como-ajudar' },
+        secondary: { label: 'Conheça nossa história', href: '/quem-somos/historia' },
         credit: 'Pavel Danilyuk / Pexels',
         creditUrl: 'https://www.pexels.com/photo/women-hugging-each-other-8815246/',
         position: 'center 48%',
@@ -154,7 +154,7 @@ export default function HomeHeroCarousel() {
                                             <i className="fas fa-arrow-right" aria-hidden="true" />
                                         </Link>
                                         <Link
-                                            className="btn btn-hero-secondary"
+                                            className="btn btn-outline-light"
                                             href={slide.secondary.href}
                                             tabIndex={isActive ? undefined : -1}
                                         >
@@ -216,6 +216,15 @@ export default function HomeHeroCarousel() {
                 >
                     Foto: {current.credit}
                 </a>
+            </div>
+
+            <div className="wave-bottom" aria-hidden="true">
+                <svg viewBox="0 0 1440 320" preserveAspectRatio="none" focusable="false">
+                    <path
+                        fill="#ffffff"
+                        d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                    />
+                </svg>
             </div>
 
             <p className="sr-only" aria-live={playing ? 'off' : 'polite'} aria-atomic="true">
