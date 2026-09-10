@@ -1,0 +1,1 @@
+self.__SSG_MANIFEST=new Set(["\u002Fpublicacoes\u002Fblog\u002F[slug]","\u002Fsemana-do-migrante\u002F[ano]"]);self.__SSG_MANIFEST_CB&&self.__SSG_MANIFEST_CB()
