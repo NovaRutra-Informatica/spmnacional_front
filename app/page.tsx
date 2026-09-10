@@ -113,10 +113,24 @@ export default async function HomePage() {
                 </div>
             </section>
 
-            <Animate as="section" className="story-section">
-                <div className="container grid-story">
+            <Animate as="section" className="story-section relative">
+                <div className="wave-top" aria-hidden="true">
+                    <svg viewBox="0 0 1440 320" preserveAspectRatio="none" focusable="false">
+                        <path
+                            fill="#f8f9fa"
+                            d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,112C672,96,768,96,864,112C960,128,1056,160,1152,160C1248,160,1344,128,1392,112L1440,96L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
+                        />
+                    </svg>
+                </div>
+                <div
+                    className="bg-image"
+                    style={{ backgroundImage: "url('/assets/hero-bg-large.jpeg')" }}
+                    aria-hidden="true"
+                />
+                <div className="overlay-dark" aria-hidden="true" />
+
+                <div className="container relative z-10 grid-story">
                     <div className="story-content">
-                        <span className="story-kicker">40 anos no caminho com os migrantes</span>
                         <i className="fas fa-quote-left quote-big" aria-hidden="true"></i>
                         <h2 className="story-title">
                             &quot;O migrante não é um problema. É uma ponte entre povos.&quot;
@@ -133,13 +147,11 @@ export default async function HomePage() {
                         </div>
                     </div>
                     <div className="story-cta">
-                        <span className="story-number">40</span>
-                        <h3>Uma história feita em rede</h3>
                         <p>
                             Desde 1985, formação, incidência e articulação aproximam pessoas,
                             comunidades e territórios.
                         </p>
-                        <Link className="btn btn-outline-primary" href="/quem-somos/historia">
+                        <Link className="btn btn-cta btn-lg" href="/quem-somos/historia">
                             Conheça essa história <i className="fas fa-arrow-right"></i>
                         </Link>
                     </div>
@@ -232,13 +244,20 @@ export default async function HomePage() {
                 </div>
             </Animate>
 
-            <Animate as="section" className="newsletter-section">
-                <div className="container">
+            <Animate as="section" className="newsletter-section relative">
+                <div className="wave-top-news" aria-hidden="true">
+                    <svg viewBox="0 0 1440 320" preserveAspectRatio="none" focusable="false">
+                        <path
+                            fill="#f8f9fa"
+                            d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,0L1392,0C1344,0,1248,0,1152,0C1056,0,960,0,864,0C768,0,672,0,576,0C480,0,384,0,288,0C192,0,96,0,48,0L0,0Z"
+                        />
+                    </svg>
+                </div>
+                <div className="container relative z-10">
                     <div className="newsletter-wrapper">
                         <div className="news-text">
-                            <span className="newsletter-kicker">Boletim do SPM</span>
-                            <h2>Histórias, direitos e mobilização no seu e-mail.</h2>
-                            <p>
+                            <h2 className="text-white mb-2">Não perca nenhuma história</h2>
+                            <p className="text-white-50">
                                 Receba uma seleção mensal de notícias, editais e materiais da nossa
                                 rede.
                             </p>

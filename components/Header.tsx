@@ -212,8 +212,10 @@ export default function Header() {
                     <Link href="/" className="brand-link" onClick={closeMenu}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
+                            className="brand-logo"
                             width={52}
-                            src="/logo-small-white.png"
+                            height={52}
+                            src="/logo-small-blue.jpg"
                             alt="Serviço Pastoral dos Migrantes"
                         />
                         <span className="brand-text">
