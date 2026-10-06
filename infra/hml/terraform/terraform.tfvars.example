@@ -1,0 +1,21 @@
+# Copiar para arquivo local ignorado e preencher o ID real (não o display name).
+project_id    = "substituir-id-do-projeto"
+region        = "southamerica-east1"
+zone          = "southamerica-east1-a"
+name_prefix   = "spm-hml"
+machine_type  = "e2-micro"
+disk_size_gb  = 20
+use_static_ip = true
+image_tag     = "hml"
+
+# Valores públicos para o runtime. Nunca colocar credenciais neste mapa.
+app_config = {
+  GOOGLE_OAUTH_ALLOWED_DOMAIN      = "spmnacional.org.br"
+  GOOGLE_WORKSPACE_MFA_ENFORCED     = "false"
+  TRANSLATION_ENABLED              = "true"
+  TRANSLATION_LOCATION             = "global"
+  TRANSLATION_DAILY_CHARACTER_LIMIT = "5000"
+  STORAGE_DRIVER                  = "gcs"
+  DB_POOL_MAX                     = "3"
+  DEPLOYMENT_TARGET               = "gcp-vm"
+}

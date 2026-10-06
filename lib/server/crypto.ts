@@ -23,24 +23,43 @@ const scrypt = promisify(scryptCallback) as (
 
 const SCRYPT_KEYLEN = 64;
 const SALT_BYTES = 16;
+const MAX_PASSWORD_BYTES = 1024;
+
+function normalizedPassword(password: string): string | null {
+    if (password.length > MAX_PASSWORD_BYTES) return null;
+    const normalized = password.normalize('NFKC');
+    return Buffer.byteLength(normalized, 'utf8') <= MAX_PASSWORD_BYTES ? normalized : null;
+}
+
+function decodeCanonical(value: string, encoding: 'base64' | 'base64url'): Buffer | null {
+    const bytes = Buffer.from(value, encoding);
+    return bytes.toString(encoding) === value ? bytes : null;
+}
 
 /** Formato armazenado: `scrypt$<salt base64>$<hash base64>`. */
 export async function hashPassword(password: string): Promise<string> {
+    const normalized = normalizedPassword(password);
+    if (normalized === null || normalized.length === 0) throw new Error('Senha inválida.');
     const salt = randomBytes(SALT_BYTES);
-    const derived = await scrypt(password.normalize('NFKC'), salt, SCRYPT_KEYLEN);
+    const derived = await scrypt(normalized, salt, SCRYPT_KEYLEN);
     return `scrypt$${salt.toString('base64')}$${derived.toString('base64')}`;
 }
 
 export async function verifyPassword(password: string, stored: string | null): Promise<boolean> {
-    if (!stored) return false;
+    if (!stored || stored.length > 160) return false;
+    const normalized = normalizedPassword(password);
+    if (normalized === null || normalized.length === 0) return false;
 
     const parts = stored.split('$');
     if (parts.length !== 3 || parts[0] !== 'scrypt') return false;
 
     try {
-        const salt = Buffer.from(parts[1], 'base64');
-        const expected = Buffer.from(parts[2], 'base64');
-        const derived = await scrypt(password.normalize('NFKC'), salt, expected.length);
+        const salt = decodeCanonical(parts[1], 'base64');
+        const expected = decodeCanonical(parts[2], 'base64');
+        // Nunca derive um comprimento controlado pelo registro: um hash vazio
+        // produziria duas buffers vazias, que timingSafeEqual considera iguais.
+        if (salt?.length !== SALT_BYTES || expected?.length !== SCRYPT_KEYLEN) return false;
+        const derived = await scrypt(normalized, salt, SCRYPT_KEYLEN);
         return derived.length === expected.length && timingSafeEqual(derived, expected);
     } catch {
         return false;
@@ -60,7 +79,7 @@ export function generateToken(bytes = 32): string {
 
 const REJECTED_AUTH_SECRETS = new Set([
     'spm-dev-secret',
-    'REMOVED_RETIRED_EXAMPLE',
+    'troque-este-valor-em-producao-com-48-bytes-aleatorios',
     'desenvolvimento-local-nao-use-em-producao-troque-este-segredo',
 ]);
 
@@ -88,14 +107,14 @@ export function hashToken(token: string): string {
 const ENCRYPTION_PREFIX = 'v1';
 const REJECTED_ENCRYPTION_KEYS = new Set([
     // Base64 do placeholder hexadecimal usado em versões iniciais do projeto.
-    'REMOVED_RETIRED_EXAMPLE',
+    'MDAwMTAyMDMwNDA1MDYwNzA4MDkwYTBiMGMwZDBlMGY=',
 ]);
 
 function encryptionKey(): Buffer | null {
     if (!env.encryptionKey || REJECTED_ENCRYPTION_KEYS.has(env.encryptionKey)) return null;
     try {
-        const key = Buffer.from(env.encryptionKey, 'base64');
-        return key.length === 32 ? key : null;
+        const key = decodeCanonical(env.encryptionKey, 'base64');
+        return key?.length === 32 ? key : null;
     } catch {
         return null;
     }
@@ -140,11 +159,12 @@ export function decryptSensitive(payload: string | null | undefined): string | n
     if (parts.length !== 4 || parts[0] !== ENCRYPTION_PREFIX) return null;
 
     try {
-        const iv = Buffer.from(parts[1], 'base64url');
-        const tag = Buffer.from(parts[2], 'base64url');
-        const data = Buffer.from(parts[3], 'base64url');
+        const iv = decodeCanonical(parts[1], 'base64url');
+        const tag = decodeCanonical(parts[2], 'base64url');
+        const data = decodeCanonical(parts[3], 'base64url');
+        if (iv?.length !== 12 || tag?.length !== 16 || !data?.length) return null;
 
-        const decipher = createDecipheriv('aes-256-gcm', key, iv);
+        const decipher = createDecipheriv('aes-256-gcm', key, iv, { authTagLength: 16 });
         decipher.setAuthTag(tag);
         return Buffer.concat([decipher.update(data), decipher.final()]).toString('utf8');
     } catch {

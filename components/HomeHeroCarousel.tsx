@@ -1,7 +1,8 @@
 'use client';
+import { TranslatedContent } from '@/components/TranslationProvider';
 
 import Image from 'next/image';
-import Link from 'next/link';
+import Link from '@/components/LocalizedLink';
 import type { FocusEvent, KeyboardEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -13,8 +14,8 @@ const SLIDES = [
         title: 'Acolher, Proteger, Promover e Integrar.',
         description:
             'O migrante não é um problema, é uma ponte entre povos. Caminhamos juntos pela dignidade de quem migra.',
-        primary: { label: 'Faça sua doação', href: '/como-ajudar' },
-        secondary: { label: 'Conheça nossa história', href: '/quem-somos/historia' },
+        primary: { label: 'Preciso de orientação', href: '/fale-conosco#formulario' },
+        secondary: { label: 'Quero ajudar', href: '/como-ajudar' },
         credit: 'Pavel Danilyuk / Pexels',
         creditUrl: 'https://www.pexels.com/photo/women-hugging-each-other-8815246/',
         position: 'center 48%',
@@ -109,127 +110,149 @@ export default function HomeHeroCarousel() {
     const current = SLIDES[active];
 
     return (
-        <section
-            className="hero-carousel"
-            aria-label="Destaques do Serviço Pastoral dos Migrantes"
-            aria-roledescription="carrossel"
-            ref={rootRef}
-            onMouseEnter={() => setInteractionPaused(true)}
-            onMouseLeave={() => setInteractionPaused(false)}
-            onFocusCapture={() => setInteractionPaused(true)}
-            onBlurCapture={onBlur}
-            onKeyDown={onKeyDown}
-        >
-            <div className="hero-carousel__slides">
-                {SLIDES.map((slide, index) => {
-                    const isActive = index === active;
-                    return (
-                        <article
-                            className={`hero-slide${isActive ? ' is-active' : ''}`}
-                            aria-hidden={!isActive}
-                            key={slide.image}
-                        >
-                            <Image
-                                className="hero-slide__image"
-                                src={slide.image}
-                                alt={isActive ? slide.alt : ''}
-                                fill
-                                priority={index === 0}
-                                sizes="100vw"
-                                style={{ objectPosition: slide.position }}
-                            />
-                            <div className="hero-slide__scrim" />
-                            <div className="container hero-slide__inner">
-                                <div className="hero-slide__content">
-                                    <span className="hero-slide__eyebrow">{slide.eyebrow}</span>
-                                    <h1>{slide.title}</h1>
-                                    <p>{slide.description}</p>
-                                    <div className="hero-slide__actions">
-                                        <Link
-                                            className="btn btn-cta"
-                                            href={slide.primary.href}
-                                            tabIndex={isActive ? undefined : -1}
-                                        >
-                                            {slide.primary.label}
-                                            <i className="fas fa-arrow-right" aria-hidden="true" />
-                                        </Link>
-                                        <Link
-                                            className="btn btn-outline-light"
-                                            href={slide.secondary.href}
-                                            tabIndex={isActive ? undefined : -1}
-                                        >
-                                            {slide.secondary.label}
-                                        </Link>
-                                    </div>
-                                </div>
-                            </div>
-                        </article>
-                    );
-                })}
-            </div>
-
-            <div className="hero-carousel__footer container">
-                <div className="hero-carousel__controls" aria-label="Controles do carrossel">
-                    <button type="button" onClick={previous} aria-label="Destaque anterior">
-                        <i className="fas fa-arrow-left" aria-hidden="true" />
-                    </button>
-                    <div
-                        className="hero-carousel__dots"
-                        role="group"
-                        aria-label="Escolher destaque"
-                    >
-                        {SLIDES.map((slide, index) => (
-                            <button
-                                type="button"
-                                className={index === active ? 'is-active' : ''}
-                                aria-label={`Mostrar destaque ${index + 1}: ${slide.title}`}
-                                aria-current={index === active ? 'true' : undefined}
-                                onClick={() => goTo(index)}
-                                key={slide.image}
-                            />
-                        ))}
-                    </div>
-                    <button type="button" onClick={next} aria-label="Próximo destaque">
-                        <i className="fas fa-arrow-right" aria-hidden="true" />
-                    </button>
-                    {!reducedMotion && (
-                        <button
-                            type="button"
-                            onClick={() => setPlaying((value) => !value)}
-                            aria-label={
-                                playing ? 'Pausar rotação automática' : 'Reproduzir carrossel'
-                            }
-                        >
-                            <i
-                                className={`fas ${playing ? 'fa-pause' : 'fa-play'}`}
-                                aria-hidden="true"
-                            />
-                        </button>
-                    )}
-                </div>
-                <a
-                    className="hero-carousel__credit"
-                    href={current.creditUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    tabIndex={0}
+        <TranslatedContent>
+            {
+                <section
+                    className="hero-carousel"
+                    aria-label="Destaques do Serviço Pastoral dos Migrantes"
+                    aria-roledescription="carrossel"
+                    ref={rootRef}
+                    onMouseEnter={() => setInteractionPaused(true)}
+                    onMouseLeave={() => setInteractionPaused(false)}
+                    onFocusCapture={() => setInteractionPaused(true)}
+                    onBlurCapture={onBlur}
+                    onKeyDown={onKeyDown}
                 >
-                    Foto: {current.credit}
-                </a>
-            </div>
+                    <div className="hero-carousel__slides">
+                        {SLIDES.map((slide, index) => {
+                            const isActive = index === active;
+                            return (
+                                <article
+                                    className={`hero-slide${isActive ? ' is-active' : ''}`}
+                                    aria-hidden={!isActive}
+                                    key={slide.image}
+                                >
+                                    <Image
+                                        className="hero-slide__image"
+                                        src={slide.image}
+                                        alt={isActive ? slide.alt : ''}
+                                        fill
+                                        priority={index === 0}
+                                        sizes="100vw"
+                                        style={{ objectPosition: slide.position }}
+                                    />
+                                    <div className="hero-slide__scrim" />
+                                    <div className="container hero-slide__inner">
+                                        <div className="hero-slide__content">
+                                            <span className="hero-slide__eyebrow">
+                                                {slide.eyebrow}
+                                            </span>
+                                            {index === 0 ? (
+                                                <h1>{slide.title}</h1>
+                                            ) : (
+                                                <h2>{slide.title}</h2>
+                                            )}
+                                            <p>{slide.description}</p>
+                                            <div className="hero-slide__actions">
+                                                <Link
+                                                    className="btn btn-cta"
+                                                    href={slide.primary.href}
+                                                    tabIndex={isActive ? undefined : -1}
+                                                >
+                                                    {slide.primary.label}
+                                                    <i
+                                                        className="fas fa-arrow-right"
+                                                        aria-hidden="true"
+                                                    />
+                                                </Link>
+                                                <Link
+                                                    className="btn btn-outline-light"
+                                                    href={slide.secondary.href}
+                                                    tabIndex={isActive ? undefined : -1}
+                                                >
+                                                    {slide.secondary.label}
+                                                </Link>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
 
-            <div className="wave-bottom" aria-hidden="true">
-                <svg viewBox="0 0 1440 320" preserveAspectRatio="none" focusable="false">
-                    <path
-                        fill="#ffffff"
-                        d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
-                    />
-                </svg>
-            </div>
+                    <div className="hero-carousel__footer container">
+                        <div
+                            className="hero-carousel__controls"
+                            aria-label="Controles do carrossel"
+                        >
+                            <button type="button" onClick={previous} aria-label="Destaque anterior">
+                                <i className="fas fa-arrow-left" aria-hidden="true" />
+                            </button>
+                            <div
+                                className="hero-carousel__dots"
+                                role="group"
+                                aria-label="Escolher destaque"
+                            >
+                                {SLIDES.map((slide, index) => (
+                                    <button
+                                        type="button"
+                                        className={index === active ? 'is-active' : ''}
+                                        aria-label={`Mostrar destaque ${index + 1}: ${slide.title}`}
+                                        aria-current={index === active ? 'true' : undefined}
+                                        onClick={() => goTo(index)}
+                                        key={slide.image}
+                                    />
+                                ))}
+                            </div>
+                            <button type="button" onClick={next} aria-label="Próximo destaque">
+                                <i className="fas fa-arrow-right" aria-hidden="true" />
+                            </button>
+                            {!reducedMotion && (
+                                <button
+                                    type="button"
+                                    onClick={() => setPlaying((value) => !value)}
+                                    aria-label={
+                                        playing
+                                            ? 'Pausar rotação automática'
+                                            : 'Reproduzir carrossel'
+                                    }
+                                >
+                                    <i
+                                        className={`fas ${playing ? 'fa-pause' : 'fa-play'}`}
+                                        aria-hidden="true"
+                                    />
+                                </button>
+                            )}
+                        </div>
+                        <a
+                            className="hero-carousel__credit"
+                            href={current.creditUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            tabIndex={0}
+                        >
+                            Foto: {current.credit}
+                        </a>
+                    </div>
 
-            <p className="sr-only" aria-live={playing ? 'off' : 'polite'} aria-atomic="true">
-                Destaque {active + 1} de {SLIDES.length}: {current.title}
-            </p>
-        </section>
+                    <div className="wave-bottom" aria-hidden="true">
+                        <svg viewBox="0 0 1440 320" preserveAspectRatio="none" focusable="false">
+                            <path
+                                fill="#ffffff"
+                                d="M0,224L48,213.3C96,203,192,181,288,181.3C384,181,480,203,576,224C672,245,768,267,864,261.3C960,256,1056,224,1152,197.3C1248,171,1344,149,1392,138.7L1440,128L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"
+                            />
+                        </svg>
+                    </div>
+
+                    <p
+                        className="sr-only"
+                        aria-live={playing ? 'off' : 'polite'}
+                        aria-atomic="true"
+                    >
+                        Destaque {active + 1} de {SLIDES.length}: {current.title}
+                    </p>
+                </section>
+            }
+        </TranslatedContent>
     );
 }

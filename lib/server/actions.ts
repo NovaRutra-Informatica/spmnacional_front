@@ -3,6 +3,9 @@ import 'server-only';
 import { z } from 'zod';
 import { getCurrentUser, hasPermission, type SessionUser } from './auth';
 import { recordAudit } from './audit';
+import { assertTrustedMutationOrigin, UntrustedOriginError } from './request-origin';
+import { logError } from './logger';
+import { withActorDatabaseScope } from './database-scope';
 
 /**
  * Convenções das Server Actions do painel.
@@ -64,6 +67,7 @@ export class ActionInputError extends Error {
  * devolva um erro que o formulário sabe exibir.
  */
 export async function authorize(permission: string): Promise<SessionUser> {
+    await assertTrustedMutationOrigin();
     const user = await getCurrentUser();
 
     if (!user) {
@@ -94,8 +98,11 @@ export async function runAction(
 ): Promise<ActionState> {
     try {
         const user = await authorize(permission);
-        return await body(user);
+        return await withActorDatabaseScope(user, () => body(user));
     } catch (error) {
+        if (error instanceof UntrustedOriginError) {
+            return actionError(error.message);
+        }
         if (error instanceof PermissionError) {
             return actionError(
                 error.message === 'Sem permissão para "sessão".'
@@ -123,7 +130,7 @@ export async function runAction(
             throw error;
         }
 
-        console.error('[ação] falha inesperada:', error);
+        logError('action.failed', error);
         return actionError('Não foi possível concluir a operação. Tente novamente.');
     }
 }
@@ -152,6 +159,28 @@ export function formNumber(data: FormData, key: string): number | null {
 export function formDate(data: FormData, key: string): Date | null {
     const raw = formString(data, key);
     if (!raw) return null;
+    // HTML date/datetime-local and explicit ISO timestamps only. Date.parse also
+    // accepts ambiguous locale strings and silently rolls Feb 30 into March.
+    const fields =
+        /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})?)?$/.exec(
+            raw,
+        );
+    if (!fields) return null;
+    const [, yearRaw, monthRaw, dayRaw, hourRaw, minuteRaw, secondRaw] = fields;
+    const [year, month, day] = [yearRaw, monthRaw, dayRaw].map(Number);
+    const calendar = new Date(0);
+    calendar.setUTCFullYear(year, month - 1, day);
+    calendar.setUTCHours(0, 0, 0, 0);
+    if (
+        year < 1 ||
+        calendar.getUTCFullYear() !== year ||
+        calendar.getUTCMonth() !== month - 1 ||
+        calendar.getUTCDate() !== day ||
+        (hourRaw !== undefined && Number(hourRaw) > 23) ||
+        (minuteRaw !== undefined && Number(minuteRaw) > 59) ||
+        (secondRaw !== undefined && Number(secondRaw) > 59)
+    )
+        return null;
     const parsed = new Date(raw);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

@@ -118,7 +118,7 @@ export async function salvarNoticia(_prev: ActionState, formData: FormData): Pro
 
         // A capa já foi enviada pela rota autenticada e limitada de uploads;
         // esta Server Action recebe somente o identificador leve da biblioteca.
-        let coverMediaId: string | null = formString(formData, 'coverMediaId') || null;
+        const coverMediaId: string | null = formString(formData, 'coverMediaId') || null;
         const urlInformada = formString(formData, 'coverUrl');
         let coverUrl: string | null = URL_DE_CAPA.test(urlInformada) ? urlInformada : null;
 

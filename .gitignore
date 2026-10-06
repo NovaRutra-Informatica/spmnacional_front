@@ -14,7 +14,11 @@ next-env.d.ts
 
 # Ambiente
 .env
+.env.*
 .env*.local
+!.env.example
+# Credenciais temporárias do Google geradas pelo workflow OIDC.
+gha-creds-*.json
 
 # Logs
 npm-debug.log*
@@ -51,3 +55,10 @@ Thumbs.db
 /.pages-build
 /devdocs
 /tmp
+
+# Relatórios de testes (podem conter capturas e dados sintéticos de formulários).
+/coverage/
+/playwright-report/
+/test-results/
+/load-results/
+/output/

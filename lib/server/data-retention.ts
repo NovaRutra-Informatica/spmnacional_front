@@ -3,9 +3,10 @@ import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@/lib/generated/prisma/client';
 import { prisma } from './db';
+import { withRetentionDatabaseScope } from './database-scope';
 import { encryptSensitive } from './crypto';
 
-/** Prazo máximo aprovado para dados pessoais sem outra necessidade vigente. */
+/** Prazo técnico atual; a organização deve validar a política antes da ativação. */
 export const DATA_RETENTION_MONTHS = 24;
 
 const DEFAULT_BATCH_SIZE = 200;
@@ -45,6 +46,8 @@ export interface DataRetentionResult {
         resetTokensCleared: number;
         newsletterTokensCleared: number;
         staleNewsletterSubscribersDeleted: number;
+        idempotencyRequestsDeleted: number;
+        genericEmailJobsDeleted: number;
     };
     batches: Record<string, number>;
 }
@@ -113,8 +116,8 @@ function idsOf(rows: Array<{ id: string }>): string[] {
 }
 
 /**
- * Executa a política de retenção sem carregar conteúdo pessoal na memória.
- * As consultas trazem somente IDs, datas operacionais e códigos pseudônimos.
+ * Executa a política em lotes limitados. A migração de registros legados lê
+ * conteúdo pessoal apenas no lote que será imediatamente cifrado.
  *
  * Chamadas simultâneas são seguras: toda escrita repete a condição de
  * vencimento/marcador, e deleteMany/updateMany contabilizam apenas o que a
@@ -123,6 +126,10 @@ function idsOf(rows: Array<{ id: string }>): string[] {
 export async function executeDataRetention(
     options: DataRetentionOptions = {},
 ): Promise<DataRetentionResult> {
+    return withRetentionDatabaseScope(() => executeScopedDataRetention(options));
+}
+
+async function executeScopedDataRetention(options: DataRetentionOptions): Promise<DataRetentionResult> {
     const now = options.now ? new Date(options.now) : new Date();
     if (!Number.isFinite(now.getTime())) throw new Error('Invalid retention reference date.');
 
@@ -132,6 +139,24 @@ export async function executeDataRetention(
 
     let atendimentoReferralsDeleted = 0;
     let atendimentoAuditReferencesScrubbed = 0;
+    const genericEmailJobs = await runInBatches(async (limit) => {
+        const rows = await prisma.genericEmailJob.findMany({ where: { expiresAt: { lte: now } },
+            orderBy: [{ expiresAt: 'asc' }, { id: 'asc' }], take: limit, select: { id: true } });
+        if (!rows.length) return { selected: 0, changed: 0 };
+        const changed = await prisma.genericEmailJob.deleteMany({ where: {
+            id: { in: idsOf(rows) }, expiresAt: { lte: now },
+        } });
+        return { selected: rows.length, changed: changed.count };
+    }, batchSize, maxBatches);
+    const idempotency = await runInBatches(async (limit) => {
+        const rows = await prisma.idempotencyRequest.findMany({ where: { expiresAt: { lte: now } },
+            orderBy: [{ expiresAt: 'asc' }, { keyHash: 'asc' }], take: limit, select: { keyHash: true } });
+        if (!rows.length) return { selected: 0, changed: 0 };
+        const changed = await prisma.idempotencyRequest.deleteMany({ where: {
+            keyHash: { in: rows.map(row => row.keyHash) }, expiresAt: { lte: now },
+        } });
+        return { selected: rows.length, changed: changed.count };
+    }, batchSize, maxBatches);
 
     const contactMessages = await runInBatches(
         async (limit) => {
@@ -168,14 +193,16 @@ export async function executeDataRetention(
                     city: true,
                     message: true,
                     internalNote: true,
+                    updatedAt: true,
                 },
             });
             if (rows.length === 0) return { selected: 0, changed: 0 };
 
-            const results = await prisma.$transaction(
-                rows.map((row) =>
-                    prisma.contactMessage.updateMany({
-                        where: { id: row.id, encryptedAt: null },
+            const results = await prisma.$transaction(async (tx) => {
+                const outcomes = [];
+                for (const row of rows) {
+                    outcomes.push(await tx.contactMessage.updateMany({
+                        where: { id: row.id, encryptedAt: null, updatedAt: row.updatedAt },
                         data: {
                             name: encryptSensitive(row.name)!,
                             email: encryptSensitive(row.email)!,
@@ -186,10 +213,14 @@ export async function executeDataRetention(
                             ip: null,
                             userAgent: null,
                             encryptedAt: now,
+                            // Migrar a cifra não renova o prazo de retenção nem
+                            // sobrescreve uma edição feita após a seleção do lote.
+                            updatedAt: row.updatedAt,
                         },
-                    }),
-                ),
-            );
+                    }));
+                }
+                return outcomes;
+            });
             return {
                 selected: rows.length,
                 changed: results.reduce((sum, result) => sum + result.count, 0),
@@ -212,52 +243,58 @@ export async function executeDataRetention(
             });
             if (rows.length === 0) return { selected: 0, changed: 0 };
 
-            const ids = idsOf(rows);
-            const originalCodes = rows.map(({ codigo }) => codigo);
-            const operations = [
-                prisma.atendimentoEncaminhamento.deleteMany({
-                    where: { atendimentoId: { in: ids } },
-                }),
-                // Remove do log a chave de correlação com fichas externas sem
-                // apagar a evidência de que a ação administrativa ocorreu.
-                prisma.auditLog.updateMany({
-                    where: { target: { in: originalCodes } },
-                    data: { target: 'atendimento anonimizado', metadata: Prisma.DbNull },
-                }),
-                ...rows.map((row) =>
-                    prisma.atendimento.updateMany({
-                        where: {
-                            id: row.id,
-                            anonymizedAt: null,
-                            OR: [{ retencaoAte: { lte: now } }, { updatedAt: { lte: cutoff } }],
-                        },
-                        data: {
-                            // O código anterior pode circular fora do sistema;
-                            // trocá-lo rompe essa possibilidade de correlação.
-                            codigo: `ANON-${randomUUID()}`,
-                            nomeEncrypted: null,
-                            contatoEncrypted: null,
-                            faixaEtaria: 'NAO_INFORMADO',
-                            genero: 'NAO_INFORMADO',
-                            paisOrigem: null,
-                            idiomas: [],
-                            chegadaAno: null,
-                            necessidades: [],
-                            observacoes: null,
-                            status: 'ENCERRADO',
-                            encerradoEm: row.encerradoEm ?? now,
-                            abertoPorId: null,
-                            anonymizedAt: now,
-                        },
-                    }),
-                ),
-            ];
-
-            const results = await prisma.$transaction(operations);
-            atendimentoReferralsDeleted += results[0]?.count ?? 0;
-            atendimentoAuditReferencesScrubbed += results[1]?.count ?? 0;
-            const changed = results.slice(2).reduce((sum, result) => sum + result.count, 0);
-            return { selected: rows.length, changed };
+            const outcome = await prisma.$transaction(
+                async (tx) => {
+                    const changedRows: typeof rows = [];
+                    for (const row of rows) {
+                        const changed = await tx.atendimento.updateMany({
+                            where: {
+                                id: row.id,
+                                anonymizedAt: null,
+                                OR: [{ retencaoAte: { lte: now } }, { updatedAt: { lte: cutoff } }],
+                            },
+                            data: {
+                                // O código anterior pode circular fora do sistema;
+                                // trocá-lo rompe essa possibilidade de correlação.
+                                codigo: `ANON-${randomUUID()}`,
+                                nomeEncrypted: null,
+                                contatoEncrypted: null,
+                                faixaEtaria: 'NAO_INFORMADO',
+                                genero: 'NAO_INFORMADO',
+                                paisOrigem: null,
+                                idiomas: [],
+                                chegadaAno: null,
+                                necessidades: [],
+                                observacoes: null,
+                                status: 'ENCERRADO',
+                                encerradoEm: row.encerradoEm ?? now,
+                                abertoPorId: null,
+                                anonymizedAt: now,
+                            },
+                        });
+                        if (changed.count > 0) changedRows.push(row);
+                    }
+                    // Só exclua vínculos de fichas que esta transação conseguiu
+                    // anonimizar. Uma renovação concorrente deve preservar tudo.
+                    if (changedRows.length === 0) return { changed: 0, referrals: 0, audit: 0 };
+                    const referrals = await tx.atendimentoEncaminhamento.deleteMany({
+                        where: { atendimentoId: { in: idsOf(changedRows) } },
+                    });
+                    const audit = await tx.auditLog.updateMany({
+                        where: { target: { in: changedRows.map(({ codigo }) => codigo) } },
+                        data: { target: 'atendimento anonimizado', metadata: Prisma.DbNull },
+                    });
+                    return {
+                        changed: changedRows.length,
+                        referrals: referrals.count,
+                        audit: audit.count,
+                    };
+                },
+                { timeout: 30_000, maxWait: 5_000 },
+            );
+            atendimentoReferralsDeleted += outcome.referrals;
+            atendimentoAuditReferencesScrubbed += outcome.audit;
+            return { selected: rows.length, changed: outcome.changed };
         },
         batchSize,
         maxBatches,
@@ -470,6 +507,8 @@ export async function executeDataRetention(
     );
 
     const runs = {
+        genericEmailJobs,
+        idempotency,
         contactMessages,
         contactMessageEncryption,
         atendimentos,
@@ -497,6 +536,8 @@ export async function executeDataRetention(
         resetTokensCleared: resetTokens.changed,
         newsletterTokensCleared: newsletterTokens.changed,
         staleNewsletterSubscribersDeleted: staleNewsletterSubscribers.changed,
+        idempotencyRequestsDeleted: idempotency.changed,
+        genericEmailJobsDeleted: genericEmailJobs.changed,
     };
 
     const totalChanged = Object.values(processed).reduce((sum, count) => sum + count, 0);

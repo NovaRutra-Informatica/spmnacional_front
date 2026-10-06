@@ -1,24 +1,8 @@
 import type { NextConfig } from 'next';
+import { contentSecurityPolicy } from './lib/content-security-policy';
 
 const isProduction = process.env.NODE_ENV === 'production';
-const contentSecurityPolicy = [
-    "default-src 'self'",
-    "base-uri 'self'",
-    "object-src 'none'",
-    "frame-ancestors 'none'",
-    "form-action 'self'",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self' data:",
-    "style-src 'self' 'unsafe-inline'",
-    `script-src 'self' 'unsafe-inline'${isProduction ? '' : " 'unsafe-eval'"}`,
-    "connect-src 'self'",
-    "media-src 'self' https:",
-    "worker-src 'self' blob:",
-    ...(isProduction ? ['upgrade-insecure-requests'] : []),
-].join('; ');
-
 const securityHeaders = [
-    { key: 'Content-Security-Policy', value: contentSecurityPolicy },
     { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
     { key: 'X-Content-Type-Options', value: 'nosniff' },
     { key: 'X-Frame-Options', value: 'DENY' },
@@ -44,6 +28,9 @@ const nextConfig: NextConfig = {
 
     // Gera um servidor Node auto-contido em .next/standalone — usado pelo Dockerfile.
     output: 'standalone',
+    // Somente assets públicos imutáveis. Arquivos editoriais privados/não
+    // publicados não podem ser copiados para o cache do otimizador.
+    images: { localPatterns: [{ pathname: '/assets/**', search: '' }] },
 
     async headers() {
         const privateNoStore = [
@@ -57,7 +44,17 @@ const nextConfig: NextConfig = {
             headers: [{ key: 'Cache-Control', value: 'private, no-store, max-age=0' }],
         }));
 
-        return [{ source: '/:path*', headers: securityHeaders }, ...privateNoStore];
+        return [
+            { source: '/:path*', headers: securityHeaders },
+            ...['/api/:path*', '/_next/:path*', '/assets/:path*', '/:path*.:extension'].map((source) => ({
+                // HTML is protected by the per-request policy in proxy.ts.
+                source,
+                headers: [
+                    { key: 'Content-Security-Policy', value: contentSecurityPolicy(isProduction) },
+                ],
+            })),
+            ...privateNoStore,
+        ];
     },
 
     // Redirecionamentos herdados das rotas legadas do site anterior.

@@ -1,8 +1,9 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
+import PublicTranslation from '@/components/PublicTranslation';
 import { listEditais } from '@/lib/server/queries';
 import PageContent, { type EditalItem } from './PageContent';
 
-export const metadata: Metadata = { title: 'Editais' };
+export const metadata = pageMetadata('/publicacoes/editais');
 
 // A página lê o Postgres: sem isto o `docker build` (que roda sem banco) quebraria no prerender.
 export const dynamic = 'force-dynamic';
@@ -22,5 +23,9 @@ export default async function EditaisPage() {
         fileUrl: edital.fileUrl,
     }));
 
-    return <PageContent editais={editais} />;
+    return (
+        <PublicTranslation pageKey="publicacoes/editais">
+            {<PageContent editais={editais} />}
+        </PublicTranslation>
+    );
 }

@@ -174,13 +174,18 @@ export async function alternarVisibilidade(formData: FormData): Promise<void> {
  * quer esperar a próxima janela. `sincronizarAgenda` nunca lança — devolve
  * zeros quando a integração está desligada ou quando o Google não responde.
  */
-export async function sincronizarAgora(): Promise<void> {
-    await runAction('noticias', async (user) => {
+export async function sincronizarAgora(_prev: ActionState): Promise<ActionState> {
+    return runAction('noticias', async (user) => {
         if (!isGoogleCalendarEnabled()) {
             return actionError('Integração com o Google Calendar não configurada neste servidor.');
         }
 
         const resultado = await sincronizarAgenda();
+        if (!resultado.ok) {
+            return actionError(
+                'Não foi possível concluir a sincronização. Os eventos anteriores foram preservados; tente novamente.',
+            );
+        }
 
         await recordAudit({
             action: 'Agenda sincronizada',
@@ -191,7 +196,7 @@ export async function sincronizarAgora(): Promise<void> {
         });
 
         revalidarAgenda();
-        return actionOk();
+        return actionOk('Agenda sincronizada com sucesso.');
     });
 }
 

@@ -11,26 +11,25 @@
 # **Deploy from a branch → gh-pages → / (root)**.
 #
 # O workflow escreve o site na branch `gh-pages` e quem publica dali é o
-# próprio GitHub, no job interno "pages build and deployment". Por isso aqui
-# não há `environment:` nem `deploy-pages`: este workflow termina no push, e a
-# publicação em si não passa por aprovação de ambiente.
+# próprio GitHub, no job interno "pages build and deployment". O envio à branch
+# requer confirmação manual e respeita as proteções configuradas no environment demo.
 #
-# De onde vem o conteúdo do site:
-#   • com o segredo PAGES_DATABASE_URL configurado, do banco real;
-#   • sem ele, de um Postgres descartável semeado com `prisma db seed`,
-#     ou seja, do conteúdo de demonstração.
-#
-# Publicar algo pelo painel não muda o site sozinho: é preciso rodar este
-# workflow de novo (push na dev, ou "Run workflow" na aba Actions).
+# Demonstração manual: banco descartável e conteúdo de exemplo, sem dados reais.
 # =========================================================
 
 name: Publicar site no GitHub Pages
 
 on:
-    push:
-        branches:
-            - dev
     workflow_dispatch:
+        inputs:
+            confirm_demo:
+                description: 'Publicar SOMENTE demonstração estática (sem painel/API)?'
+                required: true
+                type: boolean
+                default: false
+
+permissions:
+    contents: read
 
 # Duas publicações ao mesmo tempo brigam pelo push na gh-pages. A mais nova
 # ganha: cancelar a anterior é seguro porque o build é reprodutível e o que
@@ -41,19 +40,20 @@ concurrency:
 
 jobs:
     publicar:
+        if: inputs.confirm_demo
         name: Build estático e publicação
         runs-on: ubuntu-latest
+        timeout-minutes: 20
+        environment: demo
 
         permissions:
             # Único poder que o job precisa: escrever na branch gh-pages.
             contents: write
 
         services:
-            # Banco descartável, usado só quando não há PAGES_DATABASE_URL.
-            # Fica de pé sempre: subir um Postgres custa segundos e evita ter
-            # que duplicar o job em duas versões.
+            # Banco descartável; nunca utiliza credenciais de produção.
             postgres:
-                image: postgres:17-alpine
+                image: postgres:18.6-alpine
                 env:
                     POSTGRES_USER: spm
                     POSTGRES_PASSWORD: spm
@@ -68,46 +68,37 @@ jobs:
 
         steps:
             - name: Checkout do código
-              uses: actions/checkout@v4
+              uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+              with:
+                  persist-credentials: false
 
             - name: Configurar Node.js
-              uses: actions/setup-node@v4
+              uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
               with:
                   node-version: '22'
-                  cache: 'npm'
+            - name: Set up Bun
+              uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+              with:
+                  bun-version: '1.4.2'
 
             - name: Instalar dependências
               # O postinstall roda `prisma generate` e cria lib/generated/prisma,
               # que o build importa.
-              run: npm ci
+              run: bun install --frozen-lockfile
 
-            - name: Escolher o banco do build
-              id: banco
-              env:
-                  BANCO_EXTERNO: ${{ secrets.PAGES_DATABASE_URL }}
-              run: |
-                  set -euo pipefail
-                  if [ -n "${BANCO_EXTERNO}" ]; then
-                      echo "DATABASE_URL=${BANCO_EXTERNO}" >> "$GITHUB_ENV"
-                      echo "semear=false" >> "$GITHUB_OUTPUT"
-                      echo "Conteúdo vindo do banco de PAGES_DATABASE_URL."
-                  else
-                      echo "DATABASE_URL=postgresql://spm:spm@localhost:5432/spmnacional?schema=public" >> "$GITHUB_ENV"
-                      echo "semear=true" >> "$GITHUB_OUTPUT"
-                      echo "::warning::PAGES_DATABASE_URL não está configurada. O site vai ao ar com o conteúdo de demonstração do seed, e nada publicado pelo painel aparece nele."
-                  fi
+            - name: Configurar banco descartável de demonstração
+              run: echo "DATABASE_URL=postgresql://spm:spm@localhost:5432/spmnacional?schema=public" >> "$GITHUB_ENV"
 
             - name: Preparar o banco de demonstração
-              if: steps.banco.outputs.semear == 'true'
               run: |
                   set -euo pipefail
-                  npx prisma migrate deploy
+                  bunx --no-install prisma migrate deploy
                   # O banco é descartável e o painel é removido do artefato. Ainda
                   # assim, o seed exige uma senha forte: gere uma exclusiva deste job,
                   # mantenha-a somente no ambiente do processo e nunca a imprima.
                   SEED_ADMIN_PASSWORD="$(node -e "process.stdout.write(require('node:crypto').randomBytes(48).toString('base64url'))")"
                   export SEED_ADMIN_PASSWORD
-                  npx prisma db seed
+                  bunx --no-install prisma db seed
                   unset SEED_ADMIN_PASSWORD
 
             - name: Gerar o site estático
@@ -117,10 +108,10 @@ jobs:
                   # do domínio, e os caminhos deixam de ser prefixados.
                   PAGES_BASE_PATH: /${{ github.event.repository.name }}
                   PAGES_SITE_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-              run: npm run build:pages
+              run: bun run build:pages
 
             - name: Publicar na branch gh-pages
-              uses: peaceiris/actions-gh-pages@v4
+              uses: peaceiris/actions-gh-pages@329bcc8f12caed2cefe5a5b80781499a6f3b361b # v4
               with:
                   github_token: ${{ secrets.GITHUB_TOKEN }}
                   publish_dir: ./out
@@ -140,5 +131,5 @@ jobs:
                       echo "| --- | --- |"
                       echo "| Commit | \`${GITHUB_SHA::7}\` |"
                       echo "| Endereço | https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/ |"
-                      echo "| Conteúdo | ${{ steps.banco.outputs.semear == 'true' && 'seed de demonstração' || 'banco de PAGES_DATABASE_URL' }} |"
+                      echo "| Conteúdo | seed de demonstração, sem dados de produção |"
                   } >> "$GITHUB_STEP_SUMMARY"

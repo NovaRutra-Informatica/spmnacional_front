@@ -24,3 +24,23 @@ docker-compose.yml
 .dockerignore
 README.md
 *.tsbuildinfo
+# Credenciais OIDC temporárias criadas pelo GitHub auth antes do Docker build.
+gha-creds-*.json
+**/gha-creds-*.json
+# Infraestrutura, estado (contém segredos), documentos e evidências não são runtime.
+infra
+devdocs
+docs
+.terraform
+**/.terraform
+*.tfstate*
+**/*.tfstate*
+*.tfplan
+**/*.tfplan
+*.pem
+*.key
+coverage
+playwright-report
+test-results
+load-results
+output

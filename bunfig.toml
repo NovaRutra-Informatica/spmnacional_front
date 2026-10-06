@@ -1,0 +1,4 @@
+# Hardlinks share package files while keeping Node/Turbopack paths inside the project.
+[install]
+linker = "hoisted"
+globalStore = false

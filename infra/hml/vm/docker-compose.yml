@@ -1,0 +1,144 @@
+name: spm-hml
+
+x-logging: &logging
+    driver: json-file
+    options:
+        max-size: '5m'
+        max-file: '2'
+
+x-job: &job
+    image: ${MIGRATOR_IMAGE:?Defina MIGRATOR_IMAGE por digest em release.env}
+    environment:
+        TZ: America/Sao_Paulo
+    init: true
+    profiles: [operations]
+    network_mode: none
+    restart: 'no'
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    pids_limit: 128
+    mem_limit: 448m
+    memswap_limit: 768m
+    logging: *logging
+    volumes:
+        - postgres_socket:/var/run/postgresql
+        - ./provision-runtime.mjs:/app/hml/provision-runtime.mjs:ro
+        - ./preflight.mjs:/app/hml/preflight.mjs:ro
+
+services:
+    db:
+        image: ${POSTGRES_IMAGE:-postgres:18.6-alpine}
+        restart: unless-stopped
+        network_mode: none
+        env_file:
+            - path: ./generated/db.env
+              format: raw
+        command:
+            - postgres
+            - -c
+            - listen_addresses=
+            - -c
+            - unix_socket_directories=/var/run/postgresql
+            - -c
+            - unix_socket_permissions=0777
+            - -c
+            - password_encryption=scram-sha-256
+            - -c
+            - shared_buffers=32MB
+            - -c
+            - max_connections=20
+            - -c
+            - work_mem=2MB
+            - -c
+            - maintenance_work_mem=16MB
+        volumes:
+            - postgres_data:/var/lib/postgresql
+            - postgres_socket:/var/run/postgresql
+        healthcheck:
+            test: [CMD-SHELL, 'pg_isready -h /var/run/postgresql -U spm -d spmnacional']
+            interval: 5s
+            timeout: 5s
+            retries: 24
+        stop_grace_period: 60s
+        mem_limit: 192m
+        memswap_limit: 384m
+        shm_size: 64m
+        pids_limit: 128
+        logging: *logging
+
+    migrate:
+        <<: *job
+        env_file:
+            - path: ./generated/migrator.env
+              format: raw
+
+    provision:
+        <<: *job
+        env_file:
+            - path: ./generated/provision.env
+              format: raw
+        command: [node, /app/hml/provision-runtime.mjs]
+
+    preflight:
+        <<: *job
+        env_file:
+            - path: ./generated/web.env
+              format: raw
+        command: [node, --import, tsx, /app/hml/preflight.mjs]
+
+    bootstrap:
+        <<: *job
+        env_file:
+            - path: ./generated/bootstrap.env
+              format: raw
+        command: [node, --conditions=react-server, --import, tsx, scripts/bootstrap-production.ts]
+
+    web:
+        image: ${APP_IMAGE:?Defina APP_IMAGE por digest em release.env}
+        environment:
+            TZ: America/Sao_Paulo
+        restart: unless-stopped
+        init: true
+        security_opt: [no-new-privileges:true]
+        cap_drop: [ALL]
+        pids_limit: 128
+        mem_limit: 448m
+        memswap_limit: 768m
+        env_file:
+            - path: ./generated/web.env
+              format: raw
+        volumes:
+            - postgres_socket:/var/run/postgresql
+        ports:
+            - '127.0.0.1:3000:3000'
+        depends_on:
+            db:
+                condition: service_healthy
+        stop_grace_period: 30s
+        logging: *logging
+
+    gateway:
+        image: ${CADDY_IMAGE:-caddy:2-alpine}
+        # Only gateway.sh may start this service after evaluating the time gate.
+        restart: 'no'
+        profiles: [gateway]
+        env_file:
+            - path: ./generated/gateway.env
+              format: raw
+        ports:
+            - '80:80'
+            - '443:443'
+        volumes:
+            - ./Caddyfile:/etc/caddy/Caddyfile:ro
+            - caddy_data:/data
+            - caddy_config:/config
+        mem_limit: 96m
+        memswap_limit: 192m
+        pids_limit: 64
+        logging: *logging
+
+volumes:
+    postgres_data:
+    postgres_socket:
+    caddy_data:
+    caddy_config:

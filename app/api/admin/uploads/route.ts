@@ -6,7 +6,9 @@ import { prisma } from '@/lib/server/db';
 import { env } from '@/lib/server/env';
 import { consumeRateLimit } from '@/lib/server/rate-limit';
 import { ActionInputError } from '@/lib/server/actions';
-import { MAX_UPLOAD_BYTES, deleteFile, storeBuffer } from '@/lib/server/storage';
+import { MAX_UPLOAD_BYTES, storeBuffer } from '@/lib/server/storage';
+import { isTrustedMutationOrigin } from '@/lib/server/request-origin';
+import { logError } from '@/lib/server/logger';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -29,15 +31,11 @@ function json(body: Record<string, unknown>, status: number): Response {
 }
 
 function sameOrigin(request: Request): boolean {
-    const origin = request.headers.get('origin');
-    if (!origin) return false;
-
-    try {
-        const allowed = new Set([new URL(request.url).origin, new URL(env.appUrl).origin]);
-        return allowed.has(new URL(origin).origin);
-    } catch {
-        return false;
-    }
+    return isTrustedMutationOrigin(
+        request.headers,
+        env.appUrl,
+        process.env.NODE_ENV !== 'production',
+    );
 }
 
 function filenameFrom(request: Request): string | null {
@@ -46,7 +44,7 @@ function filenameFrom(request: Request): string | null {
 
     try {
         const filename = decodeURIComponent(encoded).trim();
-        if (!filename || filename.length > 240 || /[\u0000-\u001f\u007f]/.test(filename)) {
+        if (!filename || filename.length > 240 || /[\\/\u0000-\u001f\u007f]/.test(filename)) {
             return null;
         }
         return filename;
@@ -66,10 +64,17 @@ async function readLimitedBody(request: Request): Promise<Buffer> {
     const reader = request.body.getReader();
     const chunks: Buffer[] = [];
     let total = 0;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+            reject(new ActionInputError('O envio demorou demais. Tente novamente.'));
+            void reader.cancel('tempo excedido').catch(() => undefined);
+        }, 30_000);
+    });
 
     try {
         while (true) {
-            const { done, value } = await reader.read();
+            const { done, value } = await Promise.race([reader.read(), deadline]);
             if (done) break;
             total += value.byteLength;
             if (total > MAX_UPLOAD_BYTES) {
@@ -79,6 +84,7 @@ async function readLimitedBody(request: Request): Promise<Buffer> {
             chunks.push(Buffer.from(value));
         }
     } finally {
+        clearTimeout(timeout);
         reader.releaseLock();
     }
 
@@ -106,7 +112,7 @@ export async function POST(request: Request): Promise<Response> {
 
     const url = new URL(request.url);
     const purpose = url.searchParams.get('purpose') as Purpose | null;
-    const policy = purpose && PURPOSES[purpose];
+    const policy = purpose && Object.hasOwn(PURPOSES, purpose) ? PURPOSES[purpose] : null;
     if (!policy) {
         return json({ ok: false, message: 'Finalidade de upload inválida.' }, 400);
     }
@@ -158,33 +164,60 @@ export async function POST(request: Request): Promise<Response> {
         return json({ ok: false, message: 'A capa precisa ser JPG, PNG ou WebP.' }, 400);
     }
 
-    let storageKey: string | null = null;
     try {
         const bytes = await readLimitedBody(request);
-        const stored = await storeBuffer(bytes, originalName, { prefix: policy.prefix });
-        storageKey = stored.storageKey;
-
-        if (
-            purpose === 'noticias' &&
-            !['image/jpeg', 'image/png', 'image/webp'].includes(stored.mimeType)
-        ) {
-            await deleteFile(stored.storageKey);
-            return json({ ok: false, message: 'A capa precisa ser JPG, PNG ou WebP.' }, 400);
-        }
-
-        const media = await prisma.media.create({
-            data: {
-                filename: stored.filename,
-                originalName,
-                mimeType: stored.mimeType,
-                size: stored.size,
-                kind: kindFromMime(stored.mimeType),
-                url: stored.url,
-                storageKey: stored.storageKey,
-                uploadedById: user.id,
+        let recoveryId: string | undefined;
+        const stored = await storeBuffer(bytes, originalName, {
+            prefix: policy.prefix,
+            beforeStore: async (file) => {
+                if (
+                    purpose === 'noticias' &&
+                    !['image/jpeg', 'image/png', 'image/webp'].includes(file.mimeType)
+                ) {
+                    throw new ActionInputError('A capa precisa ser JPG, PNG ou WebP.');
+                }
+                // The intention exists BEFORE the GCS/local write. A process crash,
+                // SQL outage or ambiguous provider timeout leaves a retryable job.
+                // 15 minutes exceeds the bounded upload + commit deadlines.
+                const recovery = await prisma.mediaDeletion.create({
+                    data: {
+                        storageKey: file.storageKey,
+                        nextAttemptAt: new Date(Date.now() + 15 * 60_000),
+                    },
+                    select: { id: true },
+                });
+                recoveryId = recovery.id;
             },
-            select: { id: true, url: true, originalName: true, mimeType: true, size: true },
         });
+        if (!recoveryId) throw new Error('Upload recovery intention missing');
+        const media = await prisma.$transaction(
+            async (tx) => {
+                const created = await tx.media.create({
+                    data: {
+                        filename: stored.filename,
+                        originalName,
+                        mimeType: stored.mimeType,
+                        size: stored.size,
+                        kind: kindFromMime(stored.mimeType),
+                        url: stored.url,
+                        storageKey: stored.storageKey,
+                        uploadedById: user.id,
+                    },
+                    select: { id: true, url: true, originalName: true, mimeType: true, size: true },
+                });
+                const cleared = await tx.mediaDeletion.deleteMany({
+                    where: {
+                        id: recoveryId,
+                        storageKey: stored.storageKey,
+                        attempts: 0,
+                        leaseToken: null,
+                    },
+                });
+                if (cleared.count !== 1) throw new Error('Upload recovery intention changed');
+                return created;
+            },
+            { maxWait: 5_000, timeout: 10_000 },
+        );
 
         await recordAudit({
             action: 'Arquivo enviado para a biblioteca',
@@ -196,11 +229,12 @@ export async function POST(request: Request): Promise<Response> {
 
         return json({ ok: true, media }, 201);
     } catch (error) {
-        if (storageKey) await deleteFile(storageKey);
+        // The durable job handles orphan cleanup; do not race a timed-out upload
+        // with an immediate DELETE or lose its key when the database is unavailable.
         if (error instanceof ActionInputError) {
             return json({ ok: false, message: error.message }, 400);
         }
-        console.error('[upload] falha inesperada:', error);
+        logError('upload.failed', error);
         return json({ ok: false, message: 'Não foi possível enviar o arquivo.' }, 500);
     }
 }

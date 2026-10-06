@@ -1,187 +1,224 @@
-# =========================================================
-# SPM Nacional — deploy no Google Cloud (Cloud Run)
-#
-# Autenticação por Workload Identity Federation: o GitHub apresenta um token
-# OIDC de vida curta e o Google devolve credencial temporária. Não existe
-# chave JSON de conta de serviço em lugar nenhum — nem em segredo do
-# repositório —, então não há o que vazar nem o que rotacionar.
-#
-# A infraestrutura que este workflow espera encontrar pronta está em
-# infra/terraform. Rode o terraform antes do primeiro deploy.
-#
-# Ordem das etapas (importa): imagem -> migração -> nova revisão.
-# A migração roda ANTES do código novo entrar no ar, então toda migração
-# precisa ser compatível com a versão que ainda está rodando (adicionar
-# coluna, não remover; renomear em dois passos).
-# =========================================================
-
 name: Deploy no Google Cloud
 
 on:
-    # Sem gatilho por push, de propósito: o site é publicado no GitHub Pages
-    # (.github/workflows/pages.yml) e não no Cloud Run. Enquanto for assim, este
-    # workflow fica só como botão manual na aba Actions — nenhum push dispara
-    # deploy no GCP, e nenhum run vermelho aparece por causa dele.
     workflow_dispatch:
+        inputs:
+            confirm_production:
+                description: 'Confirmo requisitos de lançamento e compatibilidade das migrações'
+                required: true
+                type: boolean
+                default: false
 
-# Um deploy por vez. Dois `gcloud run deploy` simultâneos no mesmo serviço
-# criam revisões concorrentes e o tráfego acaba numa delas por acaso.
+permissions:
+    contents: read
+
 concurrency:
-    group: deploy-gcp
+    group: deploy-gcp-production
     cancel-in-progress: false
 
-env:
-    PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
-    REGION: ${{ vars.GCP_REGION }}
-    REPO: ${{ vars.GCP_ARTIFACT_REPO }}
-    SERVICE: ${{ vars.GCP_RUN_SERVICE }}
-    MIGRATE_JOB: ${{ vars.GCP_RUN_MIGRATE_JOB }}
-
 jobs:
+    quality:
+        uses: ./.github/workflows/CI.yml
     deploy:
-        name: Build, migração e deploy
+        name: Migração, revisão candidata e promoção
+        needs: quality
+        if: github.ref == 'refs/heads/prod' && inputs.confirm_production
         runs-on: ubuntu-latest
-
+        timeout-minutes: 45
+        environment: production
         permissions:
             contents: read
-            # Sem isto o job não consegue pedir o token OIDC ao GitHub e a
-            # federação falha com "unable to get credentials".
             id-token: write
-
+        env:
+            PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+            REGION: ${{ vars.GCP_REGION }}
+            REPO: ${{ vars.GCP_ARTIFACT_REPO }}
+            SERVICE: ${{ vars.GCP_RUN_SERVICE }}
+            MIGRATE_JOB: ${{ vars.GCP_RUN_MIGRATE_JOB }}
         steps:
-            - name: Conferir a branch
-              # A condição de atributo do provider no Google só aceita
-              # refs/heads/prod. Falhar aqui dá uma mensagem legível em vez de
-              # um erro de permissão no passo de autenticação.
+            - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+              with:
+                  persist-credentials: false
+            - name: Validar configuração
               run: |
                   set -euo pipefail
-                  if [ "${GITHUB_REF}" != "refs/heads/prod" ]; then
-                      echo "::error::O deploy só é autorizado a partir da branch prod (ref atual: ${GITHUB_REF})."
-                      exit 1
-                  fi
-
-            - name: Conferir a configuração do repositório
-              run: |
-                  set -euo pipefail
-                  faltando=""
-                  for nome in PROJECT_ID REGION REPO SERVICE MIGRATE_JOB; do
-                      if [ -z "${!nome}" ]; then
-                          faltando="${faltando} ${nome}"
-                      fi
+                  for name in PROJECT_ID REGION REPO SERVICE MIGRATE_JOB; do
+                      test -n "${!name}" || { echo "::error::Variável ausente: $name"; exit 1; }
                   done
-                  if [ -n "${faltando}" ]; then
-                      echo "::error::Variáveis de repositório ausentes:${faltando}. Rode 'terraform output github_actions_config'."
-                      exit 1
-                  fi
-
-            - name: Checkout do código
-              uses: actions/checkout@v4
-
-            - name: Autenticar no Google Cloud (OIDC)
-              uses: google-github-actions/auth@v2
+            - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+            - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
               with:
                   workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
                   service_account: ${{ secrets.GCP_DEPLOY_SERVICE_ACCOUNT }}
-
-            - name: Instalar o gcloud
-              uses: google-github-actions/setup-gcloud@v2
+            - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
               with:
                   project_id: ${{ env.PROJECT_ID }}
-
-            - name: Autorizar o Docker no Artifact Registry
-              run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
-
-            - name: Conferir se a infraestrutura existe
-              # `gcloud run deploy` cria o serviço se ele não existir — e criaria
-              # sem segredo, sem conta de serviço e sem Cloud SQL. Melhor parar.
+            - name: Conferir infraestrutura e registrar tráfego anterior
+              id: previous
               run: |
                   set -euo pipefail
-                  gcloud run services describe "${SERVICE}" --region "${REGION}" >/dev/null \
-                      || { echo "::error::Serviço ${SERVICE} não existe. Rode o terraform em infra/terraform primeiro."; exit 1; }
-                  gcloud run jobs describe "${MIGRATE_JOB}" --region "${REGION}" >/dev/null \
-                      || { echo "::error::Job ${MIGRATE_JOB} não existe. Rode o terraform em infra/terraform primeiro."; exit 1; }
-
-            - name: Montar os nomes das imagens
-              id: img
+                  gcloud run services describe "$SERVICE" --region "$REGION" --format=json > "$RUNNER_TEMP/service.json"
+                  gcloud run jobs describe "$MIGRATE_JOB" --region "$REGION" --format='value(metadata.name)' >/dev/null
+                  # Rejeita configuração incompleta antes de executar migrações.
+                  jq -e '.spec.template.spec.containers[0].env |
+                    any(.name == "APP_URL" and (.value // "" | startswith("https://"))) and
+                    any(.name == "STORAGE_DRIVER" and .value == "gcs") and
+                    any(.name == "GCS_BUCKET" and (.value // "" | length > 0)) and
+                    any(.name == "GOOGLE_OAUTH_ALLOWED_DOMAIN" and (.value // "" | length > 0)) and
+                    any(.name == "GOOGLE_WORKSPACE_MFA_ENFORCED" and .value == "true") and
+                    any(.name == "GOOGLE_OAUTH_CLIENT_ID" and (.valueFrom.secretKeyRef.key // "1" | tonumber > 1)) and
+                    any(.name == "GOOGLE_OAUTH_CLIENT_SECRET" and (.valueFrom.secretKeyRef.key // "1" | tonumber > 1)) and
+                    any(.name == "DATABASE_URL" and (.valueFrom.secretKeyRef.name // "" | endswith("-runtime-database-url")) and (.valueFrom.secretKeyRef.key // "1" | tonumber > 1))' "$RUNNER_TEMP/service.json" >/dev/null
+                  previous="$(jq -r '[.status.traffic[] | select((.percent // 0) > 0) | "\(.revisionName)=\(.percent)"] | join(",")' "$RUNNER_TEMP/service.json")"
+                  test -n "$previous"
+                  echo "traffic=$previous" >> "$GITHUB_OUTPUT"
+                  echo "url=$(jq -r '.status.url' "$RUNNER_TEMP/service.json")" >> "$GITHUB_OUTPUT"
+                  gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+            - name: Identificar release
+              id: release
               run: |
                   set -euo pipefail
                   base="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}"
-                  sha="${GITHUB_SHA::7}"
-                  {
-                      echo "app=${base}/${SERVICE}:${sha}"
-                      echo "app_latest=${base}/${SERVICE}:latest"
-                      echo "migrator=${base}/${MIGRATE_JOB}:${sha}"
-                      echo "migrator_latest=${base}/${MIGRATE_JOB}:latest"
-                      echo "sha=${sha}"
-                  } >> "$GITHUB_OUTPUT"
-
-            - name: Configurar Buildx
-              uses: docker/setup-buildx-action@v3
-
-            - name: Build e push da imagem da aplicação
-              uses: docker/build-push-action@v6
+                  echo "app=${base}/${SERVICE}" >> "$GITHUB_OUTPUT"
+                  echo "migrator=${base}/${MIGRATE_JOB}" >> "$GITHUB_OUTPUT"
+                  echo "tag=${GITHUB_SHA}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+                  echo "revision=${SERVICE}-r${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+                  echo "suffix=r${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+            - name: Construir e publicar runtime
+              id: app
+              uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
               with:
                   context: .
                   target: runner
+                  platforms: linux/amd64
                   push: true
-                  tags: |
-                      ${{ steps.img.outputs.app }}
-                      ${{ steps.img.outputs.app_latest }}
-                  # Escopo por imagem: sem ele os dois builds gravam no mesmo
-                  # cache do Actions e um sobrescreve o do outro a cada deploy,
-                  # o que anula o cache em vez de acelerá-lo.
+                  pull: true
+                  tags: ${{ steps.release.outputs.app }}:${{ steps.release.outputs.tag }}
                   cache-from: type=gha,scope=app
                   cache-to: type=gha,mode=max,scope=app
-                  # Sem atestação: o manifesto extra que ela cria confunde o
-                  # Cloud Run na hora de resolver a imagem.
-                  provenance: false
-
-            - name: Build e push da imagem de migração
-              uses: docker/build-push-action@v6
+                  provenance: mode=min
+                  sbom: true
+            - name: Construir e publicar migrador
+              id: migrator
+              uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
               with:
                   context: .
                   target: migrator
+                  platforms: linux/amd64
                   push: true
-                  tags: |
-                      ${{ steps.img.outputs.migrator }}
-                      ${{ steps.img.outputs.migrator_latest }}
+                  pull: true
+                  tags: ${{ steps.release.outputs.migrator }}:${{ steps.release.outputs.tag }}
                   cache-from: type=gha,scope=migrator
                   cache-to: type=gha,mode=max,scope=migrator
-                  provenance: false
-
-            - name: Aplicar as migrações (Cloud Run Job)
-              # `--wait` devolve código de saída diferente de zero se a migração
-              # falhar, e aí o deploy nem chega a acontecer.
+                  provenance: mode=min
+                  sbom: true
+            - name: Verificar compatibilidade das migrações com a revisão em serviço
+              id: database_protocol
+              env:
+                  IMAGE: ${{ steps.release.outputs.migrator }}@${{ steps.migrator.outputs.digest }}
+                  APP_IMAGE: ${{ steps.release.outputs.app }}@${{ steps.app.outputs.digest }}
+                  PREVIOUS_TRAFFIC: ${{ steps.previous.outputs.traffic }}
               run: |
                   set -euo pipefail
-                  gcloud run jobs update "${MIGRATE_JOB}" \
-                      --region "${REGION}" \
-                      --image "${{ steps.img.outputs.migrator }}" \
-                      --quiet
-                  gcloud run jobs execute "${MIGRATE_JOB}" \
-                      --region "${REGION}" \
-                      --wait
-
-            - name: Publicar a nova revisão (Cloud Run)
-              id: deploy
+                  verify_image_protocol() {
+                    local image="$1" label
+                    [[ "$image" =~ @sha256:[a-f0-9]{64}$ ]] || return 1
+                    docker pull --quiet "$image" >/dev/null
+                    label="$(docker image inspect --format '{{index .Config.Labels "org.spmnacional.database-protocol"}}' "$image")"
+                    test "$label" = scoped-rls-v1 || { echo '::error::Imagem incompatível com o protocolo do banco; deploy/rollback bloqueado.'; return 1; }
+                  }
+                  verify_image_protocol "$APP_IMAGE"
+                  verify_image_protocol "$IMAGE"
+                  # Every revision eligible for traffic rollback must support the
+                  # contract already applied to this database, even with no pending migration.
+                  IFS=',' read -ra previous <<< "$PREVIOUS_TRAFFIC"
+                  for assignment in "${previous[@]}"; do
+                    revision="${assignment%%=*}"
+                    old_image="$(gcloud run revisions describe "$revision" --region "$REGION" --format='value(status.imageDigest)')"
+                    verify_image_protocol "$old_image"
+                  done
+                  echo 'verified=scoped-rls-v1' >> "$GITHUB_OUTPUT"
+                  # Contract/unknown migrations require a separate maintenance release.
+                  # Never migrate behind an incompatible live or rollback revision.
+                  gcloud run jobs update "$MIGRATE_JOB" --region "$REGION" --image "$IMAGE" \
+                    --command=node --args=scripts/lib/check-migrations.mjs,--mode=online,--app-protocol=scoped-rls-v1 --quiet
+                  gcloud run jobs execute "$MIGRATE_JOB" --region "$REGION" --wait
+            - name: Migrar o banco (somente expand compatível; nunca reset/seed)
+              env:
+                  IMAGE: ${{ steps.release.outputs.migrator }}@${{ steps.migrator.outputs.digest }}
               run: |
                   set -euo pipefail
-                  gcloud run deploy "${SERVICE}" \
-                      --region "${REGION}" \
-                      --image "${{ steps.img.outputs.app }}" \
-                      --quiet
-                  url="$(gcloud run services describe "${SERVICE}" --region "${REGION}" --format='value(status.url)')"
-                  echo "url=${url}" >> "$GITHUB_OUTPUT"
-
-            - name: Resumo do deploy
+                  gcloud run jobs update "$MIGRATE_JOB" --region "$REGION" --image "$IMAGE" \
+                    --command=node --args=node_modules/prisma/build/index.js,migrate,deploy --quiet
+                  gcloud run jobs execute "$MIGRATE_JOB" --region "$REGION" --wait
+            - name: Criar revisão sem tráfego público principal
+              env:
+                  IMAGE: ${{ steps.release.outputs.app }}@${{ steps.app.outputs.digest }}
+                  SUFFIX: ${{ steps.release.outputs.suffix }}
+              run: |
+                  set -euo pipefail
+                  gcloud run deploy "$SERVICE" --region "$REGION" --image "$IMAGE" \
+                    --revision-suffix "$SUFFIX" --no-traffic --tag candidate \
+                    --liveness-probe='httpGet.path=/api/health/live,httpGet.port=3000,periodSeconds=30,timeoutSeconds=5,failureThreshold=3' --quiet
+            - name: Testar readiness e páginas da candidata
+              run: |
+                  set -euo pipefail
+                  url="$(gcloud run services describe "$SERVICE" --region "$REGION" --format=json | jq -r '.status.traffic[] | select(.tag == "candidate") | .url')"
+                  test -n "$url"
+                  for path in /api/health/live /api/health/ready / /atendente; do
+                      code="$(curl --fail --silent --show-error --retry 6 --retry-all-errors \
+                        --retry-delay 5 --connect-timeout 10 --max-time 20 \
+                        --output "$RUNNER_TEMP/smoke-body" --write-out '%{http_code}' "$url$path")"
+                      test "$code" = 200 || { echo "::error::Smoke falhou: $path HTTP $code"; exit 1; }
+                      if [[ "$path" == /api/health/* ]]; then
+                          jq -e '.status == "ok"' "$RUNNER_TEMP/smoke-body" >/dev/null
+                      fi
+                  done
+            - name: Promover candidata
+              id: promote
+              env:
+                  REVISION: ${{ steps.release.outputs.revision }}
+              run: |
+                  gcloud run services update-traffic "$SERVICE" --region "$REGION" \
+                    --to-revisions "${REVISION}=100" --quiet
+            - name: Verificar serviço após promoção
+              env:
+                  URL: ${{ steps.previous.outputs.url }}
+              run: |
+                  set -euo pipefail
+                  curl --fail --silent --show-error --retry 3 --retry-all-errors \
+                    --connect-timeout 10 --max-time 20 "${URL}/api/health/ready" | jq -e '.status == "ok"' >/dev/null
+            - name: Restaurar tráfego anterior em falha após promoção
+              if: failure() && steps.promote.outcome == 'success'
+              env:
+                  PREVIOUS_TRAFFIC: ${{ steps.previous.outputs.traffic }}
+                  VERIFIED_PROTOCOL: ${{ steps.database_protocol.outputs.verified }}
+                  MIGRATOR_IMAGE: ${{ steps.release.outputs.migrator }}@${{ steps.migrator.outputs.digest }}
+              run: |
+                  set -euo pipefail
+                  test "$VERIFIED_PROTOCOL" = scoped-rls-v1
+                  # Re-check the live database before routing requests to old code.
+                  gcloud run jobs update "$MIGRATE_JOB" --region "$REGION" --image "$MIGRATOR_IMAGE" \
+                    --command=node --args=scripts/lib/check-migrations.mjs,--mode=online,--app-protocol=scoped-rls-v1 --quiet
+                  gcloud run jobs execute "$MIGRATE_JOB" --region "$REGION" --wait
+                  gcloud run services update-traffic "$SERVICE" --region "$REGION" \
+                    --to-revisions "$PREVIOUS_TRAFFIC" --quiet
+                  echo "::error::Tráfego anterior restaurado. Migrações NÃO foram revertidas; investigar antes de repetir."
+            - name: Remover URL temporária da candidata
+              if: always() && steps.app.outcome == 'success'
+              run: gcloud run services update-traffic "$SERVICE" --region "$REGION" --remove-tags candidate --quiet
+            - name: Registrar release
+              if: success()
+              env:
+                  IMAGE: ${{ steps.release.outputs.app }}@${{ steps.app.outputs.digest }}
+                  REVISION: ${{ steps.release.outputs.revision }}
+                  PREVIOUS_TRAFFIC: ${{ steps.previous.outputs.traffic }}
               run: |
                   {
-                      echo "### Deploy concluído"
-                      echo ""
-                      echo "| Item | Valor |"
-                      echo "| --- | --- |"
-                      echo "| Commit | \`${{ steps.img.outputs.sha }}\` |"
-                      echo "| Imagem | \`${{ steps.img.outputs.app }}\` |"
-                      echo "| Serviço | \`${SERVICE}\` (${REGION}) |"
-                      echo "| URL | ${{ steps.deploy.outputs.url }} |"
+                    echo "### Release promovida"
+                    echo "- Commit: ${GITHUB_SHA}"
+                    echo "- Imagem imutável: ${IMAGE}"
+                    echo "- Revisão: ${REVISION}"
+                    echo "- Tráfego anterior (rollback): ${PREVIOUS_TRAFFIC}"
+                    echo "- Migrações: executadas com sucesso; não revertem junto com o código."
                   } >> "$GITHUB_STEP_SUMMARY"

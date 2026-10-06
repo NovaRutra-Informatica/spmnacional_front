@@ -34,9 +34,6 @@ import { escopoAtendimento, isAdminGeral, validarRetencao } from './politica';
 
 const PERMISSAO = 'atendimentos';
 
-/** Tentativas de gerar um código livre quando duas fichas abrem ao mesmo tempo. */
-const MAX_TENTATIVAS_CODIGO = 5;
-
 // ---------------------------------------------------------
 // Apoio
 // ---------------------------------------------------------
@@ -59,16 +56,6 @@ function errosDeCampo(error: z.ZodError): Record<string, string> {
     }
 
     return resultado;
-}
-
-/** Violação de unicidade do Postgres relatada pelo Prisma. */
-function isCodigoDuplicado(error: unknown): boolean {
-    return (
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        (error as { code?: unknown }).code === 'P2002'
-    );
 }
 
 /**
@@ -226,52 +213,34 @@ export async function criarAtendimento(
         }
 
         const ano = new Date().getFullYear();
-        const registrosNoAno = await prisma.atendimento.count({
-            where: {
-                abertoEm: {
-                    gte: new Date(Date.UTC(ano, 0, 1)),
-                    lt: new Date(Date.UTC(ano + 1, 0, 1)),
-                },
-            },
-        });
+        // A sequência é global/atômica sem ler fichas de outras regionais sob RLS.
+        // Códigos consumidos em operações que falham não são reutilizados.
+        const [sequence] = await prisma.$queryRaw<Array<{ value: bigint }>>`
+            SELECT nextval('"Atendimento_codigo_seq"') AS value
+        `;
+        if (!sequence || sequence.value < 1n) throw new Error('Case code unavailable');
 
         const idiomas = dados.idiomas.filter(Boolean);
 
-        let criado: { id: string; codigo: string } | null = null;
-        for (let tentativa = 0; tentativa < MAX_TENTATIVAS_CODIGO && !criado; tentativa += 1) {
-            const sequencial = String(registrosNoAno + 1 + tentativa).padStart(4, '0');
-
-            try {
-                criado = await prisma.atendimento.create({
-                    data: {
-                        codigo: `ATD-${ano}-${sequencial}`,
-                        regionalId: regional.id,
-                        nomeEncrypted: cifrado.nome,
-                        contatoEncrypted: cifrado.contato,
-                        faixaEtaria: dados.faixaEtaria,
-                        genero: dados.genero,
-                        paisOrigem: dados.paisOrigem || null,
-                        idiomas,
-                        chegadaAno: dados.chegadaAno,
-                        necessidades: dados.necessidades,
-                        observacoes: dados.observacoes || null,
-                        abertoPorId: user.id,
-                        retencaoAte,
-                    },
-                    select: { id: true, codigo: true },
-                });
-            } catch (error) {
-                // Duas fichas abertas no mesmo instante chegam ao mesmo número:
-                // a próxima volta do laço tenta o sequencial seguinte.
-                if (!isCodigoDuplicado(error)) throw error;
-            }
-        }
-
-        if (!criado) {
-            return actionError(
-                'Não foi possível gerar um código único para esta ficha. Tente novamente em instantes.',
-            );
-        }
+        const sequencial = String(sequence.value).padStart(4, '0');
+        const criado = await prisma.atendimento.create({
+            data: {
+                codigo: `ATD-${ano}-${sequencial}`,
+                regionalId: regional.id,
+                nomeEncrypted: cifrado.nome,
+                contatoEncrypted: cifrado.contato,
+                faixaEtaria: dados.faixaEtaria,
+                genero: dados.genero,
+                paisOrigem: dados.paisOrigem || null,
+                idiomas,
+                chegadaAno: dados.chegadaAno,
+                necessidades: dados.necessidades,
+                observacoes: dados.observacoes || null,
+                abertoPorId: user.id,
+                retencaoAte,
+            },
+            select: { id: true, codigo: true },
+        });
 
         await recordAudit({
             action: 'Atendimento registrado',
@@ -346,8 +315,8 @@ export async function atualizarAtendimento(
 
         const encerrando = parsed.data.status === 'ENCERRADO';
 
-        await prisma.atendimento.update({
-            where: { id: atual.id },
+        const atualizado = await prisma.atendimento.updateMany({
+            where: { id: atual.id, ...escopoAtendimento(user) },
             data: {
                 status: parsed.data.status,
                 retencaoAte,
@@ -356,6 +325,9 @@ export async function atualizarAtendimento(
                 encerradoEm: encerrando ? (atual.encerradoEm ?? new Date()) : null,
             },
         });
+        if (atualizado.count !== 1) {
+            return actionError('A ficha deixou de pertencer ao seu escopo. Recarregue a página.');
+        }
 
         if (mudouStatus) {
             await recordAudit({
@@ -420,14 +392,26 @@ export async function registrarEncaminhamento(
             return actionError('Ficha não encontrada ou fora do seu escopo de acesso.');
         }
 
-        await prisma.atendimentoEncaminhamento.create({
-            data: {
-                atendimentoId: ficha.id,
-                orgao: parsed.data.orgao,
-                descricao: parsed.data.descricao,
-                registradoPor: user.name,
-            },
+        const registrado = await prisma.$transaction(async (tx) => {
+            // RLS reavalia o escopo, e o lock impede transferência/remoção do pai
+            // entre essa avaliação e a criação do filho na mesma transação.
+            const parents = await tx.$queryRaw<Array<{ id: string }>>`
+                SELECT "id" FROM "Atendimento" WHERE "id" = ${ficha.id} FOR UPDATE
+            `;
+            if (parents.length !== 1) return false;
+            await tx.atendimentoEncaminhamento.create({
+                data: {
+                    atendimentoId: ficha.id,
+                    orgao: parsed.data.orgao,
+                    descricao: parsed.data.descricao,
+                    registradoPor: user.name,
+                },
+            });
+            return true;
         });
+        if (!registrado) {
+            return actionError('A ficha deixou de pertencer ao seu escopo. Recarregue a página.');
+        }
 
         await recordAudit({
             action: 'Encaminhamento registrado',
@@ -487,6 +471,7 @@ export async function anonimizarAtendimento(
         const aindaTemDadoPessoal = await prisma.atendimento.count({
             where: {
                 id: ficha.id,
+                ...escopoAtendimento(user),
                 OR: [
                     { nomeEncrypted: { not: null } },
                     { contatoEncrypted: { not: null } },
@@ -499,10 +484,13 @@ export async function anonimizarAtendimento(
             return actionOk('Esta ficha já não guarda nome, contato nem observações.');
         }
 
-        await prisma.atendimento.update({
-            where: { id: ficha.id },
+        const anonimizado = await prisma.atendimento.updateMany({
+            where: { id: ficha.id, ...escopoAtendimento(user) },
             data: { nomeEncrypted: null, contatoEncrypted: null, observacoes: null },
         });
+        if (anonimizado.count !== 1) {
+            return actionError('A ficha deixou de pertencer ao seu escopo. Recarregue a página.');
+        }
 
         await recordAudit({
             action: 'Ficha de atendimento anonimizada',

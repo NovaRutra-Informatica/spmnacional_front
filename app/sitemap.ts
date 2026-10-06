@@ -1,5 +1,7 @@
 import type { MetadataRoute } from 'next';
 import { env } from '@/lib/server/env';
+import { isPublicIndexingEnabled, PRODUCTION_ORIGIN } from '@/lib/seo';
+import { CASE_STUDIES, publishedCaseStudies } from '@/lib/content/case-studies';
 import { listPublishedPostSlugs, listSemanaAnos } from '@/lib/server/queries';
 
 // Lê notícias e edições da Semana do Postgres a cada requisição.
@@ -38,8 +40,8 @@ const STATIC_ROUTES: StaticRoute[] = [
 ];
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-    const base = env.appUrl.replace(/\/$/, '');
-    const now = new Date();
+    if (!isPublicIndexingEnabled(env.appUrl)) return [];
+    const base = PRODUCTION_ORIGIN;
 
     // Um banco fora do ar não pode derrubar o sitemap inteiro: as rotas fixas
     // continuam sendo publicadas.
@@ -50,17 +52,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
     const entries: MetadataRoute.Sitemap = STATIC_ROUTES.map((route) => ({
         url: `${base}${route.path}`,
-        lastModified: now,
         changeFrequency: route.changeFrequency,
         priority: route.priority,
     }));
+
+    if (publishedCaseStudies(CASE_STUDIES).length > 0) {
+        entries.push({
+            url: `${base}/publicacoes/estudos-de-caso`,
+            changeFrequency: 'monthly',
+            priority: 0.6,
+        });
+    }
 
     // A URL canônica é `/semana-do-migrante/<ano>`: o formato antigo
     // (`material-<ano>`) só existe como redirecionamento em next.config.ts.
     for (const ano of anos) {
         entries.push({
             url: `${base}/semana-do-migrante/${ano}`,
-            lastModified: now,
             changeFrequency: 'yearly',
             priority: 0.6,
         });

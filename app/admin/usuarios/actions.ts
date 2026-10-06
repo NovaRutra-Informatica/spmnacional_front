@@ -5,9 +5,13 @@ import { z } from 'zod';
 import { prisma } from '@/lib/server/db';
 import { recordAudit } from '@/lib/server/audit';
 import { revokeAllSessions, type SessionUser } from '@/lib/server/auth';
-import { generateToken, hashToken } from '@/lib/server/crypto';
+import { isWorkspaceEmail, workspaceDomain } from '@/lib/config/workspace-auth';
 import { env } from '@/lib/server/env';
-import { sendUserInvite } from '@/lib/server/mail';
+import { encryptInviteEmail, inviteVersionHash } from '@/lib/server/generic-email-outbox';
+import {
+    preserveActiveAdministrator,
+    withProtectedUserMutation,
+} from '@/lib/server/user-management';
 import {
     actionError,
     actionOk,
@@ -20,10 +24,7 @@ import type { UserStatus } from '@/lib/generated/prisma/enums';
 import { initialsFrom } from './initials';
 import { ADMIN_ROLE_KEY, escopoUsuarios, perfilPermitido, regionalPermitida } from './politica';
 
-/** Validade do convite — o mesmo prazo anunciado no e-mail enviado. */
-const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
-
-// Regex simples de e-mail: a validação real é o convite chegar na caixa.
+// Domain validation and Google Workspace OAuth prove ownership at login.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function revalidarUsuarios(): void {
@@ -34,22 +35,7 @@ function revalidarUsuarios(): void {
     revalidatePath('/admin', 'layout');
 }
 
-/**
- * Impede que a última conta capaz de gerir acessos seja desligada.
- *
- * Sem esta trava, desativar ou remover o único administrador ativo deixaria a
- * organização sem ninguém que possa reabrir o painel de usuários.
- */
-async function ehUltimoAdminAtivo(alvo: { roleKey: string; status: UserStatus }): Promise<boolean> {
-    if (alvo.roleKey !== ADMIN_ROLE_KEY || alvo.status !== 'ATIVO') return false;
-
-    const ativos = await prisma.user.count({
-        where: { status: 'ATIVO', role: { key: ADMIN_ROLE_KEY } },
-    });
-
-    return ativos <= 1;
-}
-
+/** Returns the same safe result for missing and out-of-scope accounts. */
 async function carregarAlvo(user: SessionUser, id: string) {
     return prisma.user.findFirst({
         where: { id, ...escopoUsuarios(user) },
@@ -70,8 +56,11 @@ async function carregarAlvo(user: SessionUser, id: string) {
 // ---------------------------------------------------------
 
 const conviteSchema = z.object({
-    name: z.string().min(3, 'Informe o nome da pessoa ou da equipe.'),
-    email: z.string().regex(EMAIL_RE, 'Informe um e-mail válido.'),
+    name: z
+        .string()
+        .min(3, 'Informe o nome da pessoa ou da equipe.')
+        .max(120, 'Use no máximo 120 caracteres.'),
+    email: z.string().regex(EMAIL_RE, 'Informe um e-mail válido.').max(180, 'E-mail muito longo.'),
     roleId: z.string().min(1, 'Escolha o perfil de acesso.'),
     regionalId: z.string(),
 });
@@ -93,6 +82,10 @@ export async function convidarUsuario(
         }
 
         const { name, email, roleId, regionalId } = parsed.data;
+        if (!isWorkspaceEmail(email, workspaceDomain(env.google.allowedDomain)))
+            return actionError('Use um e-mail do domínio institucional autorizado.', {
+                email: 'E-mail fora do Google Workspace configurado.',
+            });
 
         const role = await prisma.role.findUnique({
             where: { id: roleId },
@@ -140,51 +133,64 @@ export async function convidarUsuario(
             }
         }
 
-        // O token viaja para a pessoa; no banco fica apenas o hash.
-        const token = generateToken();
-        const inviteUrl = `${env.appUrl}/convite/${token}`;
-
-        const criado = await prisma.user.create({
-            data: {
-                name,
-                email,
-                initials: initialsFrom(name),
-                roleId: role.id,
-                regionalId: regionalId || null,
-                status: 'PENDENTE',
-                inviteTokenHash: hashToken(token),
-                inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS),
-            },
-            select: { id: true, name: true, email: true },
-        });
-
-        const enviado = await sendUserInvite({
-            name: criado.name,
-            email: criado.email,
+        // Notification only: authorization is explicit and OAuth proves ownership.
+        const inviteUrl = new URL('/atendente', env.appUrl).href;
+        const payloadEncrypted = encryptInviteEmail({
+            name,
+            email,
             inviteUrl,
             roleName: role.name,
         });
+        const criado = await prisma.$transaction(
+            async (tx) => {
+                const created = await tx.user.create({
+                    data: {
+                        name,
+                        email,
+                        initials: initialsFrom(name),
+                        roleId: role.id,
+                        regionalId: regionalId || null,
+                        status: 'ATIVO',
+                        passwordHash: null,
+                        mfaRequired: true,
+                        notificationVersion: 1,
+                    },
+                    select: { id: true, name: true, email: true, notificationVersion: true },
+                });
+                await tx.genericEmailJob.create({
+                    data: {
+                        kind: 'USER_INVITE',
+                        userId: created.id,
+                        versionHash: inviteVersionHash(created.id, created.notificationVersion),
+                        payloadEncrypted,
+                        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000),
+                    },
+                    select: { id: true },
+                });
+                return created;
+            },
+            { maxWait: 5_000, timeout: 10_000 },
+        );
 
         await recordAudit({
-            action: 'Usuário convidado',
+            action: 'Acesso Google Workspace autorizado',
             target: criado.email,
             level: 'ALERTA',
             userId: user.id,
             actorLabel: user.email,
-            metadata: { perfil: role.key, regionalId: regionalId || null, emailEnviado: enviado },
+            metadata: {
+                perfil: role.key,
+                regionalId: regionalId || null,
+                notificacaoAgendada: true,
+            },
         });
 
         revalidarUsuarios();
 
-        // Sem SMTP o link é a única forma de a pessoa entrar: devolvemos para a
-        // coordenação copiar e repassar por outro canal.
+        // SMTP sends a notification; it is not an authentication dependency.
         return actionOk(
-            enviado
-                ? `Convite enviado para ${criado.email}.`
-                : 'Conta criada, mas o envio de e-mail não está configurado. Copie o link abaixo e repasse à pessoa.',
-            enviado
-                ? { id: criado.id, enviado: true }
-                : { id: criado.id, enviado: false, inviteUrl },
+            'Conta criada. As instruções de acesso foram agendadas para envio por e-mail; o endereço do login também pode ser compartilhado.',
+            { id: criado.id, agendado: true, inviteUrl },
         );
     });
 }
@@ -195,7 +201,10 @@ export async function convidarUsuario(
 
 const edicaoSchema = z.object({
     id: z.string().min(1, 'Conta não identificada.'),
-    name: z.string().min(3, 'Informe o nome da pessoa ou da equipe.'),
+    name: z
+        .string()
+        .min(3, 'Informe o nome da pessoa ou da equipe.')
+        .max(120, 'Use no máximo 120 caracteres.'),
     roleId: z.string().min(1, 'Escolha o perfil de acesso.'),
     regionalId: z.string(),
 });
@@ -271,16 +280,13 @@ export async function atualizarUsuario(
             }
         }
 
-        const perdeAdmin = novoPerfil.key !== ADMIN_ROLE_KEY || status !== 'ATIVO';
         if (
-            perdeAdmin &&
-            (await ehUltimoAdminAtivo({ roleKey: alvo.role.key, status: alvo.status }))
-        ) {
-            return actionError(
-                'Esta é a última conta ativa com perfil de administrador geral. Promova outra pessoa antes de alterar esta.',
-            );
-        }
+            status === 'ATIVO' &&
+            !isWorkspaceEmail(alvo.email, workspaceDomain(env.google.allowedDomain))
+        )
+            return actionError('A conta precisa usar o domínio institucional configurado.');
 
+        const perdeAdmin = novoPerfil.key !== ADMIN_ROLE_KEY || status !== 'ATIVO';
         if (regionalId) {
             const regional = await prisma.regional.findUnique({
                 where: { id: regionalId },
@@ -293,22 +299,42 @@ export async function atualizarUsuario(
             }
         }
 
-        const atualizado = await prisma.user.updateMany({
-            where: { id: alvo.id, ...escopoUsuarios(user) },
-            data: {
-                name,
-                initials: initialsFrom(name),
-                roleId: novoPerfil.id,
-                regionalId: regionalId || null,
-                status,
-                // Reativar limpa o bloqueio por tentativas malsucedidas.
-                ...(status === 'ATIVO' ? { failedLoginCount: 0, lockedUntil: null } : {}),
-                // Sair de "pendente" queima o convite em aberto. Sem isto, uma
-                // conta devolvida a "pendente" mais tarde voltaria a aceitar o
-                // link antigo enquanto ele estivesse dentro dos 7 dias.
-                ...(status !== 'PENDENTE' ? { inviteTokenHash: null, inviteExpiresAt: null } : {}),
+        const atualizado = await withProtectedUserMutation(
+            user,
+            alvo.id,
+            async (tx, currentActor, currentTarget) => {
+                if (
+                    !perfilPermitido(currentActor, novoPerfil.key) ||
+                    !regionalPermitida(currentActor, regionalId)
+                )
+                    throw new Error('User assignment left actor scope');
+                if (
+                    currentTarget.id === currentActor.id &&
+                    (novoPerfil.id !== currentTarget.roleId || status !== 'ATIVO')
+                )
+                    throw new Error('Self deactivation or role change denied');
+                if (perdeAdmin) await preserveActiveAdministrator(tx, currentTarget);
+                return tx.user.updateMany({
+                    where: { id: currentTarget.id, ...escopoUsuarios(currentActor) },
+                    data: {
+                        name,
+                        initials: initialsFrom(name),
+                        roleId: novoPerfil.id,
+                        regionalId: regionalId || null,
+                        status,
+                        notificationVersion: { increment: 1 },
+                        // Reativar limpa o bloqueio por tentativas malsucedidas.
+                        ...(status === 'ATIVO' ? { failedLoginCount: 0, lockedUntil: null } : {}),
+                        // Sair de "pendente" queima o convite em aberto. Sem isto, uma
+                        // conta devolvida a "pendente" mais tarde voltaria a aceitar o
+                        // link antigo enquanto ele estivesse dentro dos 7 dias.
+                        ...(status !== 'PENDENTE'
+                            ? { inviteTokenHash: null, inviteExpiresAt: null }
+                            : {}),
+                    },
+                });
             },
-        });
+        );
 
         if (atualizado.count !== 1) {
             return actionError('A conta deixou de pertencer ao seu escopo. Recarregue a página.');
@@ -405,6 +431,8 @@ export async function executarAcaoUsuario(
         if (!alvo) return actionError('Conta não encontrada ou fora do seu escopo de acesso.');
 
         if (intent === 'ativar') {
+            if (!isWorkspaceEmail(alvo.email, workspaceDomain(env.google.allowedDomain)))
+                return actionError('A conta precisa usar o domínio institucional configurado.');
             if (alvo.status === 'ATIVO') {
                 return actionError('Esta conta já está ativa.');
             }
@@ -448,21 +476,25 @@ export async function executarAcaoUsuario(
             if (alvo.status === 'INATIVO') {
                 return actionError('Esta conta já está desativada.');
             }
-            if (await ehUltimoAdminAtivo({ roleKey: alvo.role.key, status: alvo.status })) {
-                return actionError(
-                    'Esta é a última conta ativa com perfil de administrador geral. Promova outra pessoa antes de desativar esta.',
-                );
-            }
-
-            const atualizado = await prisma.user.updateMany({
-                where: { id: alvo.id, ...escopoUsuarios(user) },
-                data: {
-                    status: 'INATIVO',
-                    // Desativar também queima o convite ainda não aceito.
-                    inviteTokenHash: null,
-                    inviteExpiresAt: null,
+            const atualizado = await withProtectedUserMutation(
+                user,
+                alvo.id,
+                async (tx, currentActor, currentTarget) => {
+                    if (currentTarget.id === currentActor.id)
+                        throw new Error('Self deactivation denied');
+                    await preserveActiveAdministrator(tx, currentTarget);
+                    return tx.user.updateMany({
+                        where: { id: currentTarget.id, ...escopoUsuarios(currentActor) },
+                        data: {
+                            status: 'INATIVO',
+                            // Desativar também queima o convite ainda não aceito.
+                            inviteTokenHash: null,
+                            inviteExpiresAt: null,
+                            notificationVersion: { increment: 1 },
+                        },
+                    });
                 },
-            });
+            );
 
             if (atualizado.count !== 1) {
                 return actionError(
@@ -487,49 +519,74 @@ export async function executarAcaoUsuario(
         }
 
         if (intent === 'reenviar-convite') {
-            if (alvo.status !== 'PENDENTE') {
-                return actionError('O convite só pode ser reenviado para contas pendentes.');
+            if (
+                alvo.status !== 'ATIVO' ||
+                !isWorkspaceEmail(alvo.email, workspaceDomain(env.google.allowedDomain))
+            ) {
+                return actionError(
+                    'Ative uma conta do domínio institucional antes de enviar as instruções.',
+                );
             }
-
-            const token = generateToken();
-            const inviteUrl = `${env.appUrl}/convite/${token}`;
-
-            const atualizado = await prisma.user.updateMany({
-                where: { id: alvo.id, ...escopoUsuarios(user) },
-                data: {
-                    inviteTokenHash: hashToken(token),
-                    inviteExpiresAt: new Date(Date.now() + INVITE_TTL_MS),
+            const inviteUrl = new URL('/atendente', env.appUrl).href;
+            const queued = await prisma.$transaction(
+                async (tx) => {
+                    const changed = await tx.user.updateMany({
+                        where: { id: alvo.id, ...escopoUsuarios(user), status: 'ATIVO' },
+                        data: { notificationVersion: { increment: 1 } },
+                    });
+                    if (changed.count !== 1) return false;
+                    const current = await tx.user.findFirst({
+                        where: { id: alvo.id, ...escopoUsuarios(user), status: 'ATIVO' },
+                        select: {
+                            id: true,
+                            name: true,
+                            email: true,
+                            notificationVersion: true,
+                            role: { select: { name: true } },
+                        },
+                    });
+                    if (
+                        !current ||
+                        !isWorkspaceEmail(current.email, workspaceDomain(env.google.allowedDomain))
+                    )
+                        throw new Error('Invite target changed');
+                    await tx.genericEmailJob.create({
+                        data: {
+                            kind: 'USER_INVITE',
+                            userId: current.id,
+                            versionHash: inviteVersionHash(current.id, current.notificationVersion),
+                            payloadEncrypted: encryptInviteEmail({
+                                name: current.name,
+                                email: current.email,
+                                inviteUrl,
+                                roleName: current.role.name,
+                            }),
+                            expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000),
+                        },
+                        select: { id: true },
+                    });
+                    return true;
                 },
-            });
-
-            if (atualizado.count !== 1) {
+                { maxWait: 5_000, timeout: 10_000 },
+            );
+            if (!queued)
                 return actionError(
                     'A conta deixou de pertencer ao seu escopo. Recarregue a página.',
                 );
-            }
-
-            const enviado = await sendUserInvite({
-                name: alvo.name,
-                email: alvo.email,
-                inviteUrl,
-                roleName: alvo.role.name,
-            });
 
             await recordAudit({
-                action: 'Convite reenviado',
+                action: 'Instruções de acesso Workspace reenviadas',
                 target: alvo.email,
                 level: 'INFO',
                 userId: user.id,
                 actorLabel: user.email,
-                metadata: { emailEnviado: enviado },
+                metadata: { notificacaoAgendada: true },
             });
 
             revalidarUsuarios();
             return actionOk(
-                enviado
-                    ? `Novo convite enviado para ${alvo.email}.`
-                    : 'Novo link gerado, mas o envio de e-mail não está configurado. Copie o link abaixo.',
-                enviado ? { enviado: true } : { enviado: false, inviteUrl },
+                'Instruções de acesso agendadas para envio por e-mail. O endereço do login também pode ser compartilhado.',
+                { agendado: true, inviteUrl },
             );
         }
 
@@ -537,15 +594,17 @@ export async function executarAcaoUsuario(
         if (alvo.id === user.id) {
             return actionError('Você não pode remover a própria conta.');
         }
-        if (await ehUltimoAdminAtivo({ roleKey: alvo.role.key, status: alvo.status })) {
-            return actionError(
-                'Esta é a última conta ativa com perfil de administrador geral. Promova outra pessoa antes de removê-la.',
-            );
-        }
-
-        const removido = await prisma.user.deleteMany({
-            where: { id: alvo.id, ...escopoUsuarios(user) },
-        });
+        const removido = await withProtectedUserMutation(
+            user,
+            alvo.id,
+            async (tx, currentActor, currentTarget) => {
+                if (currentTarget.id === currentActor.id) throw new Error('Self removal denied');
+                await preserveActiveAdministrator(tx, currentTarget);
+                return tx.user.deleteMany({
+                    where: { id: currentTarget.id, ...escopoUsuarios(currentActor) },
+                });
+            },
+        );
         if (removido.count !== 1) {
             return actionError('A conta deixou de pertencer ao seu escopo. Recarregue a página.');
         }

@@ -14,56 +14,8 @@
 import 'dotenv/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { PrismaClient } from '../lib/generated/prisma/client.ts';
-import { createHmac, randomBytes, scrypt as scryptCallback } from 'node:crypto';
-import { promisify } from 'node:util';
-
-const scrypt = promisify(scryptCallback) as (
-    password: string | Buffer,
-    salt: string | Buffer,
-    keylen: number,
-) => Promise<Buffer>;
-
-async function hashPassword(password: string): Promise<string> {
-    const salt = randomBytes(16);
-    const derived = await scrypt(password.normalize('NFKC'), salt, 64);
-    return `scrypt$${salt.toString('base64')}$${derived.toString('base64')}`;
-}
-
-/**
- * A senha só é exigida quando ainda não existe um hash para a conta inicial.
- * Não há valor padrão: um seed executado sem segredo explícito deve falhar em
- * vez de publicar uma credencial conhecida.
- */
-function requireSeedAdminPassword(): string {
-    const password = process.env.SEED_ADMIN_PASSWORD;
-    if (!password) {
-        throw new Error(
-            'SEED_ADMIN_PASSWORD é obrigatória para criar a senha inicial do administrador.',
-        );
-    }
-
-    const normalized = password.normalize('NFKC');
-    if (normalized !== normalized.trim()) {
-        throw new Error('SEED_ADMIN_PASSWORD não pode começar ou terminar com espaços.');
-    }
-
-    if (normalized.length < 12) {
-        throw new Error('SEED_ADMIN_PASSWORD deve ter pelo menos 12 caracteres.');
-    }
-
-    const compact = normalized.toLowerCase().replace(/\s/g, '');
-    const placeholder =
-        /^(admin|password|senha|changeme|change-me|trocar|temporaria|temporario|placeholder|example|exemplo|soufoda)[0-9!@#$%^&*._-]*$/;
-    if (placeholder.test(compact)) {
-        throw new Error('SEED_ADMIN_PASSWORD não pode ser uma senha padrão ou placeholder.');
-    }
-
-    if (new Set(compact).size < 6) {
-        throw new Error('SEED_ADMIN_PASSWORD é repetitiva demais; use uma senha mais forte.');
-    }
-
-    return normalized;
-}
+import { PERMISSIONS, ROLES } from '../lib/config/roles';
+import { isWorkspaceEmail, workspaceDomain } from '../lib/config/workspace-auth';
 
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
 const prisma = new PrismaClient({ adapter });
@@ -74,82 +26,7 @@ const DEMO = 'Conteúdo de demonstração — substituir antes de publicar.';
 // 1. Permissões e perfis
 // =========================================================
 
-const PERMISSIONS = [
-    {
-        key: 'noticias',
-        label: 'Publicar notícias',
-        hint: 'Criar, editar e publicar no blog',
-        order: 1,
-    },
-    { key: 'midia', label: 'Biblioteca de mídia', hint: 'Enviar e remover arquivos', order: 2 },
-    {
-        key: 'editais',
-        label: 'Gerenciar editais',
-        hint: 'Abrir e encerrar chamadas públicas',
-        order: 3,
-    },
-    {
-        key: 'atendimentos',
-        label: 'Registrar atendimentos',
-        hint: 'Acessar fichas de casos',
-        order: 4,
-    },
-    {
-        key: 'usuarios',
-        label: 'Gerenciar usuários',
-        hint: 'Convidar, editar e desativar no escopo autorizado',
-        order: 5,
-    },
-    {
-        key: 'config',
-        label: 'Configurações do site',
-        hint: 'Alterar dados institucionais',
-        order: 6,
-    },
-];
-
-const ROLES = [
-    {
-        key: 'admin',
-        name: 'Administrador geral',
-        description: 'Acesso irrestrito, incluindo gestão de usuários e configurações.',
-        system: true,
-        order: 1,
-        permissions: ['noticias', 'midia', 'editais', 'atendimentos', 'usuarios', 'config'],
-    },
-    {
-        key: 'editor',
-        name: 'Editor de conteúdo',
-        description: 'Produz e publica conteúdo no site, sem acesso a dados de atendimento.',
-        system: true,
-        order: 2,
-        permissions: ['noticias', 'midia', 'editais'],
-    },
-    {
-        key: 'atendente',
-        name: 'Atendente regional',
-        description: 'Registra atendimentos da sua regional e envia arquivos de apoio.',
-        system: true,
-        order: 3,
-        permissions: ['midia', 'atendimentos'],
-    },
-    {
-        key: 'coordenacao',
-        name: 'Coordenação regional',
-        description: 'Acompanha a regional, publica conteúdo e gerencia a equipe local.',
-        system: true,
-        order: 4,
-        permissions: ['noticias', 'midia', 'editais', 'atendimentos', 'usuarios'],
-    },
-    {
-        key: 'leitura',
-        name: 'Somente leitura',
-        description: 'Visualiza relatórios e conteúdo, sem permissão de alteração.',
-        system: true,
-        order: 5,
-        permissions: [],
-    },
-];
+// Definições compartilhadas em lib/config/roles.ts.
 
 // =========================================================
 // 2. Regionais — unidades publicadas pelo próprio SPM
@@ -1019,6 +896,14 @@ const DOCUMENTOS = [
 // =========================================================
 
 async function main() {
+    const adminEmail = (process.env.SEED_ADMIN_EMAIL ?? '').trim().toLowerCase();
+    const adminName = process.env.SEED_ADMIN_NAME || 'Administrador do SPM';
+    if (process.env.SEED_ADMIN_PASSWORD)
+        throw new Error('SEED_ADMIN_PASSWORD não é suportado; use Google Workspace.');
+    if (!isWorkspaceEmail(adminEmail, workspaceDomain(process.env.GOOGLE_OAUTH_ALLOWED_DOMAIN)))
+        throw new Error(
+            'Configure SEED_ADMIN_EMAIL no domínio institucional de GOOGLE_OAUTH_ALLOWED_DOMAIN antes do seed.',
+        );
     console.log('Semeando o banco…');
 
     // --- Permissões e perfis ---
@@ -1062,27 +947,22 @@ async function main() {
     const adminRole = await prisma.role.findUniqueOrThrow({ where: { key: 'admin' } });
     const sede = await prisma.regional.findUnique({ where: { slug: 'sp-sao-paulo' } });
 
-    const adminEmail = (process.env.SEED_ADMIN_EMAIL || 'admin@spmnacional.org.br').toLowerCase();
-    const adminName = process.env.SEED_ADMIN_NAME || 'Administrador do SPM';
-    const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
-    const initialPasswordHash = existingAdmin?.passwordHash
-        ? existingAdmin.passwordHash
-        : await hashPassword(requireSeedAdminPassword());
-
     await prisma.user.upsert({
         where: { email: adminEmail },
         update: {
             name: adminName,
             roleId: adminRole.id,
             status: 'ATIVO',
-            // Não sobrescreve uma senha já trocada pela equipe.
-            ...(existingAdmin?.passwordHash ? {} : { passwordHash: initialPasswordHash }),
+            passwordHash: null,
+            mustChangePassword: false,
+            mfaRequired: true,
         },
         create: {
             name: adminName,
             email: adminEmail,
             initials: 'AD',
-            passwordHash: initialPasswordHash,
+            passwordHash: null,
+            mfaRequired: true,
             roleId: adminRole.id,
             regionalId: sede?.id ?? null,
             status: 'ATIVO',

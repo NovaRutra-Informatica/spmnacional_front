@@ -1,14 +1,19 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { formString } from '@/lib/server/actions';
 import { recordAudit, requestMeta } from '@/lib/server/audit';
 import { generateToken, hashToken } from '@/lib/server/crypto';
 import { prisma } from '@/lib/server/db';
 import { env, isMailEnabled } from '@/lib/server/env';
-import { sendNewsletterConfirmation } from '@/lib/server/mail';
+import { encryptNewsletterEmail } from '@/lib/server/generic-email-outbox';
+import { withPublicNewsletterDatabaseScope } from '@/lib/server/database-scope';
+import { isIdempotencyClaimConflict } from '@/lib/server/contact-idempotency';
 import { consumeRateLimit } from '@/lib/server/rate-limit';
+import { assertTrustedMutationOrigin, UntrustedOriginError } from '@/lib/server/request-origin';
+import { logError } from '@/lib/server/logger';
 
 /**
  * Inscrição no boletim, a partir do rodapé da home.
@@ -34,6 +39,7 @@ export async function inscrever(
     formData: FormData,
 ): Promise<NewsletterFormState> {
     try {
+        await assertTrustedMutationOrigin();
         // Mesma isca do Fale Conosco: campo oculto preenchido só por robô.
         if (formString(formData, 'website')) {
             return { ok: true, message: 'Inscrição registrada. Obrigado!' };
@@ -46,13 +52,6 @@ export async function inscrever(
         }
 
         const email = parsed.data.email.toLowerCase();
-
-        if (!isMailEnabled()) {
-            return {
-                ok: false,
-                message: 'O boletim está temporariamente indisponível. Tente novamente mais tarde.',
-            };
-        }
 
         const meta = await requestMeta();
         const limits = [
@@ -93,7 +92,7 @@ export async function inscrever(
 
         const existing = await prisma.newsletterSubscriber.findUnique({
             where: { email },
-            select: { confirmed: true },
+            select: { id: true, confirmed: true },
         });
 
         if (existing?.confirmed) {
@@ -105,27 +104,75 @@ export async function inscrever(
         }
 
         const token = generateToken();
+        const tokenHash = hashToken(token);
         const confirmExpiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-        await prisma.newsletterSubscriber.upsert({
-            where: { email },
-            create: {
-                email,
-                source: 'site',
-                confirmed: false,
-                confirmedAt: null,
-                confirmTokenHash: hashToken(token),
-                confirmExpiresAt,
-            },
-            update: {
-                confirmed: false,
-                confirmedAt: null,
-                confirmTokenHash: hashToken(token),
-                confirmExpiresAt,
-                // Reinscrição depois de um cancelamento volta a valer.
-                unsubscribedAt: null,
-            },
-        });
+        const confirmUrl = new URL('/newsletter/confirmar', env.appUrl);
+        confirmUrl.searchParams.set('token', token);
+        const payloadEncrypted = encryptNewsletterEmail({ email, confirmUrl: confirmUrl.href });
+        const queue = (subscriberId: string, exists: boolean) =>
+            withPublicNewsletterDatabaseScope(
+                () =>
+                    prisma.$transaction(
+                        async (tx) => {
+                            if (exists) {
+                                // A confirmation racing this request cannot be undone.
+                                const updated = await tx.newsletterSubscriber.updateMany({
+                                    where: { id: subscriberId, confirmed: false },
+                                    data: {
+                                        confirmTokenHash: tokenHash,
+                                        confirmExpiresAt,
+                                        unsubscribedAt: null,
+                                    },
+                                });
+                                if (updated.count !== 1) return false;
+                            } else {
+                                await tx.newsletterSubscriber.create({
+                                    data: {
+                                        id: subscriberId,
+                                        email,
+                                        source: 'site',
+                                        confirmed: false,
+                                        confirmTokenHash: tokenHash,
+                                        confirmExpiresAt,
+                                        unsubscribedAt: null,
+                                    },
+                                    select: { id: true },
+                                });
+                            }
+                            await tx.genericEmailJob.create({
+                                data: {
+                                    kind: 'NEWSLETTER_CONFIRMATION',
+                                    newsletterSubscriberId: subscriberId,
+                                    versionHash: tokenHash,
+                                    payloadEncrypted,
+                                    expiresAt: confirmExpiresAt,
+                                },
+                                select: { id: true },
+                            });
+                            return true;
+                        },
+                        { maxWait: 5_000, timeout: 10_000 },
+                    ),
+                { subscriberId, tokenHash },
+            );
+        let queued: boolean;
+        try {
+            queued = await queue(existing?.id ?? randomUUID(), Boolean(existing));
+        } catch (error) {
+            if (!isIdempotencyClaimConflict(error) || existing) throw error;
+            const winner = await prisma.newsletterSubscriber.findUnique({
+                where: { email },
+                select: { id: true, confirmed: true },
+            });
+            if (!winner) throw error;
+            queued = winner.confirmed ? false : await queue(winner.id, true);
+        }
+        if (!queued)
+            return {
+                ok: true,
+                message:
+                    'Se este endereço puder receber o boletim, enviaremos as instruções necessárias.',
+            };
 
         await recordAudit({
             action: 'Inscrição no boletim (aguardando confirmação)',
@@ -135,24 +182,15 @@ export async function inscrever(
 
         revalidatePath('/admin/configuracoes');
 
-        const base = env.appUrl.replace(/\/$/, '');
-        const confirmUrl = `${base}/newsletter/confirmar?token=${encodeURIComponent(token)}`;
-        const sent = await sendNewsletterConfirmation({ email, confirmUrl });
-
-        if (!sent) {
-            return {
-                ok: false,
-                message:
-                    'Não conseguimos enviar o e-mail de confirmação agora. Tente novamente em alguns minutos.',
-            };
-        }
-
         return {
             ok: true,
-            message: 'Enviamos um e-mail de confirmação. Abra o link para concluir a inscrição.',
+            message: isMailEnabled()
+                ? 'Você receberá o link de confirmação por e-mail. Abra-o para concluir a inscrição.'
+                : 'Pedido registrado, mas a confirmação por e-mail está momentaneamente indisponível. A inscrição ainda não está ativa; tente novamente quando o serviço estiver disponível.',
         };
     } catch (error) {
-        console.error('[newsletter] falha ao registrar inscrição:', error);
+        if (error instanceof UntrustedOriginError) return { ok: false, message: error.message };
+        logError('newsletter.subscribe_failed', error);
         return {
             ok: false,
             message: 'Não foi possível concluir a inscrição agora. Tente novamente mais tarde.',

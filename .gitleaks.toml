@@ -1,0 +1,21 @@
+[extend]
+useDefault = true
+
+# This UUID is public synthetic test data, not a credential. Both conditions
+# must match: no file, test directory or general UUID pattern is excluded.
+[[rules]]
+id = "generic-api-key"
+
+[[rules.allowlists]]
+description = "Fixed synthetic contact retry UUID in two regression fixtures"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|[/\\])tests[/\\]security-data[/\\]contact(?:-idempotency)?\.test\.ts$''']
+regexes = ['''^f6623d88-a368-4aef-9aa3-cb32e376c490$''']
+
+[[rules.allowlists]]
+description = "React RSC element key is the exact public article slug, not an API credential"
+condition = "AND"
+regexTarget = "secret"
+paths = ['''(?:^|[/\\])publicacoes[/\\]blog[/\\]41a-semana-do-migrante-moradia-digna[/\\]__next\._tree\.txt$''']
+regexes = ['''^41a-semana-do-migrante-moradia-digna$''']

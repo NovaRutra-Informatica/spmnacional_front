@@ -1,249 +1,100 @@
 # SPM Nacional — site e painel administrativo
 
-Sistema do **Serviço Pastoral dos Migrantes**, organismo da Pastoral Social da CNBB que, desde 1985,
-acolhe, organiza e defende os direitos de migrantes e refugiados no Brasil.
+Next.js 16, React 19, TypeScript, SCSS, Prisma 7 e PostgreSQL. O site completo precisa de servidor e banco; GitHub Pages é apenas uma demonstração estática.
 
-**Next.js 16 · React 19 · TypeScript · SCSS · Prisma 7 · PostgreSQL · Docker**, preparado para rodar
-no Google Cloud (Cloud Run + Cloud SQL) e integrado ao Google Workspace da organização.
+Esta base está preparada para homologação e implantação controlada no Google Cloud. **Código testado não equivale a produção homologada nem a ausência de vulnerabilidades.** Consulte [prontidão e limitações](docs/PRONTIDAO-PRODUCAO.md) e o [guia operacional](infra/OPERACAO-PRODUCAO.md).
 
----
+A HML está publicada em [spm-hml.35.215.232.88.sslip.io](https://spm-hml.35.215.232.88.sslip.io), com entrada do painel em `/atendente` e login Google Workspace. A atualização `hml-20261003-logo` restaurou a logo institucional original e importou 141 registros editoriais e um arquivo local, após backup privado. A baseline auditada `hml-20261002-76-04` terminou com EXIT 0 em 3/10/2026 UTC (2/10 Brasília): PostgreSQL 18.6, 13 migrações, seis tabelas FORCE RLS, prontidão HTTP 200 e backup/restauração real confirmados. O site público abre sem Basic Auth dentro da janela autorizada. A atualização preservou o corte excepcional das 06h de Brasília. Horários, limites e evidências estão no [guia HML](infra/hml/README.md), no [registro da atualização](infra/hml/vm/README.md) e na [auditoria dos 76 itens](docs/auditoria-76-resumo.json).
 
-## Começar
+## Desenvolvimento
 
-Use Node.js 22 e Docker Desktop iniciado, com contêineres Linux. No PowerShell, crie o
-arquivo local somente se ele ainda não existir:
+Use Node.js 22.12 ou superior compatível com as dependências, Bun 1.4.2 e Docker Desktop com containers Linux. Preserve o `.env` e os volumes de uma instalação existente. O lockfile é `bun.lock`; não gerar um segundo lockfile npm.
 
 ```powershell
 if (!(Test-Path .env)) { Copy-Item .env.example .env }
 ```
 
-Antes de iniciar, preencha os segredos do `.env`. Estes comandos geram valores novos:
+Preencha os segredos indicados em `.env.example`. `DATABASE_URL` e `POSTGRES_PASSWORD` devem usar a mesma senha local. Não altere `ENCRYPTION_KEY` de um banco existente: dados cifrados dependem dessa chave.
 
-```powershell
-node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))" # POSTGRES_PASSWORD
-node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"    # AUTH_SECRET
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"    # ENCRYPTION_KEY
-node -e "console.log(require('crypto').randomBytes(48).toString('base64'))"    # CRON_SECRET
+```sh
+bun install --frozen-lockfile
+bun run setup
+bun run dev
 ```
 
-Use a mesma senha em `POSTGRES_PASSWORD` e no lugar de `SUA_SENHA` em `DATABASE_URL`.
-Preserve os valores de uma instalação existente, especialmente `ENCRYPTION_KEY`. Não
-sobrescreva o `.env` ao atualizar com `git pull`: alterar `POSTGRES_PASSWORD` no arquivo
-não muda a senha de um banco já criado no volume Docker.
+O login fica em `/atendente`, o painel em `/admin`. A porta padrão é 3000; Postgres local usa 55432. Para outra porta, configure `APP_URL` e `NEXT_PUBLIC_SITE_URL` com a mesma origem do navegador. Chamadas de escrita de outra origem são recusadas.
 
-```powershell
-npm ci
-npm run setup             # espera o Postgres ficar pronto e aplica as migrações
-npm run dev
+`bun run setup` inicia o Postgres e aplica migrações — não cria usuários ou conteúdo. Em um banco novo de produção, use o bootstrap abaixo. `bun run db:seed` serve somente para demonstração e sobrescreve dados/permissões; não faz parte do deploy.
+
+## Inicialização sem conteúdo de demonstração
+
+Depois de aplicar as migrações em um **banco novo e identificado**, configure `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_NAME` e `GOOGLE_OAUTH_ALLOWED_DOMAIN` na sessão operacional. O e-mail deve pertencer ao domínio institucional. Na nuvem não existe senha local, link mágico nem conta de contingência que contorne o Workspace.
+
+```sh
+bun run db:bootstrap
 ```
 
-Acesse <http://localhost:3000>. O painel fica em `/atendente`.
+Cria apenas permissões, cinco perfis e a primeira conta autorizada para Google Workspace. Recusa banco que já contenha usuários e não publica notícias fictícias. A identidade Google é vinculada no primeiro login validado. Variáveis antigas `BOOTSTRAP_ADMIN_PASSWORD`, `USER_PASSWORD` e `SEED_ADMIN_PASSWORD` são recusadas; remova-as da configuração, sem alterar as chaves de criptografia/autenticação existentes.
 
-Se a porta 3000 já estiver ocupada, use `npm run dev -- --port 3001` e configure
-`APP_URL` e `NEXT_PUBLIC_SITE_URL` como `http://localhost:3001` em
-`.env.development.local`. Esse arquivo vale apenas para desenvolvimento, mantendo
-as URLs de produção do `.env`. Para alternar do desenvolvimento Docker para o
-Next.js no Windows, libere a porta com `docker compose stop dev`.
+Para provisionamento posterior, `bun run user:create --email pessoa@exemplo.org --nome "Pessoa" --perfil editor`, com `GOOGLE_OAUTH_ALLOWED_DOMAIN=exemplo.org`, autoriza o e-mail, sem senha. Alterar conta existente exige `--atualizar` e revoga sessões na mesma transação. O painel também permite autorizar usuários e enviar instruções por e-mail.
 
-O Postgres usa a porta **55432** do host. Para a primeira carga de um banco vazio, defina
-`SEED_ADMIN_PASSWORD` no `.env` (mínimo de 12 caracteres, sem senha padrão; pode gerar com
-o primeiro comando acima) e execute `npm run db:seed` após o setup. Isso cria a conta
-`SEED_ADMIN_EMAIL` e os dados iniciais. Reexecutar o seed sobrescreve conteúdo e permissões
-existentes; ele não faz parte do setup.
+## Workspace, idiomas e capacidade
 
-### Docker (aplicação inteira)
+Para testar no próprio computador enquanto o Google não está configurado, existe uma exceção explícita e desligada por padrão: [acesso local de teste](docs/ACESSO-LOCAL.md). O servidor exige origem loopback, conta ativa fixada por ID e nenhuma credencial OAuth. Esse modo não funciona no GCP; as ações gravam de verdade no banco local.
 
-Com o `.env` preenchido:
+A preparação de 22/09/2026 está descrita em [INTEGRACOES-SPM.md](docs/INTEGRACOES-SPM.md). O login usa exclusivamente Workspace. Cloud Run exige a declaração de 2FA global no provedor; a HML `gcp-vm` admite a exceção administrativa restrita a uma única conta com 2FA individual confirmada, conforme o [guia HML](infra/hml/README.md). Essa declaração não é inferida do ID token. A tradução pública para inglês, francês, espanhol e árabe depende da configuração Cloud Translation; instalações sem essa configuração a mantêm desligada. Nenhuma preparação local ativa recursos na nuvem automaticamente. A migração de autenticação encerra sessões antigas; confirmar acesso Google antes de atualizar a instalação usada pela equipe.
 
-```powershell
+Ao alterar textos em componentes públicos, execute `bun run i18n:catalog` e inclua o catálogo gerado na revisão. `bun run i18n:check` e a CI recusam catálogo desatualizado. Posts e demais textos editoriais são traduzidos pela versão atual, sob demanda, sem recatalogação manual.
+
+**Decisão de 3/10/2026, com implementação adiada:** após a atualização dos textos, os textos fixos serão pré-traduzidos para todos os idiomas suportados pelo Google NMT e servidos sem chamadas de tradução durante a navegação. A tradução dinâmica ficará para o conteúdo editorial publicado pela SPM, com cache por versão e idioma. Estratégia, custos e critérios de aceite estão em [TRADUCAO.md](docs/TRADUCAO.md#decisão-de-03102026--estratégia-futura-ainda-não-implementada).
+
+## Qualidade e regressão
+
+| Comando                    | Verificação                                            |
+| -------------------------- | ------------------------------------------------------ |
+| `bun run lint`             | ESLint, React, TypeScript e convenções Next            |
+| `bun run typecheck`        | Tipos da aplicação, scripts e testes                   |
+| `bun run test`             | Testes unitários e regressões de segurança             |
+| `bun run test:coverage`    | Relatórios em `coverage/` e limiares de cobertura      |
+| `bun run test:integration` | Migrações e concorrência em PostgreSQL descartável     |
+| `bun run build`            | Build de produção                                      |
+| `bun run test:e2e`         | Home, login, sessão, mídia e headers em desktop/mobile |
+| `bun run test:load`        | Carga HTTP em Docker isolado, com dados sintéticos     |
+| `bun run security:audit`   | Vulnerabilidades conhecidas das dependências npm       |
+| `bun run check`            | Lint, tipos, cobertura, audit e build                  |
+| `bun run check:production` | Validação offline do ambiente pretendido               |
+
+Para E2E, execute `bun run build` e `bunx playwright install chromium` antes. Integração/E2E exigem Docker, criam seu próprio PostgreSQL em porta aleatória e removem somente esse container e os uploads sintéticos. **Não reutilizam DATABASE_URL do usuário.** O navegador usa `localhost:3147` e recusa reutilizar servidor já aberto nessa porta. Não apontar esses testes para produção.
+
+O teste de carga é separado da CI comum: veja [cenários, recursos e limites de interpretação](docs/TESTE-DE-CARGA.md). Ele não testa a instalação atualmente aberta nem faz chamadas de carga ao domínio público.
+
+Em 2/10/2026, a auditoria completa reporta **1 HIGH de desenvolvimento em `braces@3.0.3`**, ainda sem release oficial corrigida. A [patch Bun local](patches/README.md) limita profundidade, preserva a semântica anterior e passou 11 regressões reais; o achado não foi suprimido e o gate HIGH da CI continua bloqueado. O migrador instala somente dependências de produção, com Prisma/tsx operacionais e sem ESLint/braces. Auditoria de produção e scans locais dos digests finais do app, migrador e PostgreSQL endurecido não encontraram vulnerabilidades conhecidas. Caddy 2.11.6 mantém **1 UNKNOWN** em `x/crypto/openpgp`, com alcance não comprovado e sem correção upstream identificada. Scans são fotografias temporais, não um atestado de ausência de falhas.
+
+O preflight não carrega `.env` implicitamente, não revela valores e não acessa serviços. Para conferir o arquivo local explicitamente:
+
+```sh
+node --env-file=.env --import tsx scripts/check-production.ts
+```
+
+No Cloud Run, use `DEPLOYMENT_TARGET=gcp`; a HML em VM usa `DEPLOYMENT_TARGET=gcp-vm`, seguindo o [guia próprio](infra/hml/README.md). Ambos exigem HTTPS, GCS e credenciais reais via Secret Manager. O servidor valida a configuração na inicialização; o build permanece sem segredos.
+
+## Docker e implantação
+
+```sh
 docker compose up --build -d
 ```
 
-Esse comando compila a aplicação, espera o banco, aplica as migrações e inicia o site.
-Acesse <http://localhost:3000>. A carga inicial do banco continua sendo um passo explícito,
-conforme descrito acima.
+Esse comando altera a instalação local e aplica migrações; revise backup e `.env` antes de atualizar uma base existente. Não use `down -v`, `db:reset` ou seed como procedimento de atualização.
 
-Para conviver com outro serviço na porta 3000, configure no `.env` antes de subir:
+- `/api/health/live`: processo responde, sem depender do banco.
+- `/api/health/ready` e `/api/health`: prontidão do banco, com prazo limitado e sem informações internas.
+- Migrações e runtime têm imagens separadas, ambas sem root. O contexto Docker exclui segredos, estado Terraform e documentos.
+- CI executa testes, audit, builds e validação de infraestrutura sem segredos de produção.
+- Deploy GCP é manual, pela branch `prod` e environment `production`, com aprovação a configurar no GitHub, OIDC, imagens por digest, migrações, candidata sem tráfego principal, smoke e promoção/rollback de tráfego.
+- Terraform prepara SQL protegido/PITR, bucket privado/versionado, identidades e segredos. **Não foi aplicado nesta entrega.** Domínio, monitoramento, orçamento e restauração precisam de homologação real.
 
-```dotenv
-WEB_HOST_PORT="3010"
-APP_URL="http://localhost:3010"
-NEXT_PUBLIC_SITE_URL="http://localhost:3010"
-```
+Siga [infra/OPERACAO-PRODUCAO.md](infra/OPERACAO-PRODUCAO.md), especialmente a separação do usuário SQL de migração e do runtime. O Compose local usa um usuário único por conveniência e não representa todos os controles da nuvem.
 
-Nesse caso, acesse <http://localhost:3010>. Se alterar `DB_HOST_PORT`, ajuste também a
-porta de `DATABASE_URL` para os comandos npm executados no Windows.
+## Organização
 
-### Docker (desenvolvimento com hot reload)
-
-```powershell
-npm run docker:dev
-```
-
-Equivale a `docker compose up --build dev`: inicia o desenvolvimento e o banco, com
-migrações automáticas e atualização ao salvar arquivos. Acesse <http://localhost:3001>.
-Configure `DEV_HOST_PORT` no `.env` para mudar essa porta; `DEV_APP_URL` é opcional quando
-o endereço público for diferente de `http://localhost:<DEV_HOST_PORT>`.
-
----
-
-## Scripts
-
-| Comando               | O que faz                                               |
-| --------------------- | ------------------------------------------------------- |
-| `npm run dev`         | Servidor de desenvolvimento                             |
-| `npm run build`       | Build de produção                                       |
-| `npm run build:pages` | Site público estático para o GitHub Pages               |
-| `npm run typecheck`   | Checagem de tipos                                       |
-| `npm run format`      | Prettier                                                |
-| `npm run setup`       | Espera o banco ficar pronto e aplica migrações          |
-| `npm run db:seed`     | Carga inicial explícita; sobrescreve conteúdo existente |
-| `npm run db:studio`   | Prisma Studio (interface visual do banco)               |
-| `npm run db:migrate`  | Cria e aplica uma migração a partir do schema           |
-| `npm run db:reset`    | Recria o banco do zero (apaga tudo)                     |
-
----
-
-## Estrutura
-
-```
-app/                  Rotas (App Router)
-  admin/              Painel administrativo — sessão obrigatória
-  api/                health, arquivos, OAuth do Google, cron da agenda
-  atendente/          Login
-  convite/[token]/    Aceite de convite e definição de senha
-components/           Header, Footer, PageHero, Animate, casca do painel
-lib/
-  server/             Só roda no servidor: db, auth, crypto, storage, mail, queries
-  labels.ts           Rótulos dos enums e formatação de data
-  markdown.ts         Renderizador de Markdown com escape na entrada
-prisma/               schema.prisma, migrations/, seed.ts
-styles/               Design system em SCSS
-infra/terraform/      Infraestrutura GCP (não aplicada)
-docs/                 Arquitetura, integrações Google, privacidade e fontes
-```
-
----
-
-## Painel administrativo
-
-Login em `/atendente`. A conta inicial vem das variáveis `SEED_ADMIN_*` do `.env`.
-`SEED_ADMIN_PASSWORD` é obrigatória para criar a primeira conta e não possui valor padrão.
-
-O painel cobre notícias, biblioteca de mídia, editais, testemunhos, documentos, Semana do Migrante,
-agenda, mensagens do site, atendimentos, usuários, perfis e permissões, e configurações.
-
-### Autenticação
-
-Real, não de demonstração:
-
-- Senha em **scrypt** (`node:crypto`, sem dependência externa), com salt por usuário.
-- Sessão em banco, com token opaco; o cookie é `httpOnly`, `sameSite=lax` e `secure` em produção.
-  No banco guardamos só o HMAC do token, então um vazamento não permite assumir sessões.
-- Expiração absoluta de 12 h e inatividade de 30 min.
-- Limitação de tentativas por origem e identificador, sem permitir que terceiros bloqueiem a conta.
-- Login opcional com **Google Workspace** (OAuth 2.0 + PKCE), restrito ao domínio da organização
-  com verificação do claim `hd` no servidor. A conta precisa existir no painel: o site não cria
-  usuário sozinho.
-- Permissões por perfil (`noticias`, `midia`, `editais`, `atendimentos`, `usuarios`, `config`),
-  verificadas no servidor em toda página e em toda Server Action.
-- Log de auditoria de login, alteração de permissão, mutação de conteúdo e **leitura** de ficha de
-  atendimento.
-
-### Módulo de atendimentos
-
-Trata dados de pessoas migrantes, parte delas em situação documental irregular. Por isso:
-
-- **não existe campo de situação migratória** — e não deve existir;
-- o que circula na tela é um **código pseudônimo** (`ATD-2026-0001`), não o nome;
-- nome e contato são cifrados em repouso com **AES-256-GCM**;
-- quem não é administrador só enxerga a própria regional, filtrado na consulta;
-- abrir uma ficha gera registro de auditoria — a leitura é o evento que mais importa auditar;
-- há data de retenção e ação de anonimização que preserva só os campos estatísticos.
-
-O embasamento legal está em [`docs/PRIVACIDADE.md`](docs/PRIVACIDADE.md).
-
----
-
-## Integrações Google
-
-Configuráveis por variável de ambiente; **sem elas o sistema funciona normalmente**, apenas sem o
-recurso. Detalhes em [`docs/INTEGRACOES-GOOGLE.md`](docs/INTEGRACOES-GOOGLE.md).
-
-| Integração         | Variáveis                                            | Sem configurar                              |
-| ------------------ | ---------------------------------------------------- | ------------------------------------------- |
-| E-mail (Workspace) | `SMTP_*`, `MAIL_FROM`, `MAIL_NOTIFY_TO`              | Mensagens são gravadas, mas não notificadas |
-| Login com Google   | `GOOGLE_OAUTH_CLIENT_ID`, `..._SECRET`, `..._DOMAIN` | O botão nem aparece                         |
-| Agenda             | `GOOGLE_CALENDAR_ID`, `GOOGLE_CALENDAR_API_KEY`      | A agenda usa só os eventos do painel        |
-| Cloud Storage      | `STORAGE_DRIVER=gcs`, `GCS_BUCKET`                   | Uploads vão para o disco local              |
-
----
-
-## Publicação no GitHub Pages
-
-O site público vai para <https://novarutra-informatica.github.io/spmnacional_front/> pelo workflow
-[`.github/workflows/pages.yml`](.github/workflows/pages.yml), a cada push na `dev` (ou pelo botão
-"Run workflow" na aba Actions).
-
-Em **Settings → Pages**, a fonte precisa estar em **"Deploy from a branch" → `gh-pages` → `/ (root)`**.
-O workflow escreve o site na `gh-pages` (substituindo a branch inteira a cada publicação, o que
-apagou o build Angular que estava lá) e quem serve dali é o próprio GitHub.
-
-O Pages serve arquivo estático, e o app precisa de servidor Node. Quem faz a ponte é
-[`scripts/build-pages.mjs`](scripts/build-pages.mjs): ele copia o projeto para `.pages-build/`,
-tira de lá o que depende de servidor e roda um `next build` com `output: 'export'`. A árvore de
-trabalho não é tocada — o build normal e a imagem Docker continuam vendo o código original.
-
-O que **não** existe no site estático, e por quê:
-
-| Fora                                              | Motivo                                                                                                     |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `app/admin`                                       | Sessão em cookie e Server Actions exigem servidor                                                          |
-| `app/api`                                         | Rotas dinâmicas (login Google, arquivos, cron)                                                             |
-| `app/convite/[token]`, `app/newsletter/confirmar` | A URL vem do e-mail; não há como pré-gerar                                                                 |
-| `proxy.ts`                                        | Não existe proxy de autenticação em export estático                                                        |
-| Envio do Fale Conosco e da newsletter             | Sem banco e sem SMTP; os formulários passam a indicar o e-mail de contato (ver `scripts/pages-overrides/`) |
-
-**O conteúdo do site é congelado no momento do build.** Publicar uma notícia pelo painel não muda o
-site sozinho: é preciso rodar o workflow de novo. E, sem o segredo `PAGES_DATABASE_URL` apontando
-para um Postgres acessível pela internet, o build usa um banco descartável semeado com
-`prisma db seed` — ou seja, o site sai com o **conteúdo de demonstração**.
-
-Para rodar o build localmente, usando o `DATABASE_URL` configurado no `.env`:
-
-```powershell
-npm run db:up
-node --env-file=.env scripts/build-pages.mjs
-# resultado em out/
-```
-
----
-
-## Deploy no GCP
-
-> Desligado por ora: o workflow [`deploy-gcp.yml`](.github/workflows/deploy-gcp.yml) só roda pelo
-> botão manual na aba Actions. Nenhum push dispara deploy no Cloud Run.
-
-A infraestrutura está descrita em Terraform e **não foi aplicada**. Passo a passo, custos estimados
-e decisões em [`infra/README.md`](infra/README.md).
-
-Resumo: Cloud Run (escala a zero) + Cloud SQL PostgreSQL + Secret Manager + Cloud Storage +
-Artifact Registry + Cloud Scheduler, tudo em `southamerica-east1` (São Paulo), com deploy pelo
-GitHub Actions autenticado por Workload Identity Federation — sem chave JSON.
-
-Custo aproximado: o Cloud Run cabe no nível gratuito neste porte; o Cloud SQL `db-f1-micro` em São
-Paulo custa cerca de **US$ 14–15/mês** (instância + 10 GB de SSD) e **não escala a zero**. A
-alternativa de menor custo inicial é um Postgres serverless (Neon/Supabase), migrando depois — é
-Postgres puro nos dois casos.
-
----
-
-## Dados institucionais
-
-Os dados carregados pelo seed (17 unidades regionais em 11 UFs, composição da coordenação nacional,
-edições da Semana do Migrante de 2023 a 2026, endereço e contatos) vieram de fontes públicas do
-próprio SPM, da CNBB e da CEPAST. Cada informação e sua origem estão em
-[`docs/FONTES.md`](docs/FONTES.md), junto com o que **não** foi possível confirmar.
-
-Conteúdo marcado como demonstração (testemunhos e editais) está sinalizado no próprio banco e deve
-ser substituído antes de publicar.
+`app/` contém páginas, Server Actions e APIs; `lib/server/` concentra autenticação, criptografia, acesso a dados e integrações; `prisma/migrations/` versiona o schema; `tests/` contém regressões; `infra/` reúne deploy e operação; `docs/` registra a prontidão. `devdocs/` são documentos locais de trabalho, não artefatos publicados.

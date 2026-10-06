@@ -1,8 +1,11 @@
 'use client';
+import { TranslatedContent, usePublicTranslation } from '@/components/TranslationProvider';
 
-import Link from 'next/link';
+import Link from '@/components/LocalizedLink';
 import { usePathname } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import LanguageSelector from './LanguageSelector';
+import { INSTITUTIONAL_LOGO, INSTITUTIONAL_LOGO_ALT } from '@/lib/content/branding';
 
 export interface NavChild {
     label: string;
@@ -117,9 +120,11 @@ export const navItems: NavItem[] = [
 
 export default function Header() {
     const pathname = usePathname();
+    const { locale } = usePublicTranslation();
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
+    const headerRef = useRef<HTMLElement | null>(null);
     const mobileToggleRef = useRef<HTMLButtonElement | null>(null);
     const navRef = useRef<HTMLElement | null>(null);
 
@@ -127,6 +132,26 @@ export default function Header() {
         setIsMenuOpen(false);
         setOpenSubmenu(null);
     }, []);
+
+    useEffect(() => {
+        if (locale === 'pt' || !headerRef.current) return;
+        const header = headerRef.current;
+        const updateHeight = () =>
+            document.documentElement.style.setProperty(
+                '--localized-header-height',
+                `${Math.ceil(header.getBoundingClientRect().height)}px`,
+            );
+        updateHeight();
+        const observer =
+            typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateHeight);
+        observer?.observe(header);
+        window.addEventListener('resize', updateHeight);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', updateHeight);
+            document.documentElement.style.removeProperty('--localized-header-height');
+        };
+    }, [locale]);
 
     useEffect(() => {
         const onScroll = () => setIsScrolled(window.scrollY > 50);
@@ -202,157 +227,191 @@ export default function Header() {
         setOpenSubmenu((current) => (current === label ? null : label));
 
     return (
-        <header
-            className={['main-header', isScrolled ? 'scrolled' : '', isMenuOpen ? 'menu-open' : '']
-                .filter(Boolean)
-                .join(' ')}
-        >
-            <div className="container header-wrapper">
-                <div className="logo-area">
-                    <Link href="/" className="brand-link" onClick={closeMenu}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                            className="brand-logo"
-                            width={52}
-                            height={52}
-                            src="/logo-small-blue.jpg"
-                            alt="Serviço Pastoral dos Migrantes"
-                        />
-                        <span className="brand-text">
-                            <strong>SPM</strong>
-                            <small>Serviço Pastoral dos Migrantes</small>
-                        </span>
-                    </Link>
-                </div>
-
-                <button
-                    ref={mobileToggleRef}
-                    type="button"
-                    className="mobile-toggle"
-                    onClick={toggleMenu}
-                    aria-expanded={isMenuOpen}
-                    aria-controls="site-main-navigation"
-                    aria-label={isMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'}
+        <TranslatedContent>
+            {
+                <header
+                    ref={headerRef}
+                    className={[
+                        'main-header',
+                        locale !== 'pt' ? 'main-header--localized' : '',
+                        isScrolled || locale !== 'pt' ? 'scrolled' : '',
+                        isMenuOpen ? 'menu-open' : '',
+                    ]
+                        .filter(Boolean)
+                        .join(' ')}
                 >
-                    <i
-                        className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'}`}
-                        aria-hidden="true"
-                    />
-                </button>
+                    <div className="container header-wrapper">
+                        <div className="logo-area">
+                            <Link href="/" className="brand-link" onClick={closeMenu}>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    className="brand-logo"
+                                    width={64}
+                                    height={64}
+                                    src={INSTITUTIONAL_LOGO}
+                                    alt={INSTITUTIONAL_LOGO_ALT}
+                                />
+                                <span className="brand-text">
+                                    <strong translate="no">SPM</strong>
+                                    <small>Serviço Pastoral dos Migrantes</small>
+                                </span>
+                            </Link>
+                        </div>
 
-                {isMenuOpen && (
-                    <button
-                        type="button"
-                        className="header-backdrop"
-                        aria-label="Fechar menu de navegação"
-                        onClick={closeMenu}
-                        tabIndex={-1}
-                    />
-                )}
+                        <LanguageSelector />
+                        <button
+                            ref={mobileToggleRef}
+                            type="button"
+                            className="mobile-toggle"
+                            onClick={toggleMenu}
+                            aria-expanded={isMenuOpen}
+                            aria-controls="site-main-navigation"
+                            aria-label={
+                                isMenuOpen ? 'Fechar menu de navegação' : 'Abrir menu de navegação'
+                            }
+                        >
+                            <i
+                                className={`fas ${isMenuOpen ? 'fa-times' : 'fa-bars'}`}
+                                aria-hidden="true"
+                            />
+                        </button>
 
-                <nav
-                    ref={navRef}
-                    id="site-main-navigation"
-                    className={`nav-menu${isMenuOpen ? ' active' : ''}`}
-                    aria-label="Navegação principal"
-                >
-                    <ul className="nav-list">
-                        {navItems.map((item, index) => (
-                            <li
-                                key={item.label}
-                                className={`nav-item${item.children ? ' has-children' : ''}`}
-                            >
-                                {!item.children ? (
+                        {isMenuOpen && (
+                            <button
+                                type="button"
+                                className="header-backdrop"
+                                aria-label="Fechar menu de navegação"
+                                onClick={closeMenu}
+                                tabIndex={-1}
+                            />
+                        )}
+
+                        <nav
+                            ref={navRef}
+                            id="site-main-navigation"
+                            className={`nav-menu${isMenuOpen ? ' active' : ''}`}
+                            aria-label="Navegação principal"
+                        >
+                            <ul className="nav-list">
+                                {navItems.map((item, index) => (
+                                    <li
+                                        key={item.label}
+                                        className={`nav-item${item.children ? ' has-children' : ''}`}
+                                    >
+                                        {!item.children ? (
+                                            <Link
+                                                href={item.link!}
+                                                className={
+                                                    isActive(item.link!, item.exact) ? 'active' : ''
+                                                }
+                                                aria-current={
+                                                    isActive(item.link!, item.exact)
+                                                        ? 'page'
+                                                        : undefined
+                                                }
+                                                onClick={closeMenu}
+                                            >
+                                                {item.label}
+                                            </Link>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    className={`nav-trigger${
+                                                        item.children.some((child) =>
+                                                            isActive(child.link),
+                                                        )
+                                                            ? ' active'
+                                                            : ''
+                                                    }`}
+                                                    type="button"
+                                                    onClick={() => toggleSubmenu(item.label)}
+                                                    aria-expanded={openSubmenu === item.label}
+                                                    aria-controls={`site-submenu-${index}`}
+                                                >
+                                                    {item.label}
+                                                    <i
+                                                        className="fas fa-chevron-down"
+                                                        aria-hidden="true"
+                                                    />
+                                                </button>
+
+                                                <div
+                                                    id={`site-submenu-${index}`}
+                                                    className={`dropdown${
+                                                        openSubmenu === item.label ? ' is-open' : ''
+                                                    }`}
+                                                    aria-hidden={openSubmenu !== item.label}
+                                                >
+                                                    {item.children.map((child) => (
+                                                        <Link
+                                                            key={child.link}
+                                                            className={`dropdown-link${
+                                                                isActive(child.link)
+                                                                    ? ' active'
+                                                                    : ''
+                                                            }`}
+                                                            href={child.link}
+                                                            aria-current={
+                                                                isActive(child.link)
+                                                                    ? 'page'
+                                                                    : undefined
+                                                            }
+                                                            onClick={closeMenu}
+                                                            tabIndex={
+                                                                openSubmenu === item.label
+                                                                    ? undefined
+                                                                    : -1
+                                                            }
+                                                        >
+                                                            <strong>{child.label}</strong>
+                                                            {child.desc && (
+                                                                <small>{child.desc}</small>
+                                                            )}
+                                                        </Link>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </li>
+                                ))}
+
+                                <li className="nav-item mobile-only-block">
                                     <Link
-                                        href={item.link!}
-                                        className={isActive(item.link!, item.exact) ? 'active' : ''}
-                                        aria-current={
-                                            isActive(item.link!, item.exact) ? 'page' : undefined
-                                        }
+                                        className="nav-secure"
+                                        href="/atendente"
                                         onClick={closeMenu}
                                     >
-                                        {item.label}
+                                        <i className="fas fa-lock"></i> Área do Atendente
                                     </Link>
-                                ) : (
-                                    <>
-                                        <button
-                                            className={`nav-trigger${
-                                                item.children.some((child) => isActive(child.link))
-                                                    ? ' active'
-                                                    : ''
-                                            }`}
-                                            type="button"
-                                            onClick={() => toggleSubmenu(item.label)}
-                                            aria-expanded={openSubmenu === item.label}
-                                            aria-controls={`site-submenu-${index}`}
-                                        >
-                                            {item.label}
-                                            <i className="fas fa-chevron-down" aria-hidden="true" />
-                                        </button>
+                                </li>
 
-                                        <div
-                                            id={`site-submenu-${index}`}
-                                            className={`dropdown${
-                                                openSubmenu === item.label ? ' is-open' : ''
-                                            }`}
-                                            aria-hidden={openSubmenu !== item.label}
-                                        >
-                                            {item.children.map((child) => (
-                                                <Link
-                                                    key={child.link}
-                                                    className={`dropdown-link${
-                                                        isActive(child.link) ? ' active' : ''
-                                                    }`}
-                                                    href={child.link}
-                                                    aria-current={
-                                                        isActive(child.link) ? 'page' : undefined
-                                                    }
-                                                    onClick={closeMenu}
-                                                    tabIndex={
-                                                        openSubmenu === item.label ? undefined : -1
-                                                    }
-                                                >
-                                                    <strong>{child.label}</strong>
-                                                    {child.desc && <small>{child.desc}</small>}
-                                                </Link>
-                                            ))}
-                                        </div>
-                                    </>
-                                )}
-                            </li>
-                        ))}
+                                <li className="mobile-only-btn">
+                                    <Link
+                                        href="/como-ajudar"
+                                        className="btn-donate-mobile"
+                                        onClick={closeMenu}
+                                    >
+                                        Como Ajudar
+                                    </Link>
+                                </li>
+                            </ul>
+                        </nav>
 
-                        <li className="nav-item mobile-only-block">
-                            <Link className="nav-secure" href="/atendente" onClick={closeMenu}>
-                                <i className="fas fa-lock"></i> Área do Atendente
-                            </Link>
-                        </li>
-
-                        <li className="mobile-only-btn">
+                        <div className="header-actions desktop-only">
                             <Link
-                                href="/como-ajudar"
-                                className="btn-donate-mobile"
-                                onClick={closeMenu}
+                                href="/atendente"
+                                className="btn-secure"
+                                title="Área restrita do atendente"
                             >
+                                <i className="fas fa-lock"></i>
+                            </Link>
+                            <Link href="/como-ajudar" className="btn-donate">
                                 Como Ajudar
                             </Link>
-                        </li>
-                    </ul>
-                </nav>
-
-                <div className="header-actions desktop-only">
-                    <Link
-                        href="/atendente"
-                        className="btn-secure"
-                        title="Área restrita do atendente"
-                    >
-                        <i className="fas fa-lock"></i>
-                    </Link>
-                    <Link href="/como-ajudar" className="btn-donate">
-                        Como Ajudar
-                    </Link>
-                </div>
-            </div>
-        </header>
+                        </div>
+                    </div>
+                </header>
+            }
+        </TranslatedContent>
     );
 }

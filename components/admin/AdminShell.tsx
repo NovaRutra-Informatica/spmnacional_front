@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
+import { INSTITUTIONAL_LOGO, INSTITUTIONAL_LOGO_ALT } from '@/lib/content/branding';
 
 export interface AdminNavItem {
     label: string;
@@ -232,7 +233,7 @@ export default function AdminShell({
                 <div className="admin-brand">
                     <Link href="/admin" onClick={() => closeSidebar(false)}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src="/logo-small-blue.jpg" alt="" />
+                        <img src={INSTITUTIONAL_LOGO} alt={INSTITUTIONAL_LOGO_ALT} width={56} height={56} />
                         <span>
                             <strong>SPM</strong>
                             <small>Painel administrativo</small>

@@ -4,7 +4,7 @@ import { formatDateLong, formatDateTimeShort, toDateInputValue } from '@/lib/lab
 import { requirePermission } from '@/lib/server/auth';
 import { recordAudit } from '@/lib/server/audit';
 import { decryptSensitive, maskSensitive } from '@/lib/server/crypto';
-import { prisma } from '@/lib/server/db';
+import { prisma, withActorDatabaseScope } from '@/lib/server/db';
 import { RETENCAO_MAXIMA_ANOS, escopoAtendimento, retencaoVencida } from '../politica';
 import PageContent, { type AtendimentoDetalhe } from './PageContent';
 
@@ -20,14 +20,16 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     const { id } = await params;
     const user = await requirePermission('atendimentos');
 
-    const registro = await prisma.atendimento.findFirst({
-        where: { id, ...escopoAtendimento(user) },
-        include: {
-            regional: { select: { name: true, uf: true } },
-            abertoPor: { select: { name: true } },
-            encaminhamentos: { orderBy: [{ encaminhadoEm: 'desc' }] },
-        },
-    });
+    const registro = await withActorDatabaseScope(user, () =>
+        prisma.atendimento.findFirst({
+            where: { id, ...escopoAtendimento(user) },
+            include: {
+                regional: { select: { name: true, uf: true } },
+                abertoPor: { select: { name: true } },
+                encaminhamentos: { orderBy: [{ encaminhadoEm: 'desc' }] },
+            },
+        }),
+    );
 
     // Fora do escopo e inexistente devolvem a mesma resposta: saber que a ficha
     // existe em outra regional já seria informação demais.

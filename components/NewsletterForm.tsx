@@ -1,4 +1,5 @@
 'use client';
+import { TranslatedContent } from '@/components/TranslationProvider';
 
 import { useActionState } from 'react';
 import { inscrever } from '@/app/newsletter/actions';
@@ -19,35 +20,40 @@ export default function NewsletterForm() {
     });
 
     return (
-        <form className="news-form" action={formAction}>
-            <div className="input-group-modern">
-                <input
-                    type="email"
-                    name="email"
-                    placeholder="Digite seu melhor e-mail"
-                    aria-label="Seu e-mail"
-                    required
-                />
+        <TranslatedContent>
+            {
+                <form className="news-form" action={formAction}>
+                    <div className="input-group-modern">
+                        <input
+                            type="email"
+                            name="email"
+                            placeholder="Digite seu melhor e-mail"
+                            aria-label="Seu e-mail"
+                            required
+                        />
 
-                {/* Isca para robôs de spam: invisível e fora da ordem de tabulação. */}
-                <input
-                    type="text"
-                    name="website"
-                    tabIndex={-1}
-                    autoComplete="off"
-                    aria-hidden="true"
-                    style={{ display: 'none' }}
-                />
+                        {/* Isca para robôs de spam: invisível e fora da ordem de tabulação. */}
+                        <input
+                            type="text"
+                            name="website"
+                            tabIndex={-1}
+                            autoComplete="off"
+                            aria-hidden="true"
+                            style={{ display: 'none' }}
+                        />
 
-                <button type="submit" className="btn-submit" disabled={pending}>
-                    {pending ? 'Enviando…' : 'Inscrever-se'} <i className="fas fa-paper-plane"></i>
-                </button>
-            </div>
+                        <button type="submit" className="btn-submit" disabled={pending}>
+                            {pending ? 'Enviando…' : 'Inscrever-se'}{' '}
+                            <i className="fas fa-paper-plane"></i>
+                        </button>
+                    </div>
 
-            {/* A resposta ocupa o lugar da nota de privacidade para não deslocar o layout. */}
-            <p className="privacy-note" aria-live="polite">
-                {state.message ?? DEFAULT_NOTE}
-            </p>
-        </form>
+                    {/* A resposta ocupa o lugar da nota de privacidade para não deslocar o layout. */}
+                    <p className="privacy-note" aria-live="polite">
+                        {state.message ?? DEFAULT_NOTE}
+                    </p>
+                </form>
+            }
+        </TranslatedContent>
     );
 }

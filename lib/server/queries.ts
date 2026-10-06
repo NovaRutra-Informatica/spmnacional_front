@@ -11,6 +11,9 @@ import { prisma } from './db';
  */
 
 const now = () => new Date();
+function listLimit(value: number | undefined, fallback = 50): number {
+    return Number.isSafeInteger(value) && value! > 0 ? Math.min(value!, 100) : fallback;
+}
 
 // ---------------------------------------------------------
 // Notícias
@@ -29,19 +32,32 @@ const postListSelect = {
     category: { select: { name: true, slug: true } },
 } as const;
 
-export async function listPublishedPosts(options: { take?: number; skip?: number } = {}) {
+export async function listPublishedPosts(
+    options: { take?: number; skip?: number; categorySlug?: string } = {},
+) {
     return prisma.post.findMany({
-        where: { status: 'PUBLICADO', publishedAt: { lte: now() } },
-        orderBy: [{ publishedAt: 'desc' }],
+        where: {
+            status: 'PUBLICADO',
+            publishedAt: { lte: now() },
+            ...(options.categorySlug ? { category: { slug: options.categorySlug } } : {}),
+        },
+        orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
         select: postListSelect,
-        take: options.take,
-        skip: options.skip,
+        take: listLimit(options.take),
+        skip:
+            Number.isSafeInteger(options.skip) && options.skip! >= 0
+                ? Math.min(options.skip!, 100_000)
+                : 0,
     });
 }
 
-export async function countPublishedPosts(): Promise<number> {
+export async function countPublishedPosts(categorySlug?: string): Promise<number> {
     return prisma.post.count({
-        where: { status: 'PUBLICADO', publishedAt: { lte: now() } },
+        where: {
+            status: 'PUBLICADO',
+            publishedAt: { lte: now() },
+            ...(categorySlug ? { category: { slug: categorySlug } } : {}),
+        },
     });
 }
 
@@ -56,10 +72,32 @@ export async function getFeaturedPost() {
 export async function getPostBySlug(slug: string) {
     return prisma.post.findFirst({
         where: { slug, status: 'PUBLICADO', publishedAt: { lte: now() } },
-        include: {
-            category: { select: { name: true, slug: true } },
-            tags: { include: { tag: { select: { name: true, slug: true } } } },
+        select: {
+            id: true,
+            slug: true,
+            title: true,
+            excerpt: true,
+            content: true,
+            coverUrl: true,
+            authorName: true,
+            publishedAt: true,
+            category: { select: { name: true } },
+            tags: { select: { tag: { select: { name: true, slug: true } } } },
         },
+    });
+}
+
+/** O bloco "Leia também" precisa só do título e do link, sem corpo ou outras relações. */
+export async function listRelatedPublishedPostLinks(excludeSlug: string) {
+    return prisma.post.findMany({
+        where: {
+            slug: { not: excludeSlug },
+            status: 'PUBLICADO',
+            publishedAt: { lte: now() },
+        },
+        orderBy: [{ publishedAt: 'desc' }, { id: 'desc' }],
+        select: { slug: true, title: true },
+        take: 4,
     });
 }
 
@@ -75,10 +113,18 @@ export async function listCategories() {
     return prisma.category.findMany({ orderBy: { order: 'asc' } });
 }
 
+export async function listPublishedCategories() {
+    return prisma.category.findMany({
+        where: { posts: { some: { status: 'PUBLICADO', publishedAt: { lte: now() } } } },
+        orderBy: { order: 'asc' },
+        select: { name: true, slug: true },
+    });
+}
+
 /** Contador de leitura — falha em silêncio para nunca quebrar a página. */
 export async function incrementPostViews(id: string): Promise<void> {
     await prisma.post
-        .update({ where: { id }, data: { views: { increment: 1 } } })
+        .update({ where: { id }, data: { views: { increment: 1 } }, select: { id: true } })
         .catch(() => undefined);
 }
 
@@ -88,28 +134,28 @@ export async function incrementPostViews(id: string): Promise<void> {
 
 export async function listEditais() {
     return prisma.edital.findMany({
-        where: { published: true },
+        where: { published: true, publishedAt: { lte: now() } },
         orderBy: [{ status: 'asc' }, { order: 'asc' }, { publishedAt: 'desc' }],
     });
 }
 
 export async function listTestemunhos() {
     return prisma.testemunho.findMany({
-        where: { published: true },
+        where: { published: true, publishedAt: { lte: now() }, consent: true },
         orderBy: [{ order: 'asc' }, { publishedAt: 'desc' }],
     });
 }
 
 export async function getFeaturedTestemunho() {
     return prisma.testemunho.findFirst({
-        where: { published: true, featured: true },
+        where: { published: true, publishedAt: { lte: now() }, consent: true, featured: true },
         orderBy: { order: 'asc' },
     });
 }
 
 export async function listDocumentos() {
     return prisma.documento.findMany({
-        where: { published: true },
+        where: { published: true, publishedAt: { lte: now() } },
         orderBy: [{ category: 'asc' }, { order: 'asc' }],
     });
 }
@@ -179,7 +225,7 @@ export async function listAgendaEvents(options: { past?: boolean; take?: number 
             ...(options.past ? { endsAt: { lt: reference } } : { endsAt: { gte: reference } }),
         },
         orderBy: { startsAt: options.past ? 'desc' : 'asc' },
-        take: options.take,
+        take: listLimit(options.take, 100),
     });
 }
 

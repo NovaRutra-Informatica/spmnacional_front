@@ -1,0 +1,5 @@
+vm/*.sh text eol=lf
+vm/*.py text eol=lf
+vm/*.mjs text eol=lf
+vm/*.yml text eol=lf
+vm/Caddyfile text eol=lf

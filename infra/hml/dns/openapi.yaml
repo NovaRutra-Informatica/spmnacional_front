@@ -1,0 +1,19 @@
+swagger: "2.0"
+info:
+  title: SPM HML DNS
+  version: "1.0.0"
+host: hml.endpoints.site-institucional-510319.cloud.goog
+schemes:
+  - https
+produces:
+  - application/json
+x-google-endpoints:
+  - name: hml.endpoints.site-institucional-510319.cloud.goog
+    target: 35.215.232.88
+paths:
+  /api/health/live:
+    get:
+      operationId: hmlLiveness
+      responses:
+        "200":
+          description: HML application liveness

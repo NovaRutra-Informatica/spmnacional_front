@@ -35,11 +35,11 @@
 
         .brand-logo {
             display: block;
-            flex: 0 0 52px;
-            width: 52px;
-            height: 52px;
-            border-radius: 50%;
-            object-fit: cover;
+            flex: 0 0 64px;
+            width: 64px;
+            height: 64px;
+            border-radius: 6px;
+            object-fit: contain;
         }
 
         .brand-text {

@@ -1,12 +1,12 @@
-import type { Metadata } from 'next';
-import Link from 'next/link';
+import { pageMetadata } from '@/lib/seo';
+import Image from 'next/image';
+import PublicTranslation from '@/components/PublicTranslation';
+import Link from '@/components/LocalizedLink';
 import Animate from '@/components/Animate';
 import PageHero from '@/components/PageHero';
 import PageCta from '@/components/PageCta';
 
-export const metadata: Metadata = {
-    title: 'Nossa História',
-};
+export const metadata = pageMetadata('/quem-somos/historia');
 
 interface Milestone {
     year: string;
@@ -84,133 +84,154 @@ const milestones: Milestone[] = [
 
 export default function Page() {
     return (
-        <>
-            <PageHero
-                eyebrow="Nossa história"
-                title="Quatro décadas caminhando com quem migra"
-                subtitle="Do êxodo rural dos anos 1980 às rotas internacionais de hoje: uma linha do tempo do Serviço Pastoral dos Migrantes."
-                crumbs={[{ label: 'Quem Somos', link: '/quem-somos' }, { label: 'Nossa História' }]}
-            />
+        <PublicTranslation pageKey="quem-somos/historia">
+            {
+                <>
+                    <PageHero
+                        eyebrow="Nossa história"
+                        title="Quatro décadas caminhando com quem migra"
+                        subtitle="Do êxodo rural dos anos 1980 às rotas internacionais de hoje: uma linha do tempo do Serviço Pastoral dos Migrantes."
+                        crumbs={[
+                            { label: 'Quem Somos', link: '/quem-somos' },
+                            { label: 'Nossa História' },
+                        ]}
+                    />
 
-            <section className="section">
-                <div className="container">
-                    <Animate className="split">
-                        <div
-                            className="split__media"
-                            style={{ backgroundImage: "url('/assets/exemplo-migrantes.jpeg')" }}
-                        ></div>
-                        <div className="prose">
-                            <span className="eyebrow">Como tudo começou</span>
-                            <h2>Uma pergunta que virou pastoral</h2>
-                            <p>
-                                Em 1980, a Campanha da Fraternidade perguntou ao Brasil:{' '}
-                                <em>“Para onde vais?”</em> O país vivia um êxodo rural massivo.
-                                Famílias inteiras deixavam o campo rumo às periferias das grandes
-                                cidades, empurradas pela concentração de terra e pela mecanização da
-                                lavoura.
-                            </p>
-                            <p>
-                                Aquela pergunta não se encerrou com a campanha. Ela continuou
-                                ecoando em comunidades, sindicatos e romarias — e amadureceu, ao
-                                longo de cinco anos, na criação de um serviço permanente da Igreja
-                                junto às pessoas em mobilidade.
-                            </p>
-                            <p>
-                                Em <strong>outubro de 1985</strong> nascia o Serviço Pastoral dos
-                                Migrantes. Não como uma obra de assistência, mas como uma pastoral
-                                de organização: ajudar quem migra a se reconhecer sujeito de
-                                direitos e protagonista da própria história.
-                            </p>
+                    <section className="section">
+                        <div className="container">
+                            <Animate className="split">
+                                <div className="split__media">
+                                    <Image
+                                        src="/assets/exemplo-migrantes.jpeg"
+                                        alt="Pessoas caminham juntas em um espaço público."
+                                        fill
+                                        sizes="(max-width: 991px) 100vw, 50vw"
+                                        loading="lazy"
+                                        style={{ objectFit: 'cover' }}
+                                    />
+                                </div>
+                                <div className="prose">
+                                    <span className="eyebrow">Como tudo começou</span>
+                                    <h2>Uma pergunta que virou pastoral</h2>
+                                    <p>
+                                        Em 1980, a Campanha da Fraternidade perguntou ao Brasil:{' '}
+                                        <em>“Para onde vais?”</em> O país vivia um êxodo rural
+                                        massivo. Famílias inteiras deixavam o campo rumo às
+                                        periferias das grandes cidades, empurradas pela concentração
+                                        de terra e pela mecanização da lavoura.
+                                    </p>
+                                    <p>
+                                        Aquela pergunta não se encerrou com a campanha. Ela
+                                        continuou ecoando em comunidades, sindicatos e romarias — e
+                                        amadureceu, ao longo de cinco anos, na criação de um serviço
+                                        permanente da Igreja junto às pessoas em mobilidade.
+                                    </p>
+                                    <p>
+                                        Em <strong>outubro de 1985</strong> nascia o Serviço
+                                        Pastoral dos Migrantes. Não como uma obra de assistência,
+                                        mas como uma pastoral de organização: ajudar quem migra a se
+                                        reconhecer sujeito de direitos e protagonista da própria
+                                        história.
+                                    </p>
+                                </div>
+                            </Animate>
                         </div>
-                    </Animate>
-                </div>
-            </section>
+                    </section>
 
-            <section className="section section--light">
-                <div className="container">
-                    <Animate className="section-head section-head--center">
-                        <span className="eyebrow">Linha do tempo</span>
-                        <h2>Marcos da nossa caminhada</h2>
-                        <p>
-                            As datas que ajudam a entender por que o SPM é o que é — e por que as
-                            pautas de terra, trabalho e moradia nunca saíram do nosso horizonte.
-                        </p>
-                    </Animate>
+                    <section className="section section--light">
+                        <div className="container">
+                            <Animate className="section-head section-head--center">
+                                <span className="eyebrow">Linha do tempo</span>
+                                <h2>Marcos da nossa caminhada</h2>
+                                <p>
+                                    As datas que ajudam a entender por que o SPM é o que é — e por
+                                    que as pautas de terra, trabalho e moradia nunca saíram do nosso
+                                    horizonte.
+                                </p>
+                            </Animate>
 
-                    <Animate as="ul" className="timeline">
-                        {milestones.map((m) => (
-                            <li className="timeline__item" key={m.title}>
-                                <span className="timeline__year">{m.year}</span>
-                                <h3>{m.title}</h3>
-                                <p>{m.text}</p>
-                            </li>
-                        ))}
-                    </Animate>
-                </div>
-            </section>
-
-            <section className="section">
-                <div className="container">
-                    <Animate className="split split--reverse">
-                        <div
-                            className="split__media"
-                            style={{
-                                backgroundImage: "url('/assets/padre-alfredinho.png')",
-                                backgroundPosition: 'top',
-                            }}
-                        ></div>
-                        <div className="prose">
-                            <span className="eyebrow">Memória viva</span>
-                            <h2>Gente que abriu caminho</h2>
-                            <p>
-                                A história do SPM é feita de padres, religiosas, leigos e —
-                                sobretudo — de migrantes que assumiram a liderança das próprias
-                                comunidades. Muitos deles enfrentaram ameaças ao denunciar o
-                                aliciamento de trabalhadores para os canaviais e as frentes de
-                                desmatamento.
-                            </p>
-                            <p>
-                                Guardamos essa memória não como nostalgia, mas como método: foi
-                                ouvindo quem migra que o SPM aprendeu a fazer pastoral. É por isso
-                                que, até hoje, nenhuma assembleia nacional acontece sem que as bases
-                                regionais tenham falado primeiro.
-                            </p>
-                            <blockquote>
-                                “O migrante não é um problema a ser resolvido. É uma ponte entre
-                                povos.”
-                            </blockquote>
-                            <Link className="btn btn--outline" href="/publicacoes/testemunhos">
-                                Ler testemunhos <i className="fas fa-arrow-right"></i>
-                            </Link>
+                            <Animate as="ul" className="timeline">
+                                {milestones.map((m) => (
+                                    <li className="timeline__item" key={m.title}>
+                                        <span className="timeline__year">{m.year}</span>
+                                        <h3>{m.title}</h3>
+                                        <p>{m.text}</p>
+                                    </li>
+                                ))}
+                            </Animate>
                         </div>
-                    </Animate>
-                </div>
-            </section>
+                    </section>
 
-            <section className="section section--brand">
-                <div className="container">
-                    <Animate className="section-head section-head--center">
-                        <h2>Continue explorando</h2>
-                        <p style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
-                            A história recente do SPM se escreve nas assembleias, nos documentos e
-                            nas campanhas de cada ano.
-                        </p>
-                    </Animate>
-                    <div className="cta-band__actions">
-                        <Link className="btn btn--light" href="/quem-somos/estrutura">
-                            Estrutura e coordenação
-                        </Link>
-                        <Link className="btn btn--light" href="/quem-somos/documentos">
-                            Documentos
-                        </Link>
-                        <Link className="btn btn--cta" href="/semana-do-migrante">
-                            Semana do Migrante
-                        </Link>
-                    </div>
-                </div>
-            </section>
+                    <section className="section">
+                        <div className="container">
+                            <Animate className="split split--reverse">
+                                <div className="split__media">
+                                    <Image
+                                        src="/assets/padre-alfredinho.png"
+                                        alt="Retrato de Padre Alfredinho, apresentado na memória histórica do SPM."
+                                        fill
+                                        sizes="(max-width: 991px) 100vw, 50vw"
+                                        loading="lazy"
+                                        style={{ objectFit: 'cover', objectPosition: 'top' }}
+                                    />
+                                </div>
+                                <div className="prose">
+                                    <span className="eyebrow">Memória viva</span>
+                                    <h2>Gente que abriu caminho</h2>
+                                    <p>
+                                        A história do SPM é feita de padres, religiosas, leigos e —
+                                        sobretudo — de migrantes que assumiram a liderança das
+                                        próprias comunidades. Muitos deles enfrentaram ameaças ao
+                                        denunciar o aliciamento de trabalhadores para os canaviais e
+                                        as frentes de desmatamento.
+                                    </p>
+                                    <p>
+                                        Guardamos essa memória não como nostalgia, mas como método:
+                                        foi ouvindo quem migra que o SPM aprendeu a fazer pastoral.
+                                        É por isso que, até hoje, nenhuma assembleia nacional
+                                        acontece sem que as bases regionais tenham falado primeiro.
+                                    </p>
+                                    <blockquote>
+                                        “O migrante não é um problema a ser resolvido. É uma ponte
+                                        entre povos.”
+                                    </blockquote>
+                                    <Link
+                                        className="btn btn--outline"
+                                        href="/publicacoes/testemunhos"
+                                    >
+                                        Ler testemunhos <i className="fas fa-arrow-right"></i>
+                                    </Link>
+                                </div>
+                            </Animate>
+                        </div>
+                    </section>
 
-            <PageCta />
-        </>
+                    <section className="section section--brand">
+                        <div className="container">
+                            <Animate className="section-head section-head--center">
+                                <h2>Continue explorando</h2>
+                                <p style={{ color: 'rgba(255, 255, 255, 0.75)' }}>
+                                    A história recente do SPM se escreve nas assembleias, nos
+                                    documentos e nas campanhas de cada ano.
+                                </p>
+                            </Animate>
+                            <div className="cta-band__actions">
+                                <Link className="btn btn--light" href="/quem-somos/estrutura">
+                                    Estrutura e coordenação
+                                </Link>
+                                <Link className="btn btn--light" href="/quem-somos/documentos">
+                                    Documentos
+                                </Link>
+                                <Link className="btn btn--cta" href="/semana-do-migrante">
+                                    Semana do Migrante
+                                </Link>
+                            </div>
+                        </div>
+                    </section>
+
+                    <PageCta />
+                </>
+            }
+        </PublicTranslation>
     );
 }

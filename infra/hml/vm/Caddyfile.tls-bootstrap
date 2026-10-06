@@ -1,0 +1,18 @@
+{
+    admin off
+    auto_https disable_redirects
+    # No HTTP access logger; only certificate/runtime errors may be recorded.
+    log {
+        level ERROR
+    }
+}
+
+# ACME challenge handlers are supplied by automatic HTTPS. Every normal HTTP
+# request receives 503; there is no route to the application or its credentials.
+https://{$HML_DOMAIN}, http://{$HML_DOMAIN} {
+    header {
+        X-Robots-Tag "noindex, nofollow, noarchive"
+        Cache-Control "no-store"
+    }
+    respond "HML fora do horario." 503
+}

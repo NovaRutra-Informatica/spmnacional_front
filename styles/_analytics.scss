@@ -1,0 +1,8 @@
+.analytics-consent .cookie-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.analytics-preferences {
+    display: block; margin: .75rem auto; padding: .6rem 1rem;
+    border: 1px solid currentColor; border-radius: .25rem;
+    background: #fff; color: #004a99; cursor: pointer; font: inherit;
+}
+.analytics-preferences:focus-visible { outline: 3px solid #f2b705; outline-offset: 3px; }
+@media (max-width: 768px) { .analytics-preferences { margin-bottom: calc(5rem + env(safe-area-inset-bottom)); } }

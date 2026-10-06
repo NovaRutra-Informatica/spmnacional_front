@@ -272,7 +272,7 @@ export default function PageContent({
                                                                     : isActive
                                                                       ? 'Desativar acesso'
                                                                       : user.status === 'PENDENTE'
-                                                                        ? 'Ativar sem esperar o aceite do convite (o link enviado deixa de valer)'
+                                                                        ? 'Autorizar acesso com a conta institucional Google Workspace'
                                                                         : 'Reativar acesso'
                                                             }
                                                         >
@@ -285,13 +285,13 @@ export default function PageContent({
                                                             ></i>
                                                         </button>
 
-                                                        {user.status === 'PENDENTE' && (
+                                                        {user.status === 'ATIVO' && (
                                                             <button
                                                                 className="abtn abtn--ghost abtn--sm"
                                                                 name="intent"
                                                                 value="reenviar-convite"
                                                                 disabled={pending}
-                                                                title="Reenviar convite"
+                                                                title="Reenviar instruções de acesso"
                                                             >
                                                                 <i className="fas fa-paper-plane"></i>
                                                             </button>

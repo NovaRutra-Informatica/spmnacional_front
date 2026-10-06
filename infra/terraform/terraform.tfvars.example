@@ -10,15 +10,19 @@
 
 project_id        = "spm-nacional-prod"
 github_repository = "spm-nacional/spmnacional_front"
+github_repository_id       = "123456789" # substituir pelo ID real
+github_repository_owner_id = "987654321" # substituir pelo ID real
 
 # ---------- Região ----------
-# São Paulo custa ~1,5x us-central1 e mantém os dados no Brasil.
+# Confirmar região, orçamento e requisitos de tratamento de dados.
 region = "southamerica-east1"
 
 # ---------- Domínio ----------
 # Deixe vazio no primeiro apply. Depois de mapear o domínio no Cloud Run,
 # preencha e rode o apply de novo para que APP_URL fique correto.
 app_domain = ""
+# Sem domínio, após bootstrap copie cloud_run_url para app_url_override.
+app_url_override = ""
 # app_domain = "spmnacional.org.br"
 
 # ---------- Aplicação ----------
@@ -30,15 +34,19 @@ use_bootstrap_image = true
 max_instances       = 4
 cpu_limit           = "1"
 memory_limit        = "512Mi"
-request_concurrency = 80
+# Limita requisições HTTP, não pessoas/sessões. Validar 50 leitores +3 editores
+# com o perfil audience antes do lançamento; isto não é garantia de capacidade.
+request_concurrency = 16
 
 # ---------- Banco ----------
-# db-f1-micro + 10 GB SSD ≈ US$ 14 a 15/mês em São Paulo.
-# É o único item que cobra 24h por dia.
+# Capacidade inicial, sujeita a testes de carga e orçamento aprovado.
 db_tier         = "db-f1-micro"
 db_disk_size_gb = 10
 db_name         = "spmnacional"
 db_user         = "spm"
+db_availability_type = "ZONAL" # REGIONAL exige tier compatível e orçamento para HA
+db_pitr_enabled      = true
+db_pool_max          = 5
 
 # ---------- Uploads ----------
 uploads_noncurrent_retention_days = 30
@@ -56,8 +64,17 @@ mail_notify_to = "contato@spmnacional.org.br"
 
 enable_google_oauth         = false
 google_oauth_allowed_domain = "spmnacional.org.br"
+# Ambos devem ser true antes da aplicação real. Só confirme após o responsável
+# impor e conferir 2FA no Workspace; a flag não habilita MFA no provedor.
+google_workspace_mfa_enforced = false
+
+# Permanece desativado sem consumo da API até orçamento/quotas aprovados.
+enable_translation                  = false
+translation_location                = "global"
+translation_daily_character_limit   = 50000
 
 enable_google_calendar  = false
+external_secret_versions = {} # incluir RUNTIME_DATABASE_URL = "2" após provisionar papel SQL
 google_calendar_id      = ""
 agenda_sync_schedule    = "0 */6 * * *"
 data_retention_schedule = "30 4 * * *"

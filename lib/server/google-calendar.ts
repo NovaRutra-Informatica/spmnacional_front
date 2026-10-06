@@ -1,65 +1,44 @@
 import 'server-only';
 
+import { z } from 'zod';
 import { AgendaSource } from '@/lib/generated/prisma/enums';
 import { prisma } from './db';
 import { env, isGoogleCalendarEnabled } from './env';
-
-/**
- * Sincronização da agenda pública com o Google Calendar.
- *
- * Usa a API REST direta com chave (`key=`) em vez do SDK do Google: o
- * calendário da organização é público, e `events.list` aceita autorização
- * opcional nesse caso — não há token a renovar nem dependência a carregar.
- *
- * A função nunca lança. A agenda do site precisa continuar de pé mesmo com o
- * Google fora do ar, e ela já funciona sozinha com os eventos cadastrados no
- * painel (`source: MANUAL`), que esta rotina jamais toca.
- */
+import { logError } from './logger';
+import { readBoundedJson } from './bounded-json';
 
 const CALENDAR_API = 'https://www.googleapis.com/calendar/v3/calendars';
-
-/** Teto por chamada. Com `singleEvents=true` cada ocorrência conta como um item. */
 const MAX_RESULTS = 50;
-
-/** Duração assumida quando o Google devolve um evento sem fim declarado. */
-const DURACAO_PADRAO_MS = 60 * 60 * 1000;
-
+const MAX_PAGES = 10;
 const UM_DIA_MS = 24 * 60 * 60 * 1000;
 
 export interface AgendaSyncResult {
+    ok: boolean;
+    partial: boolean;
     criados: number;
     atualizados: number;
     removidos: number;
 }
 
-const NADA_A_FAZER: AgendaSyncResult = { criados: 0, atualizados: 0, removidos: 0 };
+const EMPTY_RESULT = { partial: false, criados: 0, atualizados: 0, removidos: 0 };
 
-// ---------------------------------------------------------
-// Formato da resposta do Google (só o que usamos)
-// ---------------------------------------------------------
-
-interface GoogleEventDate {
-    /** Evento de dia inteiro: "2026-08-14". */
-    date?: string;
-    /** Evento com hora: RFC 3339 com offset. */
-    dateTime?: string;
-    timeZone?: string;
-}
-
-interface GoogleEvent {
-    id?: string;
-    status?: string;
-    summary?: string;
-    description?: string;
-    location?: string;
-    htmlLink?: string;
-    start?: GoogleEventDate;
-    end?: GoogleEventDate;
-}
-
-interface GoogleEventsResponse {
-    items?: GoogleEvent[];
-}
+const dateSchema = z.object({ date: z.string().optional(), dateTime: z.string().optional() });
+const eventSchema = z.object({
+    id: z.string().min(1).max(1024),
+    status: z.string().optional(),
+    summary: z.string().max(100_000).optional(),
+    description: z.string().max(1_000_000).optional(),
+    location: z.string().max(100_000).optional(),
+    htmlLink: z.string().max(4096).optional(),
+    start: dateSchema.optional(),
+    end: dateSchema.optional(),
+});
+const responseSchema = z.object({
+    kind: z.literal('calendar#events'),
+    items: z.array(eventSchema).max(MAX_RESULTS).default([]),
+    nextPageToken: z.string().min(1).max(4096).optional(),
+});
+type GoogleEvent = z.infer<typeof eventSchema>;
 
 interface Intervalo {
     startsAt: Date;
@@ -67,178 +46,148 @@ interface Intervalo {
     allDay: boolean;
 }
 
-/**
- * Converte o par start/end do Google em instantes gravaveis.
- *
- * Dia inteiro é ancorado em UTC porque `formatDateLong` (lib/labels) lê a data
- * com os getters UTC — assim o dia exibido é o mesmo que aparece no Google,
- * independentemente do fuso do servidor.
- */
 function resolverIntervalo(event: GoogleEvent): Intervalo | null {
-    const { start, end } = event;
-    if (!start) return null;
-
-    if (start.date) {
-        const startsAt = new Date(`${start.date}T00:00:00.000Z`);
-        if (Number.isNaN(startsAt.getTime())) return null;
-
-        // O `end.date` do Google é exclusivo (o dia SEGUINTE ao último dia do
-        // evento). Recuar 1 ms devolve o fim real, o que mantém o evento
-        // visível no seu último dia tanto na listagem quanto na formatação.
-        const bruto = end?.date ? new Date(`${end.date}T00:00:00.000Z`) : null;
-        const endsAt =
-            bruto && !Number.isNaN(bruto.getTime())
-                ? new Date(bruto.getTime() - 1)
-                : new Date(startsAt.getTime() + UM_DIA_MS - 1);
-
-        return { startsAt, endsAt, allDay: true };
-    }
-
-    if (start.dateTime) {
-        const startsAt = new Date(start.dateTime);
-        if (Number.isNaN(startsAt.getTime())) return null;
-
-        const bruto = end?.dateTime ? new Date(end.dateTime) : null;
-        const endsAt =
-            bruto && !Number.isNaN(bruto.getTime())
-                ? bruto
-                : new Date(startsAt.getTime() + DURACAO_PADRAO_MS);
-
-        return { startsAt, endsAt, allDay: false };
-    }
-
-    return null;
+    if (!event.start) return null;
+    const allDay = Boolean(event.start.date);
+    const startValue = allDay ? event.start.date : event.start.dateTime;
+    const endValue = allDay ? event.end?.date : event.end?.dateTime;
+    const parse = (value: string) => {
+        if (allDay && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+        if (!allDay && !/T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value)) return null;
+        const result = new Date(allDay ? `${value}T00:00:00.000Z` : value);
+        if (!Number.isFinite(result.getTime())) return null;
+        if (allDay && result.toISOString().slice(0, 10) !== value) return null;
+        return result;
+    };
+    const startsAt = startValue ? parse(startValue) : null;
+    if (!startsAt) return null;
+    const parsedEnd = endValue ? parse(endValue) : null;
+    if (endValue && !parsedEnd) return null;
+    const exclusiveEnd =
+        parsedEnd ?? new Date(startsAt.getTime() + (allDay ? UM_DIA_MS : 3_600_000));
+    if (exclusiveEnd <= startsAt) return null;
+    return {
+        startsAt,
+        endsAt: allDay ? new Date(exclusiveEnd.getTime() - 1) : exclusiveEnd,
+        allDay,
+    };
 }
 
-function textoOuNulo(value: string | undefined): string | null {
-    const trimmed = value?.trim();
-    return trimmed ? trimmed : null;
+function textoOuNulo(value: string | undefined, maximum: number): string | null {
+    return value?.trim().slice(0, maximum) || null;
 }
 
-// ---------------------------------------------------------
-// Sincronização
-// ---------------------------------------------------------
+function safeEventUrl(value: string | undefined): string | null {
+    if (!value) return null;
+    try {
+        const url = new URL(value);
+        return url.protocol === 'https:' && !url.username && !url.password ? url.href : null;
+    } catch {
+        return null;
+    }
+}
 
 /**
- * Traz os próximos eventos do calendário configurado e reflete-os na tabela
- * `AgendaEvent`. Devolve zeros — sem chamar nada — quando a integração não
- * está configurada ou quando algo falha.
+ * Lê páginas antes de escrever e aplica a alteração em uma transação. Uma
+ * falha do provedor mantém o último retrato válido. `nextPageToken`, e não o
+ * tamanho da página, determina se é seguro remover eventos ausentes.
  */
 export async function sincronizarAgenda(): Promise<AgendaSyncResult> {
-    if (!isGoogleCalendarEnabled()) return { ...NADA_A_FAZER };
-
+    if (!isGoogleCalendarEnabled()) return { ok: false, ...EMPTY_RESULT };
     const calendarId = env.google.calendarId;
     const timeMin = new Date();
 
     try {
         const url = new URL(`${CALENDAR_API}/${encodeURIComponent(calendarId)}/events`);
-        url.searchParams.set('key', env.google.calendarApiKey);
         url.searchParams.set('timeMin', timeMin.toISOString());
-        // Expande séries recorrentes em ocorrências individuais; `orderBy=startTime`
-        // só é aceito junto com essa opção.
         url.searchParams.set('singleEvents', 'true');
         url.searchParams.set('orderBy', 'startTime');
         url.searchParams.set('maxResults', String(MAX_RESULTS));
+        const events = new Map<string, GoogleEvent>();
+        const seenTokens = new Set<string>();
+        let nextPageToken: string | undefined;
+        const signal = AbortSignal.timeout(30_000);
 
-        const response = await fetch(url, {
-            cache: 'no-store',
-            signal: AbortSignal.timeout(10_000),
-        });
-
-        if (!response.ok) {
-            console.error(
-                `[agenda] Google Calendar respondeu ${response.status} para o calendário ${calendarId}.`,
-            );
-            return { ...NADA_A_FAZER };
-        }
-
-        const payload = (await response.json()) as GoogleEventsResponse;
-        const items = payload.items ?? [];
-
-        // Cada item vira um par (id, dados) já validado; o que não tiver id ou
-        // data utilizável é descartado silenciosamente.
-        const pendentes: { googleEventId: string; intervalo: Intervalo; event: GoogleEvent }[] = [];
-        for (const event of items) {
-            if (!event.id || event.status === 'cancelled') continue;
-            const intervalo = resolverIntervalo(event);
-            if (!intervalo) continue;
-            pendentes.push({ googleEventId: event.id, intervalo, event });
-        }
-
-        const ids = pendentes.map((item) => item.googleEventId);
-
-        // Saber de antemão o que já existe permite contar criação e atualização
-        // sem depender do retorno do upsert.
-        const existentes = ids.length
-            ? await prisma.agendaEvent.findMany({
-                  where: { googleEventId: { in: ids } },
-                  select: { googleEventId: true },
-              })
-            : [];
-        const jaExistem = new Set(
-            existentes.map((row) => row.googleEventId).filter((id): id is string => Boolean(id)),
-        );
-
-        let criados = 0;
-        let atualizados = 0;
-
-        for (const { googleEventId, intervalo, event } of pendentes) {
-            const dados = {
-                calendarId,
-                title: textoOuNulo(event.summary) ?? 'Evento sem título',
-                description: textoOuNulo(event.description),
-                location: textoOuNulo(event.location),
-                url: textoOuNulo(event.htmlLink),
-                startsAt: intervalo.startsAt,
-                endsAt: intervalo.endsAt,
-                allDay: intervalo.allDay,
-                source: AgendaSource.GOOGLE_CALENDAR,
-            };
-
-            await prisma.agendaEvent.upsert({
-                where: { googleEventId },
-                // `published` fica de fora da atualização de propósito: se a
-                // equipe escondeu um evento no painel, a sincronização não
-                // pode trazê-lo de volta sozinha.
-                update: dados,
-                create: { ...dados, googleEventId, published: true },
+        for (let page = 0; page < MAX_PAGES; page += 1) {
+            if (nextPageToken) url.searchParams.set('pageToken', nextPageToken);
+            const response = await fetch(url, {
+                // A chave fica fora da URL para não aparecer em logs de acesso.
+                headers: { 'X-Goog-Api-Key': env.google.calendarApiKey },
+                cache: 'no-store',
+                redirect: 'error',
+                signal,
             });
-
-            if (jaExistem.has(googleEventId)) {
-                atualizados += 1;
-            } else {
-                criados += 1;
-            }
+            if (!response.ok) throw new Error('Calendar upstream failure');
+            const payload = responseSchema.parse(await readBoundedJson(response, 2 * 1024 * 1024));
+            for (const event of payload.items) events.set(event.id, event);
+            nextPageToken = payload.nextPageToken;
+            if (!nextPageToken) break;
+            if (seenTokens.has(nextPageToken)) throw new Error('Calendar pagination cycle');
+            seenTokens.add(nextPageToken);
         }
 
-        // Remoção do que sumiu do calendário.
-        //
-        // Só apagamos dentro da janela que a consulta realmente cobriu: nada
-        // antes de `timeMin` (o passado não vem na resposta e é histórico) e,
-        // se batemos no teto de resultados, nada depois do último evento
-        // recebido — senão a página 2 do calendário seria apagada por engano.
-        //
-        // O teto é medido no que o Google devolveu (`items`), não no que sobrou
-        // depois do filtro: um único evento cancelado na página faria
-        // `pendentes` parecer incompleto e liberaria a exclusão de tudo o que
-        // estava na página seguinte.
-        const bateuNoTeto = items.length >= MAX_RESULTS;
-        const horizonte = bateuNoTeto
-            ? (pendentes[pendentes.length - 1]?.intervalo.startsAt ?? timeMin)
-            : null;
+        const pending = [...events.values()]
+            .filter((event) => event.status !== 'cancelled')
+            .map((event) => {
+                const intervalo = resolverIntervalo(event);
+                // Um item inesperado não pode transformar uma resposta defeituosa
+                // em uma lista vazia e apagar dados válidos do banco.
+                if (!intervalo) throw new Error('Invalid Calendar event dates');
+                return { event, intervalo };
+            });
+        const ids = pending.map(({ event }) => event.id);
+        const partial = Boolean(nextPageToken);
 
-        const { count: removidos } = await prisma.agendaEvent.deleteMany({
-            where: {
-                source: AgendaSource.GOOGLE_CALENDAR,
-                endsAt: { gte: timeMin },
-                ...(horizonte ? { startsAt: { lte: horizonte } } : {}),
-                ...(ids.length ? { googleEventId: { notIn: ids } } : {}),
+        return await prisma.$transaction(
+            async (tx) => {
+                const existing = ids.length
+                    ? await tx.agendaEvent.findMany({
+                          where: { googleEventId: { in: ids } },
+                          select: { googleEventId: true, calendarId: true },
+                      })
+                    : [];
+                if (existing.some((event) => event.calendarId !== calendarId)) {
+                    throw new Error('Calendar event belongs to another calendar');
+                }
+                const knownIds = new Set(existing.map((event) => event.googleEventId));
+                let criados = 0;
+                let atualizados = 0;
+                for (const { event, intervalo } of pending) {
+                    const data = {
+                        calendarId,
+                        title: textoOuNulo(event.summary, 300) ?? 'Evento sem título',
+                        description: textoOuNulo(event.description, 20_000),
+                        location: textoOuNulo(event.location, 1000),
+                        url: safeEventUrl(event.htmlLink),
+                        ...intervalo,
+                        source: AgendaSource.GOOGLE_CALENDAR,
+                    };
+                    await tx.agendaEvent.upsert({
+                        where: { googleEventId: event.id },
+                        update: data,
+                        create: { ...data, googleEventId: event.id, published: true },
+                    });
+                    if (knownIds.has(event.id)) atualizados += 1;
+                    else criados += 1;
+                }
+                // Recorrências infinitas podem exceder o orçamento. Numa consulta
+                // incompleta nenhum evento ausente é excluído.
+                const deleted = partial
+                    ? { count: 0 }
+                    : await tx.agendaEvent.deleteMany({
+                          where: {
+                              source: AgendaSource.GOOGLE_CALENDAR,
+                              calendarId,
+                              endsAt: { gte: timeMin },
+                              ...(ids.length ? { googleEventId: { notIn: ids } } : {}),
+                          },
+                      });
+                return { ok: true, partial, criados, atualizados, removidos: deleted.count };
             },
-        });
-
-        return { criados, atualizados, removidos };
+            { timeout: 30_000, maxWait: 5_000 },
+        );
     } catch (error) {
-        console.error('[agenda] falha ao sincronizar com o Google Calendar:', error);
-        return { ...NADA_A_FAZER };
+        logError('calendar.sync_failed', error);
+        return { ok: false, ...EMPTY_RESULT };
     }
 }

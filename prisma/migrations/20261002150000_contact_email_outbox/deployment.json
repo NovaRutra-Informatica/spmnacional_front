@@ -1,0 +1,1 @@
+{"schemaVersion":1,"strategy":"expand","reason":"Adds a protected SMTP outbox referencing existing encrypted contacts; existing contact rows are unchanged."}

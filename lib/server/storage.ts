@@ -26,8 +26,29 @@ export interface StoredFile {
 const SAFE_CHARS = /[^a-zA-Z0-9._-]+/g;
 const DIACRITICS = new RegExp('[\\u0300-\\u036f]', 'g');
 
+/** Chaves são caminhos relativos canônicos, iguais no Windows, Linux e GCS. */
+export function isValidStorageKey(value: string): boolean {
+    return (
+        value.length > 0 &&
+        value.length <= 512 &&
+        value
+            .split('/')
+            .every(
+                (part) =>
+                    /^[a-zA-Z0-9][a-zA-Z0-9._-]*$/.test(part) &&
+                    !part.endsWith('.') &&
+                    !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part),
+            )
+    );
+}
+
+function assertStorageKey(value: string): void {
+    if (!isValidStorageKey(value)) throw new ActionInputError('Chave de arquivo inválida.');
+}
+
 /** Nome de arquivo previsível e seguro, preservando a extensão original. */
 export function buildStorageKey(originalName: string, prefix = 'uploads'): string {
+    assertStorageKey(prefix);
     const ext = path.extname(originalName).toLowerCase().slice(0, 12);
     const base = path
         .basename(originalName, path.extname(originalName))
@@ -43,10 +64,13 @@ export function buildStorageKey(originalName: string, prefix = 'uploads'): strin
     const yyyy = now.getUTCFullYear();
     const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
 
-    return `${prefix}/${yyyy}/${mm}/${randomUUID().slice(0, 8)}-${base || 'arquivo'}${ext}`;
+    const key = `${prefix}/${yyyy}/${mm}/${randomUUID()}-${base || 'arquivo'}${ext}`;
+    assertStorageKey(key);
+    return key;
 }
 
 export function publicUrlFor(storageKey: string): string {
+    assertStorageKey(storageKey);
     // O bucket permanece privado também em produção. A rota da aplicação
     // decide se o arquivo já está publicado ou se exige sessão administrativa.
     return `/api/arquivos/${storageKey}`;
@@ -57,6 +81,7 @@ export function publicUrlFor(storageKey: string): string {
 // ---------------------------------------------------------
 
 function localPathFor(storageKey: string): string {
+    assertStorageKey(storageKey);
     const root = path.resolve(env.storage.localDir);
     const target = path.resolve(root, storageKey);
 
@@ -67,19 +92,46 @@ function localPathFor(storageKey: string): string {
     return target;
 }
 
+/** Não atravessa links simbólicos/junctions abaixo do volume configurado. */
+async function checkedLocalPath(storageKey: string, createParents = false): Promise<string> {
+    const { lstat, mkdir, realpath } = await import('node:fs/promises');
+    localPathFor(storageKey);
+    const configuredRoot = path.resolve(env.storage.localDir);
+    if (createParents) await mkdir(configuredRoot, { recursive: true, mode: 0o700 });
+    const root = await realpath(configuredRoot);
+    const parts = storageKey.split('/');
+    let parent = root;
+    for (const part of parts.slice(0, -1)) {
+        parent = path.join(parent, part);
+        if (createParents) {
+            try {
+                await mkdir(parent, { mode: 0o700 });
+            } catch (error) {
+                if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+            }
+        }
+        const info = await lstat(parent);
+        if (info.isSymbolicLink() || !info.isDirectory()) {
+            throw new Error('Diretório de armazenamento inválido.');
+        }
+    }
+    return path.join(parent, parts[parts.length - 1]);
+}
+
 async function putLocal(storageKey: string, data: Buffer): Promise<void> {
-    const { mkdir, writeFile } = await import('node:fs/promises');
-    const target = localPathFor(storageKey);
-    await mkdir(path.dirname(target), { recursive: true });
-    await writeFile(target, data);
+    const { writeFile } = await import('node:fs/promises');
+    const target = await checkedLocalPath(storageKey, true);
+    await writeFile(target, data, { flag: 'wx', mode: 0o600 });
 }
 
 async function deleteLocal(storageKey: string): Promise<void> {
-    const { unlink } = await import('node:fs/promises');
+    const { lstat, unlink } = await import('node:fs/promises');
     try {
-        await unlink(localPathFor(storageKey));
-    } catch {
-        // Arquivo já ausente: não é erro para quem chamou.
+        const target = await checkedLocalPath(storageKey);
+        if (!(await lstat(target)).isFile()) throw new Error('Arquivo de armazenamento inválido.');
+        await unlink(target);
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
 }
 
@@ -89,8 +141,10 @@ export async function readLocalFile(
     if (env.storage.driver !== 'local') return null;
 
     try {
-        const { readFile } = await import('node:fs/promises');
-        const target = localPathFor(storageKey);
+        const { lstat, readFile } = await import('node:fs/promises');
+        const target = await checkedLocalPath(storageKey);
+        const info = await lstat(target);
+        if (!info.isFile() || info.size > MAX_UPLOAD_BYTES) return null;
         const data = await readFile(target);
         return { data, mimeType: guessMimeType(target) };
     } catch {
@@ -143,6 +197,7 @@ async function putGcs(storageKey: string, data: Buffer, mimeType: string): Promi
     );
     url.searchParams.set('uploadType', 'media');
     url.searchParams.set('name', storageKey);
+    url.searchParams.set('ifGenerationMatch', '0');
 
     const response = await fetch(url, {
         method: 'POST',
@@ -152,6 +207,8 @@ async function putGcs(storageKey: string, data: Buffer, mimeType: string): Promi
         },
         body: new Uint8Array(data),
         cache: 'no-store',
+        redirect: 'error',
+        signal: AbortSignal.timeout(30_000),
     });
 
     if (!response.ok) {
@@ -160,48 +217,91 @@ async function putGcs(storageKey: string, data: Buffer, mimeType: string): Promi
 }
 
 async function deleteGcs(storageKey: string): Promise<void> {
-    if (!env.storage.gcsBucket) return;
+    if (!env.storage.gcsBucket) throw new Error('GCS_BUCKET não configurado.');
 
     const token = await getGoogleAccessToken([GOOGLE_SCOPES.storageReadWrite]);
-    if (!token) return;
+    if (!token) throw new Error('Sem credencial para excluir do Cloud Storage.');
 
-    await fetch(
+    const response = await fetch(
         `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(env.storage.gcsBucket)}/o/${encodeURIComponent(storageKey)}`,
-        { method: 'DELETE', headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' },
-    ).catch(() => undefined);
+        {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+            redirect: 'error',
+            signal: AbortSignal.timeout(15_000),
+        },
+    );
+    if (!response.ok && response.status !== 404) {
+        throw new Error(`Falha ao excluir do Cloud Storage (${response.status}).`);
+    }
 }
 
 async function readGcsFile(storageKey: string): Promise<StoredFileBody | null> {
-    if (!env.storage.gcsBucket) return null;
+    if (!env.storage.gcsBucket) throw new Error('GCS_BUCKET não configurado.');
 
     const token = await getGoogleAccessToken([GOOGLE_SCOPES.storageReadWrite]);
-    if (!token) return null;
+    if (!token) throw new Error('Sem credencial para ler do Cloud Storage.');
 
     const response = await fetch(
         `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(env.storage.gcsBucket)}/o/${encodeURIComponent(storageKey)}?alt=media`,
-        { headers: { Authorization: `Bearer ${token}` }, cache: 'no-store' },
+        {
+            headers: { Authorization: `Bearer ${token}` },
+            cache: 'no-store',
+            redirect: 'error',
+            signal: AbortSignal.timeout(30_000),
+        },
     );
 
-    if (!response.ok || !response.body) return null;
+    if (response.status === 404) return null;
+    if (!response.ok || !response.body) {
+        throw new Error(`Falha ao ler do Cloud Storage (${response.status}).`);
+    }
+
+    const declaredLength = response.headers.get('content-length');
+    if (declaredLength && Number(declaredLength) > MAX_UPLOAD_BYTES) {
+        await response.body.cancel();
+        throw new Error('Objeto excede o limite de armazenamento.');
+    }
 
     return {
         body: response.body,
-        contentLength: response.headers.get('content-length'),
+        contentLength: declaredLength,
     };
 }
 
 /** Lê um objeto sem torná-lo público no provedor de armazenamento. */
 export async function readStoredFile(storageKey: string): Promise<StoredFileBody | null> {
+    assertStorageKey(storageKey);
     if (env.storage.driver === 'gcs') {
         return readGcsFile(storageKey);
     }
 
-    const file = await readLocalFile(storageKey);
-    if (!file) return null;
-    return {
-        body: new Uint8Array(file.data),
-        contentLength: String(file.data.length),
-    };
+    const { lstat, open } = await import('node:fs/promises');
+    const { constants } = await import('node:fs');
+    const { Readable } = await import('node:stream');
+    try {
+        const target = await checkedLocalPath(storageKey);
+        if (!(await lstat(target)).isFile()) return null;
+        const handle = await open(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+        try {
+            const info = await handle.stat();
+            if (!info.isFile() || info.size > MAX_UPLOAD_BYTES) {
+                await handle.close();
+                return null;
+            }
+            return {
+                body: Readable.toWeb(handle.createReadStream()) as ReadableStream<Uint8Array>,
+                contentLength: String(info.size),
+            };
+        } catch (error) {
+            await handle.close();
+            throw error;
+        }
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+        throw error;
+    }
 }
 
 // ---------------------------------------------------------
@@ -226,7 +326,10 @@ const isZip = (data: Buffer) =>
 const isOle = startsWith([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
 
 const UPLOAD_TYPES: Record<string, UploadType> = {
-    '.png': { mimeType: 'image/png', matches: startsWith([0x89, 0x50, 0x4e, 0x47]) },
+    '.png': {
+        mimeType: 'image/png',
+        matches: startsWith([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    },
     '.jpg': { mimeType: 'image/jpeg', matches: startsWith([0xff, 0xd8, 0xff]) },
     '.jpeg': { mimeType: 'image/jpeg', matches: startsWith([0xff, 0xd8, 0xff]) },
     '.webp': {
@@ -265,7 +368,11 @@ export const ALLOWED_MIME_TYPES = new Set(
 export async function storeBuffer(
     data: Buffer,
     originalName: string,
-    options: { prefix?: string } = {},
+    options: {
+        prefix?: string;
+        /** Persist a recovery intention before any provider write (server callers only). */
+        beforeStore?: (file: Readonly<StoredFile>) => Promise<void>;
+    } = {},
 ): Promise<StoredFile> {
     if (data.length <= 0) {
         throw new ActionInputError('O arquivo está vazio.');
@@ -289,6 +396,14 @@ export async function storeBuffer(
 
     const mimeType = type.mimeType;
     const storageKey = buildStorageKey(originalName, options.prefix);
+    const stored = Object.freeze({
+        storageKey,
+        url: publicUrlFor(storageKey),
+        filename: path.basename(storageKey),
+        size: data.length,
+        mimeType,
+    });
+    await options.beforeStore?.(stored);
 
     if (env.storage.driver === 'gcs') {
         await putGcs(storageKey, data, mimeType);
@@ -296,16 +411,11 @@ export async function storeBuffer(
         await putLocal(storageKey, data);
     }
 
-    return {
-        storageKey,
-        url: publicUrlFor(storageKey),
-        filename: path.basename(storageKey),
-        size: data.length,
-        mimeType,
-    };
+    return stored;
 }
 
 export async function deleteFile(storageKey: string): Promise<void> {
+    assertStorageKey(storageKey);
     if (env.storage.driver === 'gcs') {
         await deleteGcs(storageKey);
     } else {

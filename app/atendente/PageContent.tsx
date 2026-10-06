@@ -1,40 +1,26 @@
 'use client';
 
-import { useActionState, useState } from 'react';
 import Link from 'next/link';
+import { useActionState } from 'react';
 import PageHero from '@/components/PageHero';
-import { entrar } from './actions';
-
-/**
- * O tipo do estado é declarado aqui porque `lib/server/actions` é `server-only`
- * e não pode ser importado por um Client Component.
- */
-interface FormState {
-    ok: boolean;
-    message?: string;
-    fieldErrors?: Record<string, string>;
-    data?: Record<string, unknown>;
-}
+import { entrarLocal } from './actions';
+import { INSTITUTIONAL_LOGO, INSTITUTIONAL_LOGO_ALT } from '@/lib/content/branding';
 
 interface PageContentProps {
     googleEnabled: boolean;
     proximo: string;
     erroInicial?: string;
+    localTestAccount?: { name: string; email: string } | null;
 }
 
-export default function PageContent({ googleEnabled, proximo, erroInicial }: PageContentProps) {
-    const [state, formAction, pending] = useActionState<FormState, FormData>(entrar, { ok: false });
-
-    const [email, setEmail] = useState('');
-    const [showPassword, setShowPassword] = useState(false);
-
-    const togglePassword = () => {
-        setShowPassword(!showPassword);
-    };
-
-    // O erro do fluxo OAuth chega pela URL; o do formulário, pelo estado da ação.
+export default function PageContent({
+    googleEnabled,
+    erroInicial,
+    proximo,
+    localTestAccount,
+}: PageContentProps) {
+    const [state, formAction, pending] = useActionState(entrarLocal, { ok: false });
     const error = state.message ?? erroInicial ?? null;
-
     return (
         <>
             <PageHero
@@ -51,17 +37,14 @@ export default function PageContent({ googleEnabled, proximo, erroInicial }: Pag
                     <div style={{ maxWidth: '480px', margin: '0 auto' }}>
                         <div className="form-card">
                             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-                                <div
-                                    className="card__icon card__icon--initials"
-                                    style={{
-                                        margin: '0 auto 1.25rem',
-                                        width: '68px',
-                                        height: '68px',
-                                        fontSize: '1.4rem',
-                                    }}
-                                >
-                                    <i className="fas fa-lock"></i>
-                                </div>
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
+                                <img
+                                    src={INSTITUTIONAL_LOGO}
+                                    alt={INSTITUTIONAL_LOGO_ALT}
+                                    width={108}
+                                    height={108}
+                                    style={{ display: 'block', margin: '0 auto 1.25rem', objectFit: 'contain' }}
+                                />
                                 <h2 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>
                                     Acesso restrito
                                 </h2>
@@ -72,13 +55,16 @@ export default function PageContent({ googleEnabled, proximo, erroInicial }: Pag
                                         margin: '0',
                                     }}
                                 >
-                                    Use as credenciais fornecidas pela coordenação da sua regional.
+                                    {localTestAccount
+                                        ? 'O acesso de teste está habilitado somente neste ambiente local.'
+                                        : 'Entre com seu e-mail institucional autorizado no Google Workspace.'}
                                 </p>
                             </div>
 
                             {error && (
                                 <div
                                     className="callout callout--action"
+                                    role="alert"
                                     style={{ margin: '0 0 1.5rem', padding: '1rem 1.25rem' }}
                                 >
                                     <i className="fas fa-triangle-exclamation"></i>
@@ -86,118 +72,50 @@ export default function PageContent({ googleEnabled, proximo, erroInicial }: Pag
                                 </div>
                             )}
 
-                            <form action={formAction}>
-                                <input type="hidden" name="proximo" value={proximo} />
-
-                                <div className="form-grid" style={{ gridTemplateColumns: '1fr' }}>
-                                    <div className="form-field">
-                                        <label htmlFor="email">Usuário ou e-mail</label>
-                                        <input
-                                            id="email"
-                                            type="text"
-                                            name="email"
-                                            autoComplete="username"
-                                            value={email}
-                                            onChange={(e) => setEmail(e.target.value)}
-                                            placeholder="seu.usuario"
-                                        />
+                            {localTestAccount ? (
+                                <form action={formAction}>
+                                    <input type="hidden" name="proximo" value={proximo} />
+                                    <div className="callout local-test-access" role="status">
+                                        <p>
+                                            <strong>Acesso local de teste</strong>
+                                            <br />
+                                            Conta: {localTestAccount.name} ({localTestAccount.email}
+                                            ). As alterações serão salvas no banco deste ambiente.
+                                        </p>
                                     </div>
-
-                                    <div className="form-field">
-                                        <label htmlFor="senha">Senha</label>
-                                        <div style={{ position: 'relative' }}>
-                                            {/*
-                                                A senha fica não controlada de propósito: o React
-                                                limpa o campo ao concluir a ação, que é justamente
-                                                o comportamento desejado depois de um erro.
-                                            */}
-                                            <input
-                                                id="senha"
-                                                name="senha"
-                                                autoComplete="current-password"
-                                                type={showPassword ? 'text' : 'password'}
-                                                defaultValue=""
-                                                placeholder="••••••••"
-                                            />
-                                            <button
-                                                type="button"
-                                                className="password-toggle"
-                                                onClick={togglePassword}
-                                                aria-label={
-                                                    showPassword ? 'Ocultar senha' : 'Mostrar senha'
-                                                }
-                                            >
-                                                <i
-                                                    className={`fas ${
-                                                        showPassword ? 'fa-eye-slash' : 'fa-eye'
-                                                    }`}
-                                                ></i>
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    <div className="form-field">
-                                        <button
-                                            type="submit"
-                                            className="btn btn--primary btn--block"
-                                            disabled={pending}
-                                        >
-                                            {pending ? (
-                                                <>
-                                                    <i className="fas fa-circle-notch fa-spin"></i>{' '}
-                                                    Entrando…
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <i className="fas fa-right-to-bracket"></i>{' '}
-                                                    Entrar
-                                                </>
-                                            )}
-                                        </button>
-                                    </div>
-
-                                    {googleEnabled && (
-                                        <div className="form-field">
-                                            <div
-                                                style={{
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '0.85rem',
-                                                    color: 'var(--color-text-muted)',
-                                                    fontSize: '0.75rem',
-                                                    fontWeight: '700',
-                                                    letterSpacing: '1px',
-                                                    textTransform: 'uppercase',
-                                                }}
-                                            >
-                                                <span
-                                                    style={{
-                                                        flex: '1',
-                                                        height: '1px',
-                                                        background: '#f0f0f0',
-                                                    }}
-                                                ></span>
-                                                ou
-                                                <span
-                                                    style={{
-                                                        flex: '1',
-                                                        height: '1px',
-                                                        background: '#f0f0f0',
-                                                    }}
-                                                ></span>
-                                            </div>
-
-                                            <a
-                                                className="btn btn--outline btn--block"
-                                                href="/api/auth/google"
-                                            >
-                                                <i className="fab fa-google"></i> Entrar com Google
-                                                Workspace
-                                            </a>
-                                        </div>
-                                    )}
+                                    <button
+                                        className="btn btn--primary btn--block"
+                                        type="submit"
+                                        disabled={pending}
+                                        aria-busy={pending}
+                                    >
+                                        {pending ? 'Entrando…' : 'Entrar no ambiente local'}
+                                    </button>
+                                </form>
+                            ) : googleEnabled ? (
+                                <a className="btn btn--primary btn--block" href="/api/auth/google">
+                                    <i className="fab fa-google" aria-hidden="true"></i> Entrar com
+                                    Google Workspace
+                                </a>
+                            ) : (
+                                <div className="callout" role="status">
+                                    <p>
+                                        O acesso institucional ainda está sendo configurado. Fale
+                                        com a coordenação.
+                                    </p>
                                 </div>
-                            </form>
+                            )}
+                            <p
+                                style={{
+                                    marginTop: '1rem',
+                                    color: 'var(--color-text-muted)',
+                                    fontSize: '0.88rem',
+                                }}
+                            >
+                                {localTestAccount
+                                    ? 'Sessão de teste de até uma hora. Este acesso não funciona na nuvem; lá será exigida a conta Google Workspace.'
+                                    : 'Não há senha local. A verificação em duas etapas é administrada pela organização no Google Workspace.'}
+                            </p>
 
                             <div
                                 style={{
@@ -214,7 +132,7 @@ export default function PageContent({ googleEnabled, proximo, erroInicial }: Pag
                                         margin: '0',
                                     }}
                                 >
-                                    Esqueceu a senha ou ainda não tem acesso?{' '}
+                                    Ainda não tem autorização de acesso?{' '}
                                     <Link
                                         href="/fale-conosco"
                                         style={{

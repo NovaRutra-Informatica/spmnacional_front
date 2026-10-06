@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createSign } from 'node:crypto';
+import { readBoundedJson } from './bounded-json';
 
 /**
  * Obtenção de token de acesso do Google sem SDK.
@@ -24,6 +25,23 @@ interface CachedToken {
 }
 
 const cache = new Map<string, CachedToken>();
+const pending = new Map<string, Promise<string | null>>();
+
+function readToken(data: unknown): { token: string; lifetime: number } | null {
+    if (!data || typeof data !== 'object') return null;
+    const { access_token: token, expires_in: lifetime } = data as Record<string, unknown>;
+    if (
+        typeof token !== 'string' ||
+        !token ||
+        token.length > 16_384 ||
+        typeof lifetime !== 'number' ||
+        !Number.isFinite(lifetime) ||
+        lifetime <= 0 ||
+        lifetime > 86_400
+    )
+        return null;
+    return { token, lifetime };
+}
 
 function cacheKey(scopes: string[]): string {
     return scopes.slice().sort().join(' ');
@@ -41,18 +59,19 @@ async function tokenFromMetadataServer(scopes: string[]): Promise<string | null>
             headers: { 'Metadata-Flavor': 'Google' },
             signal: AbortSignal.timeout(2000),
             cache: 'no-store',
+            redirect: 'error',
         });
 
-        if (!response.ok) return null;
+        if (!response.ok || response.headers.get('Metadata-Flavor') !== 'Google') return null;
 
-        const data = (await response.json()) as { access_token?: string; expires_in?: number };
-        if (!data.access_token) return null;
+        const data = readToken(await readBoundedJson(response, 64 * 1024));
+        if (!data) return null;
 
         cache.set(cacheKey(scopes), {
-            token: data.access_token,
-            expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 - 60_000,
+            token: data.token,
+            expiresAt: Date.now() + data.lifetime * 1000 - 60_000,
         });
-        return data.access_token;
+        return data.token;
     } catch {
         // Fora do GCP o servidor de metadados simplesmente não existe.
         return null;
@@ -77,7 +96,14 @@ async function tokenFromServiceAccountFile(scopes: string[]): Promise<string | n
         const { readFile } = await import('node:fs/promises');
         const raw = await readFile(keyPath, 'utf8');
         const key = JSON.parse(raw) as ServiceAccountKey;
-        if (!key.client_email || !key.private_key) return null;
+        if (
+            typeof key.client_email !== 'string' ||
+            typeof key.private_key !== 'string' ||
+            !key.client_email ||
+            !key.private_key ||
+            (key.token_uri && key.token_uri !== TOKEN_ENDPOINT)
+        )
+            return null;
 
         const now = Math.floor(Date.now() / 1000);
         const header = base64url(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
@@ -85,7 +111,7 @@ async function tokenFromServiceAccountFile(scopes: string[]): Promise<string | n
             JSON.stringify({
                 iss: key.client_email,
                 scope: scopes.join(' '),
-                aud: key.token_uri ?? TOKEN_ENDPOINT,
+                aud: TOKEN_ENDPOINT,
                 iat: now,
                 exp: now + 3600,
             }),
@@ -96,7 +122,7 @@ async function tokenFromServiceAccountFile(scopes: string[]): Promise<string | n
         const signature = signer.sign(key.private_key).toString('base64url');
         const assertion = `${header}.${claims}.${signature}`;
 
-        const response = await fetch(key.token_uri ?? TOKEN_ENDPOINT, {
+        const response = await fetch(TOKEN_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: new URLSearchParams({
@@ -104,18 +130,20 @@ async function tokenFromServiceAccountFile(scopes: string[]): Promise<string | n
                 assertion,
             }),
             cache: 'no-store',
+            signal: AbortSignal.timeout(10_000),
+            redirect: 'error',
         });
 
         if (!response.ok) return null;
 
-        const data = (await response.json()) as { access_token?: string; expires_in?: number };
-        if (!data.access_token) return null;
+        const data = readToken(await readBoundedJson(response, 64 * 1024));
+        if (!data) return null;
 
         cache.set(cacheKey(scopes), {
-            token: data.access_token,
-            expiresAt: Date.now() + (data.expires_in ?? 3600) * 1000 - 60_000,
+            token: data.token,
+            expiresAt: Date.now() + data.lifetime * 1000 - 60_000,
         });
-        return data.access_token;
+        return data.token;
     } catch {
         return null;
     }
@@ -133,7 +161,13 @@ export async function getGoogleAccessToken(scopes: string[]): Promise<string | n
         return cached.token;
     }
 
-    return (await tokenFromMetadataServer(scopes)) ?? (await tokenFromServiceAccountFile(scopes));
+    const existing = pending.get(key);
+    if (existing) return existing;
+    const refresh = (async () =>
+        (await tokenFromMetadataServer(scopes)) ??
+        (await tokenFromServiceAccountFile(scopes)))().finally(() => pending.delete(key));
+    pending.set(key, refresh);
+    return refresh;
 }
 
 export const GOOGLE_SCOPES = {

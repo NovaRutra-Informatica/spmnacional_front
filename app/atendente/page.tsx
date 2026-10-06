@@ -1,7 +1,10 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
-import { getCurrentUser } from '@/lib/server/auth';
+import { getCurrentUser, getLocalTestAccount } from '@/lib/server/auth';
+import { safeAdminDestination } from '@/lib/server/auth-security';
 import { isGoogleOAuthEnabled } from '@/lib/server/env';
+import { env } from '@/lib/server/env';
+import { workspaceDomain } from '@/lib/config/workspace-auth';
 import PageContent from './PageContent';
 
 // Lê a sessão a cada requisição: nada aqui pode ser pré-renderizado.
@@ -14,12 +17,6 @@ type SearchParams = Record<string, string | string[] | undefined>;
 function primeiro(valor: string | string[] | undefined): string {
     if (Array.isArray(valor)) return valor[0] ?? '';
     return valor ?? '';
-}
-
-/** Mesma regra da Server Action: só voltamos para dentro do painel. */
-function destinoSeguro(proximo: string): string {
-    if (!proximo.startsWith('/admin') || proximo.includes('\\')) return '/admin';
-    return proximo;
 }
 
 export default async function Page({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -36,8 +33,11 @@ export default async function Page({ searchParams }: { searchParams: Promise<Sea
 
     return (
         <PageContent
-            googleEnabled={isGoogleOAuthEnabled()}
-            proximo={destinoSeguro(primeiro(params.proximo))}
+            localTestAccount={await getLocalTestAccount()}
+            googleEnabled={
+                isGoogleOAuthEnabled() && Boolean(workspaceDomain(env.google.allowedDomain))
+            }
+            proximo={safeAdminDestination(primeiro(params.proximo))}
             erroInicial={erro || undefined}
         />
     );

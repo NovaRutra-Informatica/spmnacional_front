@@ -101,10 +101,10 @@
     }
 
     img {
-        width: 44px;
-        height: 44px;
-        object-fit: cover;
-        border-radius: 12px;
+        width: 56px;
+        height: 56px;
+        object-fit: contain;
+        border-radius: 6px;
         box-shadow: 0 5px 16px rgba(0, 55, 111, 0.16);
     }
 
@@ -736,6 +736,21 @@
     @media (max-width: 768px) {
         padding: 1.25rem 1.1rem 3rem;
     }
+}
+
+.admin-local-test-notice {
+    padding: 0.85rem 1rem;
+    margin-bottom: 1.25rem;
+    border-inline-start: 3px solid #004a99;
+    background: #f4f4f4;
+    color: #333;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.local-test-access {
+    margin-block: 0 1.25rem;
+    overflow-wrap: anywhere;
 }
 
 @media (max-width: 576px) {

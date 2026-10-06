@@ -1,0 +1,158 @@
+// A compact utility beside the SPM identity; no new visual theme or motion.
+.public-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    margin-block: 2rem;
+}
+.main-header .language-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: #004a99;
+    background: #fff;
+    border: 1px solid #dce5ed;
+    border-radius: 6px;
+    padding: 0.25rem 0.4rem;
+    flex-shrink: 0;
+    select {
+        font: inherit;
+        font-size: 0.8rem;
+        color: inherit;
+        border: 0;
+        background: transparent;
+        max-width: 7rem;
+        min-height: 32px;
+    }
+    select:focus-visible {
+        outline: 2px solid #007acc;
+        outline-offset: 2px;
+    }
+    select:disabled {
+        opacity: 0.65;
+    }
+}
+.translation-notice {
+    padding: 0.7rem 1rem;
+    background: #f4f4f4;
+    color: #333;
+    font-size: 0.85rem;
+    text-align: center;
+    a {
+        color: #004a99;
+        text-decoration: underline;
+    }
+    img {
+        vertical-align: middle;
+        display: inline-block;
+        max-width: 100%;
+    }
+}
+main > .public-translation {
+    // Texto expandido pode aumentar o cabeçalho: não esconder o aviso sob ele.
+    padding-top: var(--localized-header-height, var(--header-height));
+}
+@media (min-width: 1101px) {
+    // O cabeçalho português continua exatamente com as regras originais.
+    .main-header--localized {
+        .header-wrapper {
+            display: grid;
+            grid-template-columns: auto auto minmax(0, 1fr) auto;
+            gap: 0.75rem;
+        }
+        .brand-text small {
+            max-width: 9rem;
+        }
+        .nav-menu,
+        .nav-item {
+            min-width: 0;
+        }
+        .nav-list {
+            justify-content: center;
+            gap: 0.85rem;
+        }
+        .nav-item > a,
+        .nav-item > .nav-trigger {
+            min-width: 0;
+            letter-spacing: 0.01em;
+            white-space: normal;
+            overflow-wrap: anywhere;
+        }
+        .header-actions {
+            gap: 0.5rem;
+        }
+        .btn-secure {
+            flex-shrink: 0;
+        }
+        .btn-donate {
+            width: clamp(6.5rem, 10vw, 9rem);
+            min-height: 42px;
+            padding: 0.55rem 0.75rem;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            text-align: center;
+            line-height: 1.35;
+        }
+    }
+}
+@media (min-width: 1101px) and (max-width: 1440px) {
+    // Reserva o espaço do seletor sem alterar a organização do header original.
+    .main-header:not(.main-header--localized) .header-wrapper {
+        gap: 1rem;
+    }
+    .main-header--localized .brand-text small {
+        display: none;
+    }
+}
+[dir='rtl'] {
+    .prose,
+    .post-card__body,
+    .page-hero__inner,
+    .footer-col {
+        text-align: start;
+    }
+    .fa-arrow-right,
+    .fa-arrow-left {
+        transform: scaleX(-1);
+    }
+    .brand-text small {
+        letter-spacing: normal;
+    }
+    h1,
+    h2,
+    h3,
+    h4 {
+        font-family: 'Open Sans', Tahoma, Arial, sans-serif;
+        line-height: 1.6;
+    }
+    input[type='email'],
+    input[type='tel'],
+    input[type='url'] {
+        direction: ltr;
+        text-align: start;
+    }
+}
+@media (max-width: 1100px) {
+    .main-header .header-wrapper {
+        gap: 0.65rem;
+    }
+    .main-header .language-selector {
+        margin-inline-start: auto;
+    }
+    .main-header .brand-text small {
+        max-width: 120px;
+    }
+}
+@media (max-width: 420px) {
+    .main-header .language-selector select {
+        max-width: 5.1rem;
+        font-size: 0.73rem;
+    }
+    .main-header .language-selector label {
+        display: none;
+    }
+    .main-header .brand-text {
+        display: none;
+    }
+}

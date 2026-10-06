@@ -4,8 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { prisma } from '@/lib/server/db';
 import { recordAudit } from '@/lib/server/audit';
-import { createSession, revokeAllSessions } from '@/lib/server/auth';
-import { hashPassword, verifyPassword } from '@/lib/server/crypto';
+import { PASSWORD_DISABLED } from '@/lib/server/auth';
 import {
     actionError,
     actionOk,
@@ -166,86 +165,9 @@ export async function salvarSite(_prev: ActionState, formData: FormData): Promis
 // Conta
 // ---------------------------------------------------------
 
-const senhaSchema = z
-    .object({
-        currentPassword: z.string().min(1, 'Informe a senha atual.').max(128),
-        newPassword: z
-            .string()
-            .min(12, 'A nova senha precisa de pelo menos 12 caracteres.')
-            .max(128, 'A nova senha deve ter no máximo 128 caracteres.'),
-        confirmPassword: z.string().min(1, 'Repita a nova senha.').max(128),
-    })
-    .refine((data) => data.newPassword === data.confirmPassword, {
-        path: ['confirmPassword'],
-        message: 'A confirmação não corresponde à nova senha.',
-    })
-    .refine((data) => data.newPassword !== data.currentPassword, {
-        path: ['newPassword'],
-        message: 'A nova senha precisa ser diferente da atual.',
-    });
-
-export async function alterarSenha(_prev: ActionState, formData: FormData): Promise<ActionState> {
-    return runAction('config', async (user) => {
-        const parsed = senhaSchema.safeParse({
-            currentPassword: formString(formData, 'currentPassword'),
-            newPassword: formString(formData, 'newPassword'),
-            confirmPassword: formString(formData, 'confirmPassword'),
-        });
-
-        if (!parsed.success) {
-            return actionError('Verifique os campos destacados.', zodErrors(parsed.error));
-        }
-
-        const conta = await prisma.user.findUnique({
-            where: { id: user.id },
-            select: { passwordHash: true },
-        });
-
-        if (!conta?.passwordHash) {
-            return actionError(
-                'Esta conta entra apenas por Google Workspace e não tem senha para trocar.',
-            );
-        }
-
-        const confere = await verifyPassword(parsed.data.currentPassword, conta.passwordHash);
-
-        if (!confere) {
-            await recordAudit({
-                action: 'Troca de senha recusada (senha atual incorreta)',
-                target: user.email,
-                level: 'ALERTA',
-                userId: user.id,
-                actorLabel: user.email,
-            });
-
-            return actionError('Verifique os campos destacados.', {
-                currentPassword: 'A senha atual não confere.',
-            });
-        }
-
-        await prisma.user.update({
-            where: { id: user.id },
-            data: {
-                passwordHash: await hashPassword(parsed.data.newPassword),
-                mustChangePassword: false,
-                failedLoginCount: 0,
-                lockedUntil: null,
-            },
-        });
-
-        // Trocar a senha derruba tudo o que estava aberto; a aba atual recebe uma
-        // sessão nova para que a pessoa não precise entrar de novo.
-        await revokeAllSessions(user.id);
-        await createSession(user.id);
-
-        await recordAudit({
-            action: 'Senha alterada pela própria pessoa',
-            target: user.email,
-            userId: user.id,
-            actorLabel: user.email,
-        });
-
-        revalidatePath('/admin/configuracoes');
-        return actionOk('Senha atualizada. As outras sessões abertas foram encerradas.');
-    });
+/** Legacy action cannot create credentials or refresh sessions. */
+export async function alterarSenha(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+    void _prev;
+    void _formData;
+    return actionError(PASSWORD_DISABLED);
 }

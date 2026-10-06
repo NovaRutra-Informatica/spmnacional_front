@@ -3,6 +3,8 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { generateToken } from '@/lib/server/crypto';
 import { env, isGoogleOAuthEnabled } from '@/lib/server/env';
+import { workspaceDomain } from '@/lib/config/workspace-auth';
+import { googleOAuthRateLimitResponse } from '@/lib/server/oauth-rate-limit';
 
 /**
  * Início do fluxo Authorization Code + PKCE do Google Workspace.
@@ -22,9 +24,11 @@ const TEMP_COOKIE_MAX_AGE = 10 * 60;
 
 export async function GET(): Promise<NextResponse> {
     // Sem credenciais configuradas a rota não existe — nem revela que existiria.
-    if (!isGoogleOAuthEnabled()) {
+    if (!isGoogleOAuthEnabled() || !workspaceDomain(env.google.allowedDomain)) {
         return new NextResponse('Não encontrado.', { status: 404 });
     }
+    const limited = await googleOAuthRateLimitResponse('start');
+    if (limited) return limited;
 
     const state = generateToken(24);
     const verifier = generateToken(48);
@@ -60,10 +64,8 @@ export async function GET(): Promise<NextResponse> {
     autorizacao.searchParams.set('access_type', 'online');
     autorizacao.searchParams.set('prompt', 'select_account');
 
-    // Com domínio restrito, o próprio Google já filtra a lista de contas.
-    if (env.google.allowedDomain) {
-        autorizacao.searchParams.set('hd', env.google.allowedDomain);
-    }
+    // This is only an account-picker hint. Callback validates the signed hd claim.
+    autorizacao.searchParams.set('hd', workspaceDomain(env.google.allowedDomain)!);
 
     return NextResponse.redirect(autorizacao);
 }

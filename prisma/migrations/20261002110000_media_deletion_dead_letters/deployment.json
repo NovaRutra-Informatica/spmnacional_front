@@ -1,0 +1,1 @@
+{"schemaVersion":1,"strategy":"expand","reason":"Adds nullable job metadata; existing workers remain compatible."}

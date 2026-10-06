@@ -83,7 +83,8 @@
             opacity 620ms ease 120ms,
             transform 620ms ease 120ms;
 
-        h1 {
+        h1,
+        h2 {
             max-width: 850px;
             margin: 0 0 1.5rem;
             color: #fff;
@@ -239,7 +240,8 @@
         .hero-slide__inner {
             padding-top: calc(var(--header-height) + 2rem);
         }
-        .hero-slide__content h1 {
+        .hero-slide__content h1,
+        .hero-slide__content h2 {
             font-size: clamp(2.2rem, 5.8vw, 3rem);
         }
         .hero-slide__content p {
@@ -254,7 +256,8 @@
         .hero-carousel {
             min-height: 760px;
         }
-        .hero-slide__content h1 {
+        .hero-slide__content h1,
+        .hero-slide__content h2 {
             font-size: clamp(2rem, 8vw, 2.6rem);
         }
         .hero-slide__content p {

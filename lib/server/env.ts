@@ -1,4 +1,5 @@
 import 'server-only';
+import { workspaceDomain } from '@/lib/config/workspace-auth';
 
 /**
  * Acesso tipado às variáveis de ambiente.
@@ -26,6 +27,11 @@ function int(name: string, fallback: number): number {
 export const env = {
     appUrl: str('APP_URL', 'http://localhost:3000'),
     databaseUrl: str('DATABASE_URL'),
+    database: {
+        poolMax: int('DB_POOL_MAX', 5),
+        connectionTimeoutMs: int('DATABASE_CONNECTION_TIMEOUT_MS', 5000),
+        queryTimeoutMs: int('DATABASE_QUERY_TIMEOUT_MS', 10000),
+    },
 
     authSecret: str('AUTH_SECRET'),
     encryptionKey: str('ENCRYPTION_KEY'),
@@ -65,7 +71,9 @@ export const env = {
 
 /** O login com Google só aparece quando o OAuth está configurado. */
 export function isGoogleOAuthEnabled(): boolean {
-    return Boolean(env.google.clientId && env.google.clientSecret);
+    return Boolean(
+        env.google.clientId && env.google.clientSecret && workspaceDomain(env.google.allowedDomain),
+    );
 }
 
 /** A sincronização da agenda só roda com calendário e chave configurados. */

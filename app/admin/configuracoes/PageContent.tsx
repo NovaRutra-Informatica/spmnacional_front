@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useActionState, useState } from 'react';
-import { alterarSenha, salvarContato, salvarInstitucional, salvarSite } from './actions';
+import { salvarContato, salvarInstitucional, salvarSite } from './actions';
 
 /** Espelha `ActionState` do servidor — o módulo original é server-only. */
 interface FormState {
@@ -40,7 +40,6 @@ interface AccountInfo {
     roleName: string;
     regionalName: string | null;
     lastAccess: string | null;
-    hasPassword: boolean;
     sessoesAtivas: number;
 }
 
@@ -126,13 +125,10 @@ export default function PageContent({ settings, account, googleOAuthEnabled }: P
             <div className="anote anote--warning" style={{ marginTop: '1.5rem' }}>
                 <i className="fas fa-lock"></i>
                 <div>
-                    <strong>Sobre a autenticação deste painel.</strong> A autenticação agora é real:
-                    a senha fica guardada como hash scrypt, a sessão é emitida e revogada pelo
-                    servidor, e cada acesso passa pelo banco. O login por Google Workspace só
-                    aparece na tela de entrada quando as credenciais OAuth estiverem configuradas
-                    {googleOAuthEnabled
-                        ? ', o que já está feito neste servidor.'
-                        : ', o que ainda não foi feito neste servidor.'}
+                    <strong>Acesso exclusivo Google Workspace.</strong> Somente contas
+                    institucionais autorizadas podem entrar. A exigência de verificação em duas
+                    etapas deve ser mantida pela administração do Workspace; o site não atesta o
+                    segundo fator.
                 </div>
             </div>
         </>
@@ -419,10 +415,6 @@ function ContaTab({
     account: AccountInfo;
     googleOAuthEnabled: boolean;
 }) {
-    const [state, formAction, pending] = useActionState<FormState, FormData>(alterarSenha, {
-        ok: false,
-    });
-
     return (
         <div className="agrid agrid--2">
             <div className="acard" style={{ marginTop: '0' }}>
@@ -502,69 +494,26 @@ function ContaTab({
             <div className="acard" style={{ marginTop: '0' }}>
                 <div className="acard__head">
                     <div>
-                        <h2>Alterar senha</h2>
-                        <p>Recomendamos trocar a senha a cada 90 dias.</p>
+                        <h2>Segurança da conta Google</h2>
+                        <p>Senha e verificação em duas etapas são gerenciadas no Workspace.</p>
                     </div>
                 </div>
-
-                {account.hasPassword ? (
-                    <form action={formAction}>
-                        <Feedback state={state} />
-
-                        <div className="afield">
-                            <label htmlFor="senha-atual">Senha atual</label>
-                            <input
-                                id="senha-atual"
-                                name="currentPassword"
-                                type="password"
-                                autoComplete="current-password"
-                            />
-                            <FieldError message={state.fieldErrors?.currentPassword} />
-                        </div>
-                        <div className="afield">
-                            <label htmlFor="senha-nova">Nova senha</label>
-                            <input
-                                id="senha-nova"
-                                name="newPassword"
-                                type="password"
-                                autoComplete="new-password"
-                            />
-                            <span className="afield__hint">Mínimo de 12 caracteres.</span>
-                            <FieldError message={state.fieldErrors?.newPassword} />
-                        </div>
-                        <div className="afield">
-                            <label htmlFor="senha-confirma">Confirmar nova senha</label>
-                            <input
-                                id="senha-confirma"
-                                name="confirmPassword"
-                                type="password"
-                                autoComplete="new-password"
-                            />
-                            <FieldError message={state.fieldErrors?.confirmPassword} />
-                        </div>
-
-                        <button className="abtn abtn--primary abtn--block" disabled={pending}>
-                            <i className="fas fa-key"></i>{' '}
-                            {pending ? 'Atualizando…' : 'Atualizar senha'}
-                        </button>
-
-                        <span
-                            className="afield__hint"
-                            style={{ display: 'block', marginTop: '0.75rem' }}
-                        >
-                            Ao trocar a senha, as demais sessões abertas são encerradas.
-                        </span>
-                    </form>
-                ) : (
-                    <div className="aempty">
-                        <i className="fab fa-google"></i>
-                        <strong>Conta sem senha local</strong>
-                        <span>
-                            Este acesso entra apenas por Google Workspace, então não há senha para
-                            trocar aqui.
-                        </span>
-                    </div>
-                )}
+                <div className="aempty">
+                    <i className="fab fa-google" aria-hidden="true"></i>
+                    <strong>Sem senha local</strong>
+                    <span>
+                        Para alterar suas credenciais ou recuperar acesso, procure a administração
+                        do Workspace.
+                    </span>
+                    <a
+                        className="abtn abtn--primary"
+                        href="https://myaccount.google.com/security"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        Gerenciar conta Google
+                    </a>
+                </div>
             </div>
         </div>
     );

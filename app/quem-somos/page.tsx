@@ -1,10 +1,9 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
+import PublicTranslation from '@/components/PublicTranslation';
 import PageContent from './PageContent';
 
-export const metadata: Metadata = {
-    title: 'Quem Somos',
-};
+export const metadata = pageMetadata('/quem-somos');
 
 export default function Page() {
-    return <PageContent />;
+    return <PublicTranslation pageKey="quem-somos">{<PageContent />}</PublicTranslation>;
 }

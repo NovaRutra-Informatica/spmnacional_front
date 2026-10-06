@@ -574,12 +574,23 @@ a.card {
 }
 
 .split__media {
+    position: relative;
+    margin: 0;
     border-radius: 20px;
     overflow: hidden;
     box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
     min-height: 380px;
     background-size: cover;
     background-position: center;
+}
+
+.illustrative-caption {
+    position: absolute;
+    inset: auto 0 0;
+    padding: 0.6rem 1rem;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.75);
+    font-size: 0.8rem;
 }
 
 .split--reverse .split__media {
@@ -701,6 +712,13 @@ a.card {
     &.is-open i {
         transform: rotate(180deg);
     }
+}
+
+.contact-form-fields {
+    border: 0;
+    padding: 0;
+    margin: 0;
+    min-width: 0;
 }
 
 .accordion__body {
@@ -1077,9 +1095,15 @@ a.card {
     }
 
     .post-feature__img {
+        position: relative;
         min-height: 320px;
         background-size: cover;
         background-position: center;
+
+        img {
+            position: absolute;
+            inset: 0;
+        }
     }
 
     .post-feature__body {

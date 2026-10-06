@@ -7,8 +7,7 @@ import { sincronizarAgenda } from '@/lib/server/google-calendar';
 /**
  * Endpoint de sincronização da agenda, chamado pelo Cloud Scheduler.
  *
- * Aceita GET e POST porque o Scheduler é configurado com GET em ambientes
- * simples e com POST quando há corpo; nenhum dos dois recebe parâmetro.
+ * Aceita somente POST: leituras não devem iniciar alterações no banco.
  *
  * A rota é dinâmica: o build roda sem banco e sem segredo, então nada aqui
  * pode ser avaliado em tempo de compilação.
@@ -42,10 +41,25 @@ function autorizado(request: Request): boolean {
 
 async function executar(request: Request): Promise<NextResponse> {
     if (!autorizado(request)) {
-        return NextResponse.json({ ok: false, erro: 'Não autorizado.' }, { status: 401 });
+        return NextResponse.json(
+            { ok: false, erro: 'Não autorizado.' },
+            {
+                status: 401,
+                headers: { 'Cache-Control': 'no-store' },
+            },
+        );
     }
 
     const resultado = await sincronizarAgenda();
+    if (!resultado.ok) {
+        return NextResponse.json(
+            { ok: false, erro: 'Sincronização temporariamente indisponível.' },
+            {
+                status: 503,
+                headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' },
+            },
+        );
+    }
 
     // Auditoria só quando houve mudança: a rotina roda de seis em seis horas
     // (ver `agenda_sync_schedule` no terraform) e um registro por execução
@@ -60,13 +74,9 @@ async function executar(request: Request): Promise<NextResponse> {
     }
 
     return NextResponse.json(
-        { ok: true, ...resultado, sincronizadoEm: new Date().toISOString() },
+        { ...resultado, sincronizadoEm: new Date().toISOString() },
         { headers: { 'Cache-Control': 'no-store' } },
     );
-}
-
-export async function GET(request: Request): Promise<NextResponse> {
-    return executar(request);
 }
 
 export async function POST(request: Request): Promise<NextResponse> {

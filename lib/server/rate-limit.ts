@@ -26,6 +26,18 @@ export async function consumeRateLimit({
     limit,
     windowMs,
 }: RateLimitInput): Promise<RateLimitResult> {
+    if (
+        !scope ||
+        !identifier ||
+        !Number.isSafeInteger(limit) ||
+        limit < 1 ||
+        limit > 1_000_000 ||
+        !Number.isSafeInteger(windowMs) ||
+        windowMs < 1 ||
+        windowMs > 86_400_000
+    ) {
+        throw new RangeError('Configuração de limite de requisições inválida.');
+    }
     const key = hashToken(`rate-limit:${scope}:${identifier}`);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + windowMs);
@@ -36,7 +48,7 @@ export async function consumeRateLimit({
         ON CONFLICT ("key") DO UPDATE SET
             "count" = CASE
                 WHEN "RateLimitBucket"."expiresAt" <= ${now} THEN 1
-                ELSE "RateLimitBucket"."count" + 1
+                ELSE LEAST("RateLimitBucket"."count", ${limit}) + 1
             END,
             "windowStart" = CASE
                 WHEN "RateLimitBucket"."expiresAt" <= ${now} THEN ${now}

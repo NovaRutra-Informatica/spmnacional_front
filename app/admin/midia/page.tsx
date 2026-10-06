@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import { prisma } from '@/lib/server/db';
+import { mediaFilters, type AdminSearchParams } from '@/lib/admin-pagination';
+import { listAdminMedia } from '@/lib/server/admin-listing';
 import { requirePermission } from '@/lib/server/auth';
 import { formatDateTimeShort, formatFileSize } from '@/lib/labels';
 import PageContent, { type ArquivoItem } from './PageContent';
@@ -11,22 +12,10 @@ export const metadata: Metadata = {
     title: { absolute: 'Biblioteca de mídia | Painel SPM' },
 };
 
-export default async function Page() {
+export default async function Page({ searchParams }: { searchParams: Promise<AdminSearchParams> }) {
     await requirePermission('midia');
-
-    const arquivos = await prisma.media.findMany({
-        orderBy: { createdAt: 'desc' },
-        select: {
-            id: true,
-            originalName: true,
-            url: true,
-            kind: true,
-            size: true,
-            createdAt: true,
-            // Contagem de vínculos: é ela que decide se a exclusão pode acontecer.
-            _count: { select: { posts: true, editais: true, documentos: true, materiais: true } },
-        },
-    });
+    const filtros = mediaFilters(await searchParams);
+    const { arquivos, pagination, contagens } = await listAdminMedia(filtros);
 
     const itens: ArquivoItem[] = arquivos.map((arquivo) => ({
         id: arquivo.id,
@@ -42,5 +31,12 @@ export default async function Page() {
             arquivo._count.materiais,
     }));
 
-    return <PageContent arquivos={itens} />;
+    return (
+        <PageContent
+            arquivos={itens}
+            filtros={filtros}
+            pagination={pagination}
+            contagens={contagens}
+        />
+    );
 }

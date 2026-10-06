@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { toDateInputValue } from '@/lib/labels';
 import { requirePermission } from '@/lib/server/auth';
-import { prisma } from '@/lib/server/db';
+import { prisma, withActorDatabaseScope } from '@/lib/server/db';
 import { RETENCAO_PADRAO_ANOS, escopoRegional, retencaoPadrao } from '../politica';
 import PageContent, { type RegionalOption } from './PageContent';
 
@@ -14,11 +14,13 @@ export const metadata: Metadata = {
 export default async function Page() {
     const user = await requirePermission('atendimentos');
 
-    const regionais = await prisma.regional.findMany({
-        where: escopoRegional(user),
-        orderBy: [{ name: 'asc' }],
-        select: { id: true, name: true, uf: true },
-    });
+    const regionais = await withActorDatabaseScope(user, () =>
+        prisma.regional.findMany({
+            where: escopoRegional(user),
+            orderBy: [{ name: 'asc' }],
+            select: { id: true, name: true, uf: true },
+        }),
+    );
 
     const opcoes: RegionalOption[] = regionais.map((regional) => ({
         id: regional.id,

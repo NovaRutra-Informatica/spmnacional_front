@@ -1,8 +1,13 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
+import PublicTranslation from '@/components/PublicTranslation';
 import PageContent from './PageContent';
 
-export const metadata: Metadata = { title: 'Lei nº 13.445/2017 — Lei de Migração' };
+export const metadata = pageMetadata('/legislacao/lei-de-migracao');
 
 export default function Page() {
-    return <PageContent />;
+    return (
+        <PublicTranslation pageKey="legislacao/lei-de-migracao">
+            {<PageContent />}
+        </PublicTranslation>
+    );
 }

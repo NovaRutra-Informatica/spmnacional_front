@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/server/db';
+import { GET as ready } from './ready/route';
 
 /**
  * Sonda de saúde usada pelo HEALTHCHECK do contêiner e pelo balanceador.
@@ -9,23 +8,4 @@ import { prisma } from '@/lib/server/db';
  */
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
-    let database: 'ok' | 'erro' = 'erro';
-
-    try {
-        await prisma.$queryRaw`select 1`;
-        database = 'ok';
-    } catch (error) {
-        console.error('[health] banco indisponível:', error);
-    }
-
-    const healthy = database === 'ok';
-
-    return NextResponse.json(
-        { status: healthy ? 'ok' : 'indisponivel' },
-        {
-            status: healthy ? 200 : 503,
-            headers: { 'Cache-Control': 'no-store' },
-        },
-    );
-}
+export const GET = ready;

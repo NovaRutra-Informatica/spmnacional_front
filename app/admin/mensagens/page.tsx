@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { requirePermission } from '@/lib/server/auth';
-import { prisma } from '@/lib/server/db';
+import { prisma, withActorDatabaseScope } from '@/lib/server/db';
 import { formatDateTimeShort } from '@/lib/labels';
 import { decryptSensitiveOrLegacy } from '@/lib/server/crypto';
 import PageContent, { type MessageRow } from './PageContent';
@@ -17,31 +17,33 @@ export default async function Page() {
     const user = await requirePermission('atendimentos');
     const escopo = escopoMensagens(user);
 
-    const [rows, statusRows] = await Promise.all([
-        prisma.contactMessage.findMany({
-            where: escopo,
-            orderBy: { createdAt: 'desc' },
-            take: 300,
-            select: {
-                id: true,
-                name: true,
-                email: true,
-                city: true,
-                subject: true,
-                message: true,
-                status: true,
-                respondedAt: true,
-                createdAt: true,
-                encryptedAt: true,
-                assignedTo: { select: { name: true } },
-            },
-        }),
-        prisma.contactMessage.groupBy({
-            by: ['status'],
-            where: escopo,
-            _count: { _all: true },
-        }),
-    ]);
+    const [rows, statusRows] = await withActorDatabaseScope(user, () =>
+        Promise.all([
+            prisma.contactMessage.findMany({
+                where: escopo,
+                orderBy: { createdAt: 'desc' },
+                take: 300,
+                select: {
+                    id: true,
+                    name: true,
+                    email: true,
+                    city: true,
+                    subject: true,
+                    message: true,
+                    status: true,
+                    respondedAt: true,
+                    createdAt: true,
+                    encryptedAt: true,
+                    assignedTo: { select: { name: true } },
+                },
+            }),
+            prisma.contactMessage.groupBy({
+                by: ['status'],
+                where: escopo,
+                _count: { _all: true },
+            }),
+        ]),
+    );
 
     const countByStatus = (status: string): number =>
         statusRows.find((row) => row.status === status)?._count._all ?? 0;

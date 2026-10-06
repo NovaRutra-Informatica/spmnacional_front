@@ -12,11 +12,7 @@ variable "project_id" {
 }
 
 variable "region" {
-  description = <<-EOT
-        Região de todos os recursos. São Paulo custa cerca de 1,5x us-central1,
-        mas mantém os dados no Brasil — caminho de menor atrito para a LGPD,
-        que é decisivo num sistema que registra atendimento a migrantes.
-    EOT
+  description = "Região dos recursos regionais; não garante residência de todos os metadados/logs."
   type        = string
   default     = "southamerica-east1"
 }
@@ -73,11 +69,7 @@ variable "bootstrap_image" {
 }
 
 variable "max_instances" {
-  description = <<-EOT
-        Teto de instâncias do Cloud Run. Serve mais como trava de gasto do que
-        como meta de capacidade: uma instância dá conta do tráfego do site, e o
-        teto impede que um pico (ou um robô) gere uma conta inesperada.
-    EOT
+  description = "Teto de instâncias, sujeito aos limites operacionais do provedor. Não é teto financeiro."
   type        = number
   default     = 4
 }
@@ -89,22 +81,19 @@ variable "cpu_limit" {
 }
 
 variable "memory_limit" {
-  description = <<-EOT
-        Memória por instância. 512Mi cobre o Next.js em modo standalone com o
-        Prisma 7 (query compiler em WASM, sem engine nativa carregada).
-    EOT
+  description = "Memória por instância; validar com teste de carga antes do lançamento."
   type        = string
   default     = "512Mi"
 }
 
 variable "request_concurrency" {
-  description = <<-EOT
-        Requisições simultâneas por instância. 80 é o padrão do Cloud Run e é
-        adequado a uma aplicação Node, que é I/O-bound: quanto maior a
-        concorrência, menos instâncias e menor a conta.
-    EOT
+  description = "Requisições HTTP simultâneas por instância, NÃO usuários. Ponto inicial conservador; validar com perfil audience e homologação."
   type        = number
-  default     = 80
+  default     = 16
+  validation {
+    condition     = var.request_concurrency >= 1 && var.request_concurrency <= 80 && floor(var.request_concurrency) == var.request_concurrency
+    error_message = "request_concurrency deve ser inteiro entre 1 e 80."
+  }
 }
 
 # ---------------------------------------------------------
@@ -112,22 +101,13 @@ variable "request_concurrency" {
 # ---------------------------------------------------------
 
 variable "db_tier" {
-  description = <<-EOT
-        Máquina do Cloud SQL. `db-f1-micro` é a mais barata (compartilhada,
-        0,6 GB de RAM): ~US$ 0,0158/hora em São Paulo, ~US$ 11,53/mês.
-        Cloud SQL não tem nível gratuito e não escala a zero — é o item fixo
-        mais caro desta infraestrutura.
-    EOT
+  description = "Máquina Cloud SQL. Padrão compartilhado inicial: dimensionar carga/SLA antes de lançar."
   type        = string
   default     = "db-f1-micro"
 }
 
 variable "db_disk_size_gb" {
-  description = <<-EOT
-        Disco do Cloud SQL em GB. 10 GB é o mínimo cobrado; SSD custa
-        US$ 0,255/GiB-mês em São Paulo (~US$ 2,55/mês). O autoresize está
-        ligado, então o disco cresce sozinho se faltar espaço.
-    EOT
+  description = "Disco inicial em GB; autoresize até 50GB. Acompanhar capacidade e custos."
   type        = number
   default     = 10
 }
@@ -145,11 +125,7 @@ variable "db_user" {
 }
 
 variable "db_backup_start_time" {
-  description = <<-EOT
-        Horário UTC do backup automático diário. 06:00 UTC = 03:00 em Brasília,
-        janela de menor uso. Backup automático é cobrado por GB retido, mas com
-        um banco desta ordem de grandeza o valor é de centavos.
-    EOT
+  description = "Horário UTC do backup diário. Confirmar o RPO da organização."
   type        = string
   default     = "06:00"
 }
@@ -184,11 +160,7 @@ variable "data_retention_schedule" {
 }
 
 variable "agenda_sync_schedule" {
-  description = <<-EOT
-        Frequência da sincronização com o Google Calendar, em formato cron.
-        De 6 em 6 horas é suficiente: a agenda muda pouco e o Cloud Scheduler
-        dá 3 jobs gratuitos por conta de faturamento.
-    EOT
+  description = "Frequência de sincronização com Google Calendar em formato cron."
   type        = string
   default     = "0 */6 * * *"
 }
@@ -202,9 +174,41 @@ variable "agenda_sync_schedule" {
 # ---------------------------------------------------------
 
 variable "enable_google_oauth" {
-  description = "Liga o login com Google Workspace (exige os segredos preenchidos)."
+  description = "Liga o único login do painel: Google Workspace. Obrigatório antes de publicar a aplicação real."
   type        = bool
   default     = false
+}
+
+variable "google_workspace_mfa_enforced" {
+  description = "Declara que o responsável conferiu 2FA obrigatório no Workspace e recuperação de contas. Não é prova de MFA por sessão; não habilita 2FA no Google."
+  type        = bool
+  default     = false
+}
+
+variable "enable_translation" {
+  description = "Habilita Cloud Translation para conteúdo público, API e IAM do runtime. Aprovar custo antes de ativar."
+  type        = bool
+  default     = false
+}
+
+variable "translation_location" {
+  description = "Endpoint/modelo NMT de tradução. global não promete residência dos dados no Brasil."
+  type        = string
+  default     = "global"
+  validation {
+    condition     = var.translation_location == "global"
+    error_message = "Esta configuração foi preparada para NMT global; uma região diferente exige validação explícita."
+  }
+}
+
+variable "translation_daily_character_limit" {
+  description = "Reserva diária de caracteres da aplicação, dia UTC. Zero permite só cache. Não substitui quotas/alertas do provedor nem limita outros consumidores do projeto."
+  type        = number
+  default     = 50000
+  validation {
+    condition     = var.translation_daily_character_limit >= 0 && var.translation_daily_character_limit <= 10000000 && floor(var.translation_daily_character_limit) == var.translation_daily_character_limit
+    error_message = "Limite diário deve ser inteiro entre zero e 10000000 caracteres."
+  }
 }
 
 variable "enable_google_calendar" {
@@ -220,13 +224,7 @@ variable "enable_smtp" {
 }
 
 variable "smtp_host" {
-  description = <<-EOT
-        Servidor SMTP. Com Google Workspace for Nonprofits há dois caminhos:
-        `smtp-relay.gmail.com` (autenticação por IP, 10.000 destinatários por
-        usuário/dia) ou `smtp.gmail.com` (2.000 mensagens/dia, exige Senha de
-        App). O Cloud Run não tem IP fixo de saída sem NAT, então o padrão aqui
-        é o segundo.
-    EOT
+  description = "Servidor SMTP do provedor contratado. Verificar quotas e autorização para envio transacional."
   type        = string
   default     = "smtp.gmail.com"
 }
@@ -257,11 +255,15 @@ variable "mail_notify_to" {
 
 variable "google_oauth_allowed_domain" {
   description = <<-EOT
-        Domínio do Workspace aceito no login com Google. Vazio permite qualquer
-        conta Google, o que não deve acontecer num painel com dado pessoal.
+        Domínio exato do Workspace aceito no login. Conta pré-cadastrada também
+        é obrigatória; o site nunca aceita qualquer conta Google ou autoinscrição.
     EOT
   type        = string
   default     = "spmnacional.org.br"
+  validation {
+    condition     = can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$", var.google_oauth_allowed_domain))
+    error_message = "Informe o domínio institucional exato, sem protocolo, @, caminho ou curinga."
+  }
 }
 
 variable "google_calendar_id" {
@@ -304,4 +306,89 @@ variable "labels" {
     ambiente  = "producao"
     gestao    = "terraform"
   }
+}
+
+
+variable "app_url_override" {
+  description = "URL HTTPS canônica, inclusive run.app em homologação sem domínio próprio."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.app_url_override == "" || can(regex("^https://[^/]+$", var.app_url_override))
+    error_message = "Use uma origem HTTPS sem caminho/barra final."
+  }
+}
+
+variable "external_secret_versions" {
+  description = "Versões numéricas de credenciais externas após adicionar a versão real; nunca latest."
+  type        = map(string)
+  default     = {}
+  validation {
+    condition     = alltrue([for version in values(var.external_secret_versions) : can(regex("^[1-9][0-9]*$", version))])
+    error_message = "As versões de segredo devem ser números inteiros positivos."
+  }
+}
+
+variable "db_availability_type" {
+  description = "ZONAL ou REGIONAL (HA). Decidir segundo disponibilidade e orçamento aprovados."
+  type        = string
+  default     = "ZONAL"
+  validation {
+    condition     = contains(["ZONAL", "REGIONAL"], var.db_availability_type)
+    error_message = "Disponibilidade deve ser ZONAL ou REGIONAL."
+  }
+}
+
+variable "db_pitr_enabled" {
+  description = "Habilita recuperação pontual (PITR); gera armazenamento adicional de logs de transação."
+  type        = bool
+  default     = true
+}
+
+variable "db_pool_max" {
+  description = "Conexões por instância; max_instances * pool + migração/admin deve caber no limite SQL."
+  type        = number
+  default     = 5
+  validation {
+    condition     = var.db_pool_max >= 1 && var.db_pool_max <= 20 && floor(var.db_pool_max) == var.db_pool_max
+    error_message = "Pool deve ser inteiro entre 1 e 20."
+  }
+}
+
+variable "github_repository_id" {
+  description = "ID numérico imutável do repositório GitHub; protege contra reutilização de nomes."
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_id))
+    error_message = "Informe o ID numérico do repositório GitHub."
+  }
+}
+
+variable "github_repository_owner_id" {
+  description = "ID numérico imutável da organização/conta proprietária do repositório."
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_repository_owner_id))
+    error_message = "Informe o ID numérico do proprietário no GitHub."
+  }
+}
+variable "enable_analytics" {
+  description = "Ativa GA4 com consentimento explícito; desativado por padrão."
+  type        = bool
+  default     = false
+}
+
+variable "ga_measurement_id" {
+  description = "ID de medição público GA4. Não é chave de API nem credencial."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.ga_measurement_id == "" || can(regex("^G-[A-Z0-9]{6,20}$", var.ga_measurement_id))
+    error_message = "Informe um ID GA4 válido."
+  }
+}
+variable "ga_enhanced_measurement_disabled" {
+  description = "Confirmar após desativar Enhanced Measurement no stream GA4: coleta somente page_view manual público."
+  type        = bool
+  default     = false
 }

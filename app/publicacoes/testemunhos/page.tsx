@@ -1,10 +1,12 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
+import PublicTranslation from '@/components/PublicTranslation';
 import Animate from '@/components/Animate';
 import PageCta from '@/components/PageCta';
 import PageHero from '@/components/PageHero';
+import Link from '@/components/LocalizedLink';
 import { getFeaturedTestemunho, listTestemunhos } from '@/lib/server/queries';
 
-export const metadata: Metadata = { title: 'Testemunhos' };
+export const metadata = pageMetadata('/publicacoes/testemunhos');
 
 // A página lê o Postgres: sem isto o `docker build` (que roda sem banco) quebraria no prerender.
 export const dynamic = 'force-dynamic';
@@ -20,139 +22,163 @@ export default async function TestemunhosPage() {
     const waveFill = destaque ? '#ffffff' : '#f8f9fa';
 
     return (
-        <>
-            <PageHero
-                eyebrow="Vozes"
-                title="Testemunhos"
-                subtitle="Antes de qualquer relatório, existe uma pessoa contando o que viveu. Estas são algumas das histórias que sustentam tudo o que fazemos."
-                crumbs={[{ label: 'Publicações', link: '/publicacoes' }, { label: 'Testemunhos' }]}
-                waveFill={waveFill}
-            />
+        <PublicTranslation pageKey="publicacoes/testemunhos">
+            {
+                <>
+                    <PageHero
+                        eyebrow="Vozes"
+                        title="Testemunhos"
+                        subtitle="Antes de qualquer relatório, existe uma pessoa contando o que viveu. Estas são algumas das histórias que sustentam tudo o que fazemos."
+                        crumbs={[
+                            { label: 'Publicações', link: '/publicacoes' },
+                            { label: 'Testemunhos' },
+                        ]}
+                        waveFill={waveFill}
+                    />
 
-            {destaque && (
-                <section className="section">
-                    <div className="container">
-                        <Animate className="split">
-                            <div
-                                className="split__media"
-                                style={
-                                    destaque.photoUrl
-                                        ? { backgroundImage: `url(${destaque.photoUrl})` }
-                                        : undefined
-                                }
-                            ></div>
-                            <div className="prose">
-                                <span className="eyebrow">Testemunho em destaque</span>
-                                <blockquote style={{ marginTop: '0' }}>{destaque.text}</blockquote>
-                                <p>
-                                    <strong>{destaque.personName}</strong>
-                                    <br />
-                                    <span
-                                        style={{
-                                            color: 'var(--color-text-muted)',
-                                            fontSize: '0.92rem',
-                                        }}
-                                    >
-                                        {destaque.origin}
-                                    </span>
-                                </p>
+                    {destaque && (
+                        <section className="section">
+                            <div className="container">
+                                <Animate className="split">
+                                    <div className="split__media">
+                                        {destaque.photoUrl && (
+                                            /* Arquivo editorial: acesso direto, sem cache do otimizador. */
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img
+                                                src={destaque.photoUrl}
+                                                alt="Imagem que acompanha o testemunho publicado"
+                                                loading="lazy"
+                                                decoding="async"
+                                                style={{
+                                                    width: '100%',
+                                                    height: '100%',
+                                                    objectFit: 'cover',
+                                                }}
+                                            />
+                                        )}
+                                    </div>
+                                    <div className="prose">
+                                        <span className="eyebrow">Testemunho em destaque</span>
+                                        <blockquote style={{ marginTop: '0' }}>
+                                            {destaque.text}
+                                        </blockquote>
+                                        <p>
+                                            <strong>{destaque.personName}</strong>
+                                            <br />
+                                            <span
+                                                style={{
+                                                    color: 'var(--color-text-muted)',
+                                                    fontSize: '0.92rem',
+                                                }}
+                                            >
+                                                {destaque.origin}
+                                            </span>
+                                        </p>
+                                    </div>
+                                </Animate>
                             </div>
-                        </Animate>
-                    </div>
-                </section>
-            )}
+                        </section>
+                    )}
 
-            <section className="section section--light">
-                <div className="container">
-                    <Animate className="section-head section-head--center">
-                        <span className="eyebrow">Histórias da rede</span>
-                        <h2>Quem migra conta</h2>
-                        <p>
-                            Relatos colhidos pelas equipes regionais do SPM. Publicados com
-                            autorização, alguns com nomes alterados a pedido de quem contou.
-                        </p>
-                    </Animate>
+                    <section className="section section--light">
+                        <div className="container">
+                            <Animate className="section-head section-head--center">
+                                <span className="eyebrow">Histórias da rede</span>
+                                <h2>Quem migra conta</h2>
+                                <p>
+                                    Relatos colhidos pelas equipes regionais do SPM. Publicados com
+                                    autorização, alguns com nomes alterados a pedido de quem contou.
+                                </p>
+                            </Animate>
 
-                    <div className="grid grid--3">
-                        {testemunhos.map((testemunho) => (
-                            <Animate className="testimony-card" key={testemunho.id}>
-                                <p className="testimony-card__text">{testemunho.text}</p>
-                                <div className="testimony-card__author">
-                                    <span className="testimony-card__avatar">
-                                        {testemunho.initials}
-                                    </span>
-                                    <span>
-                                        <strong>{testemunho.personName}</strong>
-                                        <span>{testemunho.origin}</span>
-                                    </span>
+                            <div className="grid grid--3">
+                                {testemunhos.map((testemunho) => (
+                                    <Animate className="testimony-card" key={testemunho.id}>
+                                        <p className="testimony-card__text">{testemunho.text}</p>
+                                        <div className="testimony-card__author">
+                                            <span className="testimony-card__avatar">
+                                                {testemunho.initials}
+                                            </span>
+                                            <span>
+                                                <strong>{testemunho.personName}</strong>
+                                                <span>{testemunho.origin}</span>
+                                            </span>
+                                        </div>
+                                    </Animate>
+                                ))}
+                            </div>
+
+                            {!testemunhos.length && (
+                                <div className="empty-state">
+                                    <i className="fas fa-comment-dots"></i>
+                                    <h3>
+                                        {destaque
+                                            ? 'Por enquanto, só o testemunho em destaque'
+                                            : 'Nenhum testemunho publicado no momento'}
+                                    </h3>
+                                    <p>Conheça nossa atuação e acompanhe as publicações da rede.</p>
+                                    <Link className="btn btn--outline" href="/o-que-fazemos">
+                                        Conhecer nossa atuação
+                                    </Link>{' '}
+                                    <Link className="btn btn--outline" href="/publicacoes/blog">
+                                        Ler publicações
+                                    </Link>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+
+                    <section className="section">
+                        <div className="container">
+                            <Animate className="prose">
+                                <span className="eyebrow">Nosso compromisso</span>
+                                <h2>Como tratamos essas histórias</h2>
+                                <p>
+                                    Testemunho não é matéria-prima de campanha. É a narrativa de
+                                    alguém sobre a própria vida — e quem conta segue sendo dono
+                                    dela.
+                                </p>
+                                <ul>
+                                    <li>
+                                        <strong>Consentimento informado.</strong> Nada é publicado
+                                        sem autorização explícita, dada em língua que a pessoa
+                                        compreenda.
+                                    </li>
+                                    <li>
+                                        <strong>Direito ao anonimato.</strong> Quem prefere pode ter
+                                        nome, imagem e localidade alterados ou omitidos.
+                                    </li>
+                                    <li>
+                                        <strong>Direito de retirada.</strong> Qualquer pessoa pode
+                                        pedir a remoção do próprio relato a qualquer momento, sem
+                                        justificar.
+                                    </li>
+                                    <li>
+                                        <strong>Sem exploração da dor.</strong> Não publicamos
+                                        imagens de sofrimento para comover doadores. Contamos
+                                        histórias inteiras, não só a parte trágica.
+                                    </li>
+                                </ul>
+
+                                <div className="callout callout--action">
+                                    <i className="fas fa-microphone-lines"></i>
+                                    <p>
+                                        <strong>Você tem uma história para contar?</strong> Se você
+                                        é migrante e quer partilhar sua experiência — anonimamente
+                                        ou não —, escreva para{' '}
+                                        <a href="mailto:testemunhos@spmnacional.org.br">
+                                            testemunhos@spmnacional.org.br
+                                        </a>
+                                        . Escutamos antes de qualquer coisa.
+                                    </p>
                                 </div>
                             </Animate>
-                        ))}
-                    </div>
-
-                    {!testemunhos.length && (
-                        <div className="empty-state">
-                            <i className="fas fa-comment-dots"></i>
-                            <h3>
-                                {destaque
-                                    ? 'Por enquanto, só o testemunho em destaque'
-                                    : 'Nenhum testemunho publicado no momento'}
-                            </h3>
-                            <p>
-                                Estamos escutando novas histórias. Assim que houver autorização de
-                                quem contou, elas aparecem aqui.
-                            </p>
                         </div>
-                    )}
-                </div>
-            </section>
+                    </section>
 
-            <section className="section">
-                <div className="container">
-                    <Animate className="prose">
-                        <span className="eyebrow">Nosso compromisso</span>
-                        <h2>Como tratamos essas histórias</h2>
-                        <p>
-                            Testemunho não é matéria-prima de campanha. É a narrativa de alguém
-                            sobre a própria vida — e quem conta segue sendo dono dela.
-                        </p>
-                        <ul>
-                            <li>
-                                <strong>Consentimento informado.</strong> Nada é publicado sem
-                                autorização explícita, dada em língua que a pessoa compreenda.
-                            </li>
-                            <li>
-                                <strong>Direito ao anonimato.</strong> Quem prefere pode ter nome,
-                                imagem e localidade alterados ou omitidos.
-                            </li>
-                            <li>
-                                <strong>Direito de retirada.</strong> Qualquer pessoa pode pedir a
-                                remoção do próprio relato a qualquer momento, sem justificar.
-                            </li>
-                            <li>
-                                <strong>Sem exploração da dor.</strong> Não publicamos imagens de
-                                sofrimento para comover doadores. Contamos histórias inteiras, não
-                                só a parte trágica.
-                            </li>
-                        </ul>
-
-                        <div className="callout callout--action">
-                            <i className="fas fa-microphone-lines"></i>
-                            <p>
-                                <strong>Você tem uma história para contar?</strong> Se você é
-                                migrante e quer partilhar sua experiência — anonimamente ou não —,
-                                escreva para{' '}
-                                <a href="mailto:testemunhos@spmnacional.org.br">
-                                    testemunhos@spmnacional.org.br
-                                </a>
-                                . Escutamos antes de qualquer coisa.
-                            </p>
-                        </div>
-                    </Animate>
-                </div>
-            </section>
-
-            <PageCta />
-        </>
+                    <PageCta />
+                </>
+            }
+        </PublicTranslation>
     );
 }

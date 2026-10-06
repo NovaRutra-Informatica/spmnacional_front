@@ -22,25 +22,39 @@ function escapeHtml(value: string): string {
 /** Só http(s) e mailto viram link; qualquer outro esquema fica como texto. */
 function safeHref(href: string): string | null {
     const trimmed = href.trim();
-    if (/^https?:\/\//i.test(trimmed) || /^mailto:/i.test(trimmed) || trimmed.startsWith('/')) {
+    if (/[\u0000-\u0020\u007f\\]/.test(trimmed)) return null;
+    if (
+        /^https?:\/\//i.test(trimmed) ||
+        /^mailto:/i.test(trimmed) ||
+        (trimmed.startsWith('/') && !trimmed.startsWith('//'))
+    ) {
         return escapeHtml(trimmed);
     }
     return null;
 }
 
-function inline(text: string): string {
+function inlineText(text: string): string {
     let output = escapeHtml(text);
-
-    // [texto](destino)
-    output = output.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (match, label: string, href: string) => {
-        const safe = safeHref(href);
-        return safe ? `<a href="${safe}">${label}</a>` : label;
-    });
 
     output = output.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
     output = output.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>');
 
     return output;
+}
+
+function inline(text: string): string {
+    // Formatação só incide no texto, nunca no atributo href já gerado.
+    const links = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+    let offset = 0;
+    let result = '';
+    for (const match of text.matchAll(links)) {
+        result += inlineText(text.slice(offset, match.index));
+        const href = safeHref(match[2]);
+        const label = inlineText(match[1]);
+        result += href ? `<a href="${href}">${label}</a>` : label;
+        offset = match.index + match[0].length;
+    }
+    return result + inlineText(text.slice(offset));
 }
 
 export function renderMarkdown(source: string): string {

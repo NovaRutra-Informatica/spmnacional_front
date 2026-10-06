@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useActionState, useMemo, useState } from 'react';
+import { useActionState, useState } from 'react';
 import type { ChangeEvent, MouseEvent } from 'react';
+import AdminPagination from '@/components/admin/AdminPagination';
+import type { AdminPagination as Pagination, MediaFilters } from '@/lib/admin-pagination';
 import type { MediaKind } from '@/lib/generated/prisma/enums';
 import { MAX_ADMIN_UPLOAD_BYTES, uploadAdminFile } from '@/lib/client/admin-upload';
 import { excluirMidia } from './actions';
@@ -31,6 +33,9 @@ export interface ArquivoItem {
 
 interface Props {
     arquivos: ArquivoItem[];
+    filtros: MediaFilters;
+    pagination: Pagination;
+    contagens: { total: number; imagens: number; documentos: number };
 }
 
 const FILTROS: { value: 'todos' | MediaKind; label: string }[] = [
@@ -40,31 +45,13 @@ const FILTROS: { value: 'todos' | MediaKind; label: string }[] = [
     { value: 'OUTRO', label: 'Outros' },
 ];
 
-export default function PageContent({ arquivos }: Props) {
+export default function PageContent({ arquivos, filtros, pagination, contagens }: Props) {
     const router = useRouter();
-    const [typeFilter, setTypeFilter] = useState<'todos' | MediaKind>('todos');
     const [uploadState, setUploadState] = useState<FormState>({ ok: false });
     const [uploading, setUploading] = useState(false);
     const [deleteState, deleteAction, deleting] = useActionState<FormState, FormData>(
         excluirMidia,
         { ok: false },
-    );
-
-    const filtered = useMemo(
-        () =>
-            typeFilter === 'todos'
-                ? arquivos
-                : arquivos.filter((arquivo) => arquivo.kind === typeFilter),
-        [arquivos, typeFilter],
-    );
-
-    const imageCount = useMemo(
-        () => arquivos.filter((arquivo) => arquivo.kind === 'IMAGEM').length,
-        [arquivos],
-    );
-    const docCount = useMemo(
-        () => arquivos.filter((arquivo) => arquivo.kind === 'DOCUMENTO').length,
-        [arquivos],
     );
 
     const enviarAoEscolher = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -189,7 +176,7 @@ export default function PageContent({ arquivos }: Props) {
                         <i className="fas fa-photo-film"></i>
                     </span>
                     <div>
-                        <strong>{arquivos.length}</strong>
+                        <strong>{contagens.total}</strong>
                         <span>Arquivos na biblioteca</span>
                     </div>
                 </div>
@@ -198,7 +185,7 @@ export default function PageContent({ arquivos }: Props) {
                         <i className="fas fa-image"></i>
                     </span>
                     <div>
-                        <strong>{imageCount}</strong>
+                        <strong>{contagens.imagens}</strong>
                         <span>Imagens</span>
                     </div>
                 </div>
@@ -207,20 +194,31 @@ export default function PageContent({ arquivos }: Props) {
                         <i className="fas fa-file-pdf"></i>
                     </span>
                     <div>
-                        <strong>{docCount}</strong>
+                        <strong>{contagens.documentos}</strong>
                         <span>Documentos</span>
                     </div>
                 </div>
             </div>
 
             <section className="acard media-library" aria-label="Acervo da biblioteca">
-                <div className="atoolbar">
+                <form className="atoolbar" action="/admin/midia" method="get">
+                    <input
+                        key={filtros.q}
+                        className="atoolbar__search"
+                        type="search"
+                        name="q"
+                        maxLength={120}
+                        aria-label="Buscar arquivos pelo nome"
+                        placeholder="Buscar pelo nome do arquivo…"
+                        defaultValue={filtros.q}
+                    />
                     <label className="media-library__filter" htmlFor="media-type-filter">
                         <span>Mostrar</span>
                         <select
+                            key={filtros.tipo}
                             id="media-type-filter"
-                            value={typeFilter}
-                            onChange={(e) => setTypeFilter(e.target.value as 'todos' | MediaKind)}
+                            name="tipo"
+                            defaultValue={filtros.tipo}
                         >
                             {FILTROS.map((filtro) => (
                                 <option value={filtro.value} key={filtro.value}>
@@ -229,23 +227,26 @@ export default function PageContent({ arquivos }: Props) {
                             ))}
                         </select>
                     </label>
+                    <button className="abtn abtn--action" type="submit">
+                        Filtrar
+                    </button>
+                    <Link className="abtn abtn--ghost" href="/admin/midia" prefetch={false}>
+                        Limpar filtros
+                    </Link>
                     <span className="atoolbar__spacer"></span>
                     <span className="atoolbar__count" aria-live="polite">
-                        <strong>{filtered.length}</strong>{' '}
-                        {filtered.length === 1 ? 'arquivo' : 'arquivos'}
+                        {pagination.from}–{pagination.to} de {pagination.total} arquivos
                     </span>
-                </div>
+                </form>
 
                 <label className={`adropzone${uploading ? ' is-uploading' : ''}`}>
                     <i className="fas fa-cloud-arrow-up" aria-hidden="true"></i>
                     <strong>
-                        {uploading
-                            ? 'Enviando arquivos…'
-                            : 'Clique para selecionar os arquivos'}
+                        {uploading ? 'Enviando arquivos…' : 'Clique para selecionar os arquivos'}
                     </strong>
                     <span>
-                        JPG, PNG, WebP, PDF, Office e ZIP · até 5 itens por vez · máximo de 10
-                        MB por arquivo
+                        JPG, PNG, WebP, PDF, Office e ZIP · até 5 itens por vez · máximo de 10 MB
+                        por arquivo
                     </span>
                     <input
                         type="file"
@@ -256,13 +257,16 @@ export default function PageContent({ arquivos }: Props) {
                     />
                 </label>
 
-                {filtered.length ? (
+                {arquivos.length ? (
                     <div className="media-grid">
-                        {filtered.map((arquivo) => (
+                        {arquivos.map((arquivo) => (
                             <article className="media-item" key={arquivo.id}>
                                 {arquivo.kind === 'IMAGEM' ? (
                                     <div className="media-item__img">
-                                        <span className="media-item__image-fallback" aria-hidden="true">
+                                        <span
+                                            className="media-item__image-fallback"
+                                            aria-hidden="true"
+                                        >
                                             <i className="fas fa-image"></i>
                                             Prévia indisponível
                                         </span>
@@ -330,6 +334,7 @@ export default function PageContent({ arquivos }: Props) {
                         <span>Envie um arquivo ou mude o tipo selecionado.</span>
                     </div>
                 )}
+                <AdminPagination path="/admin/midia" filters={filtros} pagination={pagination} />
             </section>
 
             <div className="anote">

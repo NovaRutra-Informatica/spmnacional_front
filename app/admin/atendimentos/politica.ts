@@ -76,7 +76,7 @@ export function validarRetencao(
     valor: Date | null,
     opcoes: { permitirPassado: boolean },
 ): string | null {
-    if (!valor) {
+    if (!valor || !Number.isFinite(valor.getTime())) {
         return 'Informe até quando esta ficha pode ser mantida.';
     }
 

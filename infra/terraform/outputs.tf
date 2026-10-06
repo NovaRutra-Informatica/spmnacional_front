@@ -9,7 +9,7 @@
 # =========================================================
 
 output "cloud_run_url" {
-  description = "URL gerada pelo Cloud Run. É para cá que o domínio deve apontar."
+  description = "URL HTTPS gerada pelo Cloud Run. Domínio customizado exige uma integração suportada separada."
   value       = google_cloud_run_v2_service.site.uri
 }
 
@@ -132,8 +132,8 @@ output "proximos_passos" {
   value = join("\n", [
     "1. Publique a primeira imagem: ver infra/README.md, seção 'Primeiro deploy'.",
     "2. Rode a migração: gcloud run jobs execute ${google_cloud_run_v2_job.migrate.name} --region ${var.region} --wait",
-    "3. Rode o seed uma única vez, a partir de uma máquina com Cloud SQL Auth Proxy.",
-    "4. Aponte ${var.app_domain != "" ? var.app_domain : "o domínio"} para ${google_cloud_run_v2_service.site.uri} e defina app_domain.",
+    "3. Provisione o papel SQL runtime e seu segredo separados; não rode seed de demonstração em produção.",
+    "4. Defina app_domain ou app_url_override com a origem HTTPS; consulte as opções suportadas de domínio no runbook.",
     "5. Preencha os segredos de espera e ligue as integrações (enable_smtp, enable_google_oauth, enable_google_calendar).",
   ])
 }

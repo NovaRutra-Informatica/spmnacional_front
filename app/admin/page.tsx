@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { prisma } from '@/lib/server/db';
+import { prisma, withActorDatabaseScope } from '@/lib/server/db';
 import { hasPermission, requireUser } from '@/lib/server/auth';
 import { formatDateTimeShort } from '@/lib/labels';
 import PageContent, {
@@ -52,73 +52,75 @@ export default async function Page({ searchParams }: PageProps) {
         categoryRows,
         auditRows,
         topRows,
-    ] = await Promise.all([
-        canManagePosts
-            ? prisma.post.groupBy({ by: ['status'], _count: { _all: true } })
-            : Promise.resolve([]),
-        canManagePosts ? prisma.post.count() : Promise.resolve(0),
-        canManageUsers
-            ? prisma.user.count({ where: { AND: [escopoUsuarios(user), { status: 'ATIVO' }] } })
-            : Promise.resolve(0),
-        canViewMessages
-            ? prisma.contactMessage.count({
-                  where: { AND: [escopoMensagens(user), { status: 'NOVA' }] },
-              })
-            : Promise.resolve(0),
-        canViewAtendimentos
-            ? prisma.atendimento.count({
-                  where: { AND: [escopoAtendimento(user), { status: { not: 'ENCERRADO' } }] },
-              })
-            : Promise.resolve(0),
-        canManagePosts
-            ? prisma.post.findMany({
-                  take: 5,
-                  orderBy: { updatedAt: 'desc' },
-                  select: {
-                      id: true,
-                      title: true,
-                      coverUrl: true,
-                      authorName: true,
-                      status: true,
-                      updatedAt: true,
-                      category: { select: { name: true } },
-                  },
-              })
-            : Promise.resolve([]),
-        canManagePosts
-            ? prisma.category.findMany({
-                  orderBy: { order: 'asc' },
-                  select: { id: true, name: true, _count: { select: { posts: true } } },
-              })
-            : Promise.resolve([]),
-        adminGeral
-            ? prisma.auditLog.findMany({
-                  take: 6,
-                  orderBy: { createdAt: 'desc' },
-                  select: {
-                      id: true,
-                      action: true,
-                      target: true,
-                      level: true,
-                      actorLabel: true,
-                      createdAt: true,
-                  },
-              })
-            : Promise.resolve([]),
-        canManagePosts
-            ? prisma.post.findMany({
-                  where: { status: 'PUBLICADO' },
-                  orderBy: { views: 'desc' },
-                  take: 4,
-                  select: {
-                      id: true,
-                      title: true,
-                      views: true,
-                      category: { select: { name: true } },
-                  },
-              })
-            : Promise.resolve([]),
-    ]);
+    ] = await withActorDatabaseScope(user, () =>
+        Promise.all([
+            canManagePosts
+                ? prisma.post.groupBy({ by: ['status'], _count: { _all: true } })
+                : Promise.resolve([]),
+            canManagePosts ? prisma.post.count() : Promise.resolve(0),
+            canManageUsers
+                ? prisma.user.count({ where: { AND: [escopoUsuarios(user), { status: 'ATIVO' }] } })
+                : Promise.resolve(0),
+            canViewMessages
+                ? prisma.contactMessage.count({
+                      where: { AND: [escopoMensagens(user), { status: 'NOVA' }] },
+                  })
+                : Promise.resolve(0),
+            canViewAtendimentos
+                ? prisma.atendimento.count({
+                      where: { AND: [escopoAtendimento(user), { status: { not: 'ENCERRADO' } }] },
+                  })
+                : Promise.resolve(0),
+            canManagePosts
+                ? prisma.post.findMany({
+                      take: 5,
+                      orderBy: { updatedAt: 'desc' },
+                      select: {
+                          id: true,
+                          title: true,
+                          coverUrl: true,
+                          authorName: true,
+                          status: true,
+                          updatedAt: true,
+                          category: { select: { name: true } },
+                      },
+                  })
+                : Promise.resolve([]),
+            canManagePosts
+                ? prisma.category.findMany({
+                      orderBy: { order: 'asc' },
+                      select: { id: true, name: true, _count: { select: { posts: true } } },
+                  })
+                : Promise.resolve([]),
+            adminGeral
+                ? prisma.auditLog.findMany({
+                      take: 6,
+                      orderBy: { createdAt: 'desc' },
+                      select: {
+                          id: true,
+                          action: true,
+                          target: true,
+                          level: true,
+                          actorLabel: true,
+                          createdAt: true,
+                      },
+                  })
+                : Promise.resolve([]),
+            canManagePosts
+                ? prisma.post.findMany({
+                      where: { status: 'PUBLICADO' },
+                      orderBy: { views: 'desc' },
+                      take: 4,
+                      select: {
+                          id: true,
+                          title: true,
+                          views: true,
+                          category: { select: { name: true } },
+                      },
+                  })
+                : Promise.resolve([]),
+        ]),
+    );
 
     const countByStatus = (status: string): number =>
         statusRows.find((row) => row.status === status)?._count._all ?? 0;

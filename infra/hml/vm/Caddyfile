@@ -1,0 +1,20 @@
+{
+    admin off
+    # Access logs are disabled; OAuth query strings and auth headers are sensitive.
+    log {
+        level ERROR
+    }
+}
+
+{$HML_DOMAIN} {
+    header {
+        X-Robots-Tag "noindex, nofollow, noarchive"
+        Cache-Control "no-store"
+    }
+    # Institutional pages are public; the application authenticates its admin area.
+    encode zstd gzip
+    reverse_proxy web:3000 {
+        header_up -Authorization
+        header_up X-Forwarded-Proto https
+    }
+}

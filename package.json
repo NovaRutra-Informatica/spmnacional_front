@@ -3,13 +3,27 @@
     "version": "1.0.0",
     "private": true,
     "scripts": {
+        "i18n:catalog": "node scripts/prepare-i18n.mjs",
+        "i18n:check": "node scripts/prepare-i18n.mjs --check",
         "dev": "next dev",
         "build": "next build",
         "build:pages": "node scripts/build-pages.mjs",
         "start": "next start",
-        "lint": "next lint",
+        "lint": "eslint .",
+        "test": "vitest run",
+        "test:watch": "vitest",
+        "test:coverage": "vitest run --coverage",
+        "test:integration": "node scripts/test-isolated.mjs integration",
+        "test:e2e": "node scripts/test-isolated.mjs e2e",
+        "test:e2e:local": "node scripts/test-isolated.mjs e2e-local",
+        "test:e2e:analytics": "node scripts/test-isolated.mjs e2e-analytics",
+        "test:load": "node scripts/test-load.mjs",
+        "check:production": "tsx scripts/check-production.ts",
+        "check": "bun run i18n:check && bun run lint && bun run typecheck && bun run test:coverage && bun run security:audit && bun run build",
         "typecheck": "tsc --noEmit",
-        "security:audit": "npm audit --audit-level=high",
+        "security:audit": "bun audit --audit-level=high",
+        "security:secrets": "node scripts/security-scan.mjs",
+        "security:secrets:history": "node scripts/security-scan.mjs --history",
         "format": "prettier . --write",
         "postinstall": "prisma generate",
         "db:up": "docker compose up -d --wait --wait-timeout 120 db",
@@ -18,8 +32,9 @@
         "db:seed": "prisma db seed",
         "db:studio": "prisma studio",
         "db:reset": "prisma migrate reset",
-        "user:create": "tsx scripts/criar-usuario.ts",
-        "setup": "npm run db:up && prisma migrate deploy",
+        "user:create": "tsx --conditions=react-server scripts/criar-usuario.ts",
+        "db:bootstrap": "tsx --conditions=react-server scripts/bootstrap-production.ts",
+        "setup": "bun run db:up && prisma migrate deploy",
         "docker:build": "docker build -t spmnacional-front .",
         "docker:up": "docker compose up --build",
         "docker:dev": "docker compose up --build dev"
@@ -34,35 +49,50 @@
         "@prisma/adapter-pg": "7.10.0",
         "@prisma/client": "7.10.0",
         "jose": "6.2.12",
-        "next": "^16.3.3",
-        "nodemailer": "^9.1.1",
+        "next": "16.3.8",
+        "nodemailer": "10.0.13",
         "pg": "^8.23.0",
-        "react": "^19.1.1",
-        "react-dom": "^19.1.1",
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
         "server-only": "^0.0.1",
-        "zod": "^4.4.3"
+        "prisma": "7.10.0",
+        "tsx": "^4.23.15",
+        "zod": "^4.6.5"
     },
     "devDependencies": {
-        "@types/node": "^22.15.3",
-        "@types/nodemailer": "^8.0.1",
-        "@types/pg": "^8.21.0",
-        "@types/react": "^19.1.8",
-        "@types/react-dom": "^19.1.6",
+        "@playwright/test": "1.63.0",
+        "@types/node": "^22.20.4",
+        "@types/nodemailer": "^8.0.2",
+        "@types/pg": "^8.23.1",
+        "@types/react": "^19.3.0",
+        "@types/react-dom": "^19.3.0",
+        "@vitest/coverage-v8": "5.0.0",
         "dotenv": "^17.4.2",
-        "prettier": "^3.8.1",
-        "prisma": "7.10.0",
-        "sass": "^1.93.2",
-        "tsx": "^4.23.12",
-        "typescript": "^5.9.2"
+        "eslint": "9.39.5",
+        "eslint-config-next": "16.3.8",
+        "prettier": "^3.9.8",
+        "sass": "^1.104.1",
+        "typescript": "^5.9.3",
+        "vitest": "5.0.0"
     },
     "overrides": {
         "deepmerge-ts": "8.0.2",
         "mysql2": "3.24.3"
+    },
+    "patchedDependencies": {
+        "braces@3.0.3": "patches/braces@3.0.3.patch"
     },
     "allowScripts": {
         "@parcel/watcher@2.6.0": true,
         "esbuild@0.28.2": true,
         "prisma@7.10.0": true,
         "@prisma/engines@7.10.0": true
-    }
+    },
+    "packageManager": "bun@1.4.2",
+    "trustedDependencies": [
+        "@parcel/watcher",
+        "@prisma/engines",
+        "esbuild",
+        "prisma"
+    ]
 }

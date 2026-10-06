@@ -1,16 +1,21 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import Link from '@/components/LocalizedLink';
 import PageHero from '@/components/PageHero';
 
-export const metadata: Metadata = { title: 'Página não encontrada' };
+export const metadata: Metadata = {
+    title: 'Página não encontrada',
+    description:
+        'Este endereço não foi encontrado. Volte ao início ou encontre o contato, as publicações e os serviços do SPM.',
+    robots: { index: false, follow: false },
+};
 
 export default function NotFound() {
     return (
         <>
             <PageHero
                 eyebrow="Erro 404"
-                title="Esta página mudou de endereço"
-                subtitle="A rota que você procurava não existe mais — ou nunca existiu. Acontece com páginas e, às vezes, com pessoas."
+                title="Página não encontrada"
+                subtitle="Não encontramos este endereço. Confira o link ou use os caminhos abaixo para continuar no site do SPM."
                 center
             />
 

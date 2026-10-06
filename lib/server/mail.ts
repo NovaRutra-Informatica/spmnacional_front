@@ -3,6 +3,7 @@ import 'server-only';
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
 import { env, isMailEnabled } from './env';
+import { logError } from './logger';
 
 /**
  * Envio de e-mail transacional.
@@ -24,6 +25,13 @@ function getTransporter(): Transporter | null {
         host: env.mail.host,
         port: env.mail.port,
         secure: env.mail.secure,
+        requireTLS: !env.mail.secure,
+        tls: { minVersion: 'TLSv1.2', rejectUnauthorized: true },
+        connectionTimeout: 10_000,
+        greetingTimeout: 10_000,
+        socketTimeout: 30_000,
+        disableFileAccess: true,
+        disableUrlAccess: true,
         auth: { user: env.mail.user, pass: env.mail.password },
     });
 
@@ -36,17 +44,33 @@ export interface MailInput {
     text: string;
     html?: string;
     replyTo?: string;
+    /** Stable operational outbox identity; retries reuse the same Message-ID. */
+    messageId?: string;
 }
 
 export async function sendMail(input: MailInput): Promise<boolean> {
+    const recipients = Array.isArray(input.to) ? input.to : [input.to];
+    // Cabeçalhos nunca recebem caracteres de controle vindos de formulários.
+    if (
+        recipients.length === 0 ||
+        recipients.length > 50 ||
+        [
+            ...recipients,
+            input.subject,
+            input.replyTo ?? '',
+            input.messageId ?? '',
+            env.mail.from,
+        ].some((value) => /[\u0000-\u001f\u007f]/.test(value)) ||
+        (input.messageId !== undefined &&
+            !/^<[a-zA-Z0-9._-]{1,128}@[a-zA-Z0-9.-]{1,253}>$/.test(input.messageId))
+    ) {
+        console.error('[e-mail] cabeçalho inválido; envio recusado');
+        return false;
+    }
     const transport = getTransporter();
 
     if (!transport) {
-        console.info(
-            `[e-mail] SMTP não configurado — mensagem "${input.subject}" não foi enviada para ${
-                Array.isArray(input.to) ? input.to.join(', ') : input.to
-            }.`,
-        );
+        console.info('[e-mail] SMTP não configurado; notificação não enviada');
         return false;
     }
 
@@ -58,10 +82,13 @@ export async function sendMail(input: MailInput): Promise<boolean> {
             text: input.text,
             html: input.html ?? htmlFromText(input.text),
             replyTo: input.replyTo,
+            messageId: input.messageId,
         });
         return true;
     } catch (error) {
-        console.error('[e-mail] falha no envio:', error);
+        // Erros SMTP podem conter destinatários, respostas do servidor ou URLs
+        // com tokens. Dados pessoais não devem acabar no Cloud Logging.
+        logError('mail.delivery_failed', error);
         return false;
     }
 }
@@ -99,19 +126,23 @@ function htmlFromText(text: string): string {
 // Mensagens do sistema
 // ---------------------------------------------------------
 
-export async function sendContactNotification(message: {
-    name: string;
-    email: string;
-    subject: string;
-    city?: string | null;
-    phone?: string | null;
-    language: string;
-    message: string;
-}): Promise<boolean> {
+export async function sendContactNotification(
+    message: {
+        name: string;
+        email: string;
+        subject: string;
+        city?: string | null;
+        phone?: string | null;
+        language: string;
+        message: string;
+    },
+    messageId?: string,
+): Promise<boolean> {
     return sendMail({
         to: env.mail.notifyTo,
         replyTo: message.email,
         subject: `[Fale Conosco] ${message.subject} — ${message.name}`,
+        messageId,
         text: [
             `Nova mensagem recebida pelo site.`,
             ``,
@@ -130,17 +161,21 @@ export async function sendContactNotification(message: {
     });
 }
 
-export async function sendContactAcknowledgement(message: {
-    name: string;
-    email: string;
-}): Promise<boolean> {
+export async function sendContactAcknowledgement(
+    message: {
+        name: string;
+        email: string;
+    },
+    messageId?: string,
+): Promise<boolean> {
     return sendMail({
         to: message.email,
         subject: 'Recebemos sua mensagem — SPM',
+        messageId,
         text: [
             `Olá, ${message.name}.`,
             ``,
-            `Recebemos sua mensagem e ela já está com a nossa equipe. Respondemos em até 5 dias úteis.`,
+            `Recebemos sua mensagem e ela já está com a nossa equipe. Responderemos o mais breve possível.`,
             ``,
             `Se a sua situação for urgente, procure a equipe do SPM mais próxima em ${env.appUrl}/onde-estamos ou ligue para o Disque 100 (Direitos Humanos).`,
             ``,
@@ -149,37 +184,45 @@ export async function sendContactAcknowledgement(message: {
     });
 }
 
-export async function sendUserInvite(user: {
-    name: string;
-    email: string;
-    inviteUrl: string;
-    roleName: string;
-}): Promise<boolean> {
+export async function sendUserInvite(
+    user: {
+        name: string;
+        email: string;
+        inviteUrl: string;
+        roleName: string;
+    },
+    messageId?: string,
+): Promise<boolean> {
     return sendMail({
         to: user.email,
         subject: 'Seu acesso ao painel do SPM',
+        messageId,
         text: [
             `Olá, ${user.name}.`,
             ``,
             `A coordenação criou um acesso para você no painel do Serviço Pastoral dos Migrantes, com o perfil "${user.roleName}".`,
             ``,
-            `Defina sua senha neste link (válido por 7 dias):`,
+            `Entre com este e-mail institucional pelo Google Workspace:`,
             user.inviteUrl,
             ``,
-            `O painel dá acesso a dados de pessoas atendidas. Nunca compartilhe suas credenciais.`,
+            `Não há senha local. Use a verificação em duas etapas exigida pela organização. Nunca compartilhe suas credenciais.`,
             ``,
             `Serviço Pastoral dos Migrantes`,
         ].join('\n'),
     });
 }
 
-export async function sendNewsletterConfirmation(subscriber: {
-    email: string;
-    confirmUrl: string;
-}): Promise<boolean> {
+export async function sendNewsletterConfirmation(
+    subscriber: {
+        email: string;
+        confirmUrl: string;
+    },
+    messageId?: string,
+): Promise<boolean> {
     return sendMail({
         to: subscriber.email,
         subject: 'Confirme sua inscrição no boletim do SPM',
+        messageId,
         text: [
             `Recebemos um pedido de inscrição no boletim do Serviço Pastoral dos Migrantes com este e-mail.`,
             ``,

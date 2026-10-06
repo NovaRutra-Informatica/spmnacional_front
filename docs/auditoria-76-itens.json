@@ -1,0 +1,1306 @@
+{
+  "data": "2026-10-02",
+  "escopo": "Código congelado, evidências locais e release final hml-20261002-76-04 publicada e validada na VM RUNNING, com 13 migrations, readiness scoped-rls-v1, PostgreSQL 18.6 endurecido e horário de Brasília. Deploy EXIT 0, backup/restauração HML e login Workspace real confirmados em 3/10 UTC (2/10 Brasília). Não equivale a validação integral de produção.",
+  "definicoes_status": {
+    "implementado": "Controle ou comportamento presente no código. Não significa validação integral no ambiente publicado.",
+    "parcial": "Há implementação ou preparação, mas falta cobertura, execução ou decisão indicada nos limites.",
+    "não_aplicável": "A recomendação pressupõe uma arquitetura que este projeto não utiliza.",
+    "pendente_externo": "O código está preparado ou há estrutura, mas a conclusão depende de informação, configuração ou conteúdo autorizado da organização."
+  },
+  "fatos_confirmados_pelo_usuario": {
+    "ga4_id_fornecido": false,
+    "depoimentos_autorizados_fornecidos": false,
+    "estudos_de_caso_autorizados_fornecidos": false,
+    "prazo_quantificavel_de_resposta_definido": false,
+    "texto_de_resposta": "Responderemos o mais breve possível."
+  },
+  "limites_globais": [
+    "HML final está publicada e RUNNING com digests confirmados, backup/restauração de 13 migrations e OAuth real. Testes locais e essa homologação não validam toda a configuração da produção.",
+    "HML em VM única, sem acervo de produção importado; conta técnica, sessões e registros de acesso são reais. Ensaios locais usam dados sintéticos. Não se afirma blue/green com duas aplicações nessa VM nem capacidade de produção a partir dela.",
+    "A exceção única até 3/10 às 06h Brasília possui timer ativo/aguardando, quota de 512 MiB e shaping de 10 Mbit/s, com baseline preservada. A associação do horário regular Compute foi conferida; primeiro disparo real e desligamento futuro não foram observados. Sábado regular permanece 09h–17h.",
+    "SMTP e ID do calendário exigem configuração real. Testes de e-mail usam fixtures; não comprovam entrega real pela organização.",
+    "Ensaio monotônico válido concluiu o limite consecutivo de 50 req/s no SLO. A 75 req/s, p95/p99 excederam o SLO sem drops; acima houve também carga descartada pelo limite do gerador. O ensaio completo retorna exit 99/passed=false por saturação deliberada, com saúde 200 e cleanup confirmado. Ensaios k6 com tempos negativos são inconclusivos e não fundamentam esse limite.",
+    "dev e gh-pages foram saneados; referências locais atualizadas com CAS, conforme confirmação do operador. Índice e arquivos preservados; nenhum reset/stash. PR refs 1–5 e caches/clones/reflogs externos continuam pendentes.",
+    "Política de privacidade e prazos técnicos precisam de validação organizacional antes do uso de dados reais.",
+    "A auditoria completa de dependências reporta 1 HIGH em braces 3.0.3, ferramenta de desenvolvimento. Não há release upstream corrigida; a patch Bun local limita profundidade a 100 e passou 11 regressões reais. O achado não foi suprimido e o gate HIGH da CI permanece bloqueado. A árvore de produção não inclui esse pacote.",
+    "Ensaio Docker local isolado com dados sintéticos: não mede capacidade da VM HML nem de produção. Mediu a imagem funcional b964c14e, anterior à remoção de npm e às alterações finais de dependências/TZ; não se atribui o resultado ao digest final 7488adb0. As etapas duram 30/31 s, com seis rotas públicas, app 1 CPU/512 MiB, PostgreSQL 1 CPU/512 MiB e gerador 2 CPU/512 MiB/200 requisições em voo. RTT monotônico inclui a leitura do corpo inteiro e difere da fase de duração do k6.",
+    "APP, migrador e PostgreSQL endurecido nos três digests finais registrados têm zero achados nos scans Trivy OS/bibliotecas disponíveis. Caddy 2.11.6 no digest 881bbc60 mantém 1 UNKNOWN em x/crypto/openpgp, sem correção upstream identificada e alcance não comprovado; análise de binário sem símbolos não prova ausência. Scans são fotografias temporais. O audit completo de desenvolvimento mantém 1 HIGH explícito em braces, mitigado localmente e bloqueando CI.",
+    "Reserva conservadora de planejamento de R$ 12 para a exceção, com premissa de até oito horas: não é fatura confirmada, preço mensal nem bloqueio monetário; disco/IP continuam cobrados e o orçamento mensal apenas alerta."
+  ],
+  "verificacoes_locais_desta_auditoria": [
+    {
+      "grupo": "schema_institucional",
+      "resultado": "4 testes passaram; ESLint e typecheck passaram",
+      "arquivos": [
+        "tests/organization-schema.test.ts"
+      ]
+    },
+    {
+      "grupo": "uploads_armazenamento_exclusao",
+      "resultado": "50 testes unitários passaram",
+      "arquivos": [
+        "tests/security-data/uploads.test.ts",
+        "tests/security-data/storage.test.ts",
+        "tests/security-data/media-deletion.test.ts"
+      ]
+    },
+    {
+      "grupo": "scheduler_producao",
+      "resultado": "9 cenários Terraform com providers simulados passaram; fmt e validate passaram",
+      "arquivos": [
+        "infra/terraform/tests/production.tftest.hcl"
+      ]
+    },
+    {
+      "grupo": "ui_publica_retencao",
+      "resultado": "9 testes passaram",
+      "arquivos": [
+        "tests/public-ui.test.ts"
+      ]
+    },
+    {
+      "grupo": "paginacao_painel",
+      "resultado": "12 testes unitários/SSR passaram; typecheck e ESLint passaram",
+      "arquivos": [
+        "tests/admin-pagination.test.ts",
+        "tests/admin-pagination-ui.test.ts"
+      ]
+    },
+    {
+      "grupo": "integracao_sql_isolada",
+      "resultado": "65 testes em 11 arquivos passaram; banco e container sintéticos removidos. Inclui paginação real, RLS, corridas, idempotência, outboxes e recuperação de upload.",
+      "arquivos": [
+        "tests/integration/admin-pagination.test.ts",
+        "tests/integration/row-security.test.ts",
+        "tests/integration/admin-race.test.ts",
+        "tests/integration/upload-recovery.test.ts"
+      ]
+    },
+    {
+      "grupo": "workflow_bluegreen",
+      "resultado": "22 checks de Bash real com CLI simulada passaram, conforme confirmação do operador; sem Cloud Run real",
+      "arquivos": [
+        "tests/integration/deploy-workflow.test.ts",
+        "tests/helpers/deploy-workflow.ts"
+      ]
+    },
+    {
+      "grupo": "suite_unitaria_consolidada",
+      "resultado": "851 testes em 73 arquivos passaram; cobertura statements 84,17%, branches 78,5%, functions 81,16% e lines 85,9%.",
+      "arquivos": [
+        "vitest.config.ts",
+        "tmp/final-unit-results.json"
+      ]
+    },
+    {
+      "grupo": "qualidade_dependencias",
+      "resultado": "TypeScript passou; ESLint 0 erros e 22 warnings. A auditoria completa de dependências reporta 1 HIGH em braces 3.0.3, ferramenta de desenvolvimento. Não há release upstream corrigida; a patch Bun local limita profundidade a 100 e passou 11 regressões reais. O achado não foi suprimido e o gate HIGH da CI permanece bloqueado. A árvore de produção não inclui esse pacote. bun audit --production: 0 achados em 233 pacotes na instalação isolada.",
+      "arquivos": [
+        "package.json",
+        "bun.lock",
+        "patches/braces@3.0.3.patch",
+        "patches/README.md",
+        "tests/unit/braces-security.test.ts",
+        "tmp/braces-mitigation/provenance.json"
+      ]
+    },
+    {
+      "grupo": "segredos_arvore_historico",
+      "resultado": "Árvore: 516 arquivos, 0 findings. Histórico alcançável: 17 commits, 0 findings. Smoke: 9 checks passaram, conforme confirmação do operador",
+      "arquivos": [
+        "scripts/security-scan.mjs",
+        "scripts/security-scan-smoke.mjs"
+      ]
+    },
+    {
+      "grupo": "e2e_consolidado",
+      "resultado": "E2E principal: 28 passaram e 8 skips intencionais; Analytics com fixtures: 6 passaram; perfil local: 2 passaram. Não comprova envio real de e-mail nem propriedade GA4 da organização.",
+      "arquivos": [
+        "tmp/final-e2e.log",
+        "tmp/final-e2e-analytics.log",
+        "tmp/final-e2e-local.log"
+      ]
+    },
+    {
+      "grupo": "imagens_finais_locais",
+      "resultado": "Runner e migrator finais passaram build, 13 smokes offline e Trivy OS/bibliotecas com 0 achados em todas as severidades nos digests registrados. Scanner é fotografia temporal, não prova de ausência de vulnerabilidades; audit dev permanece HIGH.",
+      "arquivos": [
+        "tmp/image-scan/secure76-final-runtime-smoke.json",
+        "tmp/image-scan/secure76-final-vulnerabilities-redacted.json",
+        "tmp/image-scan/migrator-secure76-final-vulnerabilities-redacted.json"
+      ]
+    },
+    {
+      "grupo": "carga_monotonica",
+      "resultado": "RTT até fim do corpo e relógio/agendamento monotônicos: 14.544 requisições; timing/accounting válidos; 50 req/s no SLO, primeiro estágio fora a 75 req/s. Ensaio de saturação exit 99/passed=false, saúde final 200 e cleanup verdadeiro.",
+      "arquivos": [
+        "load-results/spm-load-e673152467233b4d/report.json",
+        "tests/load/monotonic-core.mjs",
+        "tests/load/monotonic.mjs",
+        "tests/unit/monotonic-load.test.ts"
+      ]
+    },
+    {
+      "grupo": "postgres_endurecido_local",
+      "resultado": "PostgreSQL 605136e4: scan Trivy 0 achados, integridade binária verificada e ensaio isolado com 13 migrations/6 FORCE RLS, runtime nonowner, backup/restauração de 34 tabelas e duas sequências e persistência após reinício; recursos sintéticos removidos. Não confundir com o backup real HML de 33 tabelas/uma sequência.",
+      "arquivos": [
+        "tmp/image-scan/postgres-secure76-vulnerabilities-redacted.json",
+        "tmp/image-scan/postgres-secure76-integrity.json",
+        "tmp/pg-secure76-smoke-proof.json"
+      ]
+    },
+    {
+      "grupo": "deploy_hml_final_real",
+      "resultado": "Release hml-20261002-76-04 instalada EXIT 0; coletora JSON complete=true/errors=[], PG18.6/13 migrations/6 FORCE/uma conta/sem OOM, digests finais e TZ Brasília. Backup/restauração HML: 33 tabelas/uma sequência, dump de 111.498 bytes com SHA local/MD5 recibo GCS/geração positiva. 18 checks HTTP PASS, 372.529 bytes e Workspace real até /admin. Export stdout direto sofreu avaria Windows; save-proof SSH e SCP passaram EXIT 0 com JSON idêntico.",
+      "arquivos": [
+        "tmp/hml-final76-install.log",
+        "tmp/hml-final76-proof.json",
+        "tmp/hml-final-http-proof.json",
+        "tmp/hml-final76-browser-proof.json",
+        "tmp/final76-operation-checks/proof.json"
+      ]
+    }
+  ],
+  "itens": [
+    {
+      "numero": 1,
+      "tarefa": "Página 404 personalizada",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/not-found.tsx",
+        "tests/public-ui.test.ts",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "SSR e E2E local passaram para 404 útil, links de recuperação e noindex; HTTP real da HML confirmou resposta 404 no caminho sintético inexistente.",
+      "limites": "Dispositivos reais e conteúdo futuro não foram integralmente validados. A release final confirmou a resposta 404 esperada na HML."
+    },
+    {
+      "numero": 2,
+      "tarefa": "CTA acima da dobra",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "components/HomeHeroCarousel.tsx",
+        "styles/_home-carousel.scss",
+        "tests/public-ui.test.ts",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "SSR e E2E local passaram para H1/CTA de orientação e posição nas viewports desktop/mobile ensaiadas.",
+      "limites": "Não se afirma que toda combinação de tela, zoom ou conteúdo futuro foi validada visualmente."
+    },
+    {
+      "numero": 3,
+      "tarefa": "Links internos",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "components/LocalizedLink.tsx",
+        "app/not-found.tsx",
+        "components/Footer.tsx",
+        "tests/public-ui.test.ts",
+        "tests/public-analytics-ui.test.ts"
+      ],
+      "verificacao": "Links de recuperação, contato, atuação e publicações aparecem em SSR; entradas privadas usam navegação integral.",
+      "limites": "Não houve rastreamento completo do acervo real ou confirmação de todos os links externos herdados."
+    },
+    {
+      "numero": 4,
+      "tarefa": "Página de agradecimento",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/fale-conosco/obrigado/page.tsx",
+        "app/fale-conosco/PageContent.tsx",
+        "tests/public-ui.test.ts",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "Sucesso navega para confirmação mínima sem dados pessoais na URL; SSR confirma noindex e ausência de SLA numérico.",
+      "limites": "Recebimento no banco não comprova entrega de e-mail. Ensaio integrado usa contato sintético."
+    },
+    {
+      "numero": 5,
+      "tarefa": "Breadcrumbs",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "components/PageHero.tsx",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "SSR verifica nav com nome acessível, lista ordenada e uma página atual.",
+      "limites": "Há navegação visual/semântica; não se promete rich result de BreadcrumbList no buscador."
+    },
+    {
+      "numero": 6,
+      "tarefa": "Perguntas frequentes",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/content/contact.ts",
+        "app/fale-conosco/PageContent.tsx",
+        "app/fale-conosco/page.tsx",
+        "tests/public-contact-content.test.ts",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "FAQ possui respostas institucionais, controles acessíveis e FAQPage JSON-LD.",
+      "limites": "Não promete atendimento imediato, capacidade regional ou elegibilidade a destaque nos buscadores."
+    },
+    {
+      "numero": 7,
+      "tarefa": "Estudos de caso",
+      "status": "pendente_externo",
+      "caminho_evidencia": [
+        "lib/content/case-studies.ts",
+        "app/publicacoes/estudos-de-caso/page.tsx",
+        "tests/case-studies.test.ts"
+      ],
+      "verificacao": "Estrutura exige autorização, fonte HTTPS, contexto, ações, resultados e publicação alcançada; coleção atual vazia.",
+      "limites": "A equipe não forneceu casos autorizados. Não foram publicados casos sintéticos, resultados ou avaliações inventadas."
+    },
+    {
+      "numero": 8,
+      "tarefa": "Promessa de tempo de resposta",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/content/contact.ts",
+        "app/fale-conosco/actions.ts",
+        "app/fale-conosco/obrigado/page.tsx",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "Texto usa somente 'Responderemos o mais breve possível'; testes recusam o antigo prazo fixo.",
+      "limites": "Não há SLA quantificável definido pela equipe; nenhum prazo operacional foi inventado."
+    },
+    {
+      "numero": 9,
+      "tarefa": "CTA fixo no celular",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "components/SiteChrome.tsx",
+        "styles/_chrome.scss",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "E2E local passou para barra móvel de contato/apoio, área segura, espaço compensatório e relação com o rodapé.",
+      "limites": "Ensaio de navegador local não valida todas as combinações de dispositivo real, zoom e conteúdo futuro."
+    },
+    {
+      "numero": 10,
+      "tarefa": "robots.txt para spmnacional.org.br",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/robots.ts",
+        "lib/seo.ts",
+        "proxy.ts",
+        "tests/seo.test.ts",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "Somente origem HTTPS institucional habilita indexação; HML recebe Disallow e noindex.",
+      "limites": "robots/noindex não substituem autenticação. DNS e publicação definitivos do domínio são operações externas."
+    },
+    {
+      "numero": 11,
+      "tarefa": "Títulos únicos das páginas",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/seo.ts",
+        "app/layout.tsx",
+        "app/publicacoes/blog/[slug]/page.tsx",
+        "tests/seo.test.ts"
+      ],
+      "verificacao": "Mapa de rotas possui títulos únicos; artigos e edições usam dados próprios.",
+      "limites": "Títulos editoriais futuros dependem do conteúdo registrado pela equipe."
+    },
+    {
+      "numero": 12,
+      "tarefa": "Meta descriptions",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/seo.ts",
+        "app/publicacoes/blog/[slug]/page.tsx",
+        "app/semana-do-migrante/[ano]/page.tsx",
+        "tests/seo.test.ts"
+      ],
+      "verificacao": "Descrições por rota e fallback para conteúdo dinâmico foram implementados.",
+      "limites": "Não se promete posicionamento orgânico ou que o buscador exibirá exatamente a descrição."
+    },
+    {
+      "numero": 13,
+      "tarefa": "Imagem de compartilhamento social",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/opengraph-image.tsx",
+        "lib/seo.ts",
+        "tests/seo.test.ts",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "Imagem institucional PNG e metadados OpenGraph/Twitter preparados; teste de formato e referência existe.",
+      "limites": "Caches e prévias de redes sociais externas não foram purgados nem validados nesta auditoria."
+    },
+    {
+      "numero": 14,
+      "tarefa": "Mapa e instruções de chegada",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/content/contact.ts",
+        "app/fale-conosco/PageContent.tsx",
+        "app/onde-estamos/PageContent.tsx",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "Link explícito para directions usa endereço publicado; nenhum iframe carregado automaticamente.",
+      "limites": "Não foram inventadas coordenadas ou endereços regionais ausentes; o serviço de mapas é externo."
+    },
+    {
+      "numero": 15,
+      "tarefa": "Avaliações e depoimentos reais",
+      "status": "pendente_externo",
+      "caminho_evidencia": [
+        "app/publicacoes/testemunhos/page.tsx",
+        "lib/server/queries.ts",
+        "tests/unit/public-publication-queries.test.ts"
+      ],
+      "verificacao": "Consulta filtra publicação, data e consentimento; estado vazio contém alternativas úteis.",
+      "limites": "Não há depoimentos autorizados fornecidos nesta rodada; não existe nota, quantidade de reviews ou rating inventado."
+    },
+    {
+      "numero": 16,
+      "tarefa": "Texto alternativo das imagens",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/quem-somos/historia/page.tsx",
+        "app/quem-somos/estrutura/page.tsx",
+        "app/o-que-fazemos/page.tsx",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "Imagens institucionais recebem descrições observáveis; fotografia ilustrativa é identificada como tal.",
+      "limites": "Não houve auditoria de proveniência de todas as imagens nem revisão de todo o acervo editorial futuro."
+    },
+    {
+      "numero": 17,
+      "tarefa": "Schema institucional local",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/content/organization.ts",
+        "components/StructuredData.tsx",
+        "app/page.tsx",
+        "tests/organization-schema.test.ts"
+      ],
+      "verificacao": "Quatro testes SSR/projeção/nonce/XSS/uso único passaram; NGO com PostalAddress e telefone existentes.",
+      "limites": "SPM foi representado como NGO, não empreendimento LocalBusiness. Sem geo, horários, reviews ou resultado de rich snippet inventados."
+    },
+    {
+      "numero": 18,
+      "tarefa": "Página de política de privacidade",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/politica-de-privacidade/page.tsx",
+        "components/Footer.tsx",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "Página acessível pelo site; descreve dados, provedores, cookies, direitos e contato.",
+      "limites": "Existência técnica da página não substitui validação jurídica e organizacional da política."
+    },
+    {
+      "numero": 19,
+      "tarefa": "Google Analytics",
+      "status": "pendente_externo",
+      "caminho_evidencia": [
+        "lib/config/analytics.ts",
+        "lib/analytics-browser.ts",
+        "components/AnalyticsConsent.tsx",
+        "tests/public-analytics-ui.test.ts",
+        "tests/e2e/analytics.spec.ts"
+      ],
+      "verificacao": "Integração preparada com opt-in, recusa/revogação, rotas públicas e remoção de query; sem ID real permanece desativada.",
+      "limites": "Usuário não forneceu GA4 ID. Antes de ativar, desligar Enhanced Measurement na propriedade e validar o ambiente real."
+    },
+    {
+      "numero": 20,
+      "tarefa": "Ocultar chaves de API",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/env.ts",
+        "lib/server/google-auth.ts",
+        "infra/hml/vm/configure.py",
+        "Dockerfile",
+        ".dockerignore"
+      ],
+      "verificacao": "Integrações executam no servidor; segredos vêm dos cofres/env protegidos e não são incluídos no contexto Docker.",
+      "limites": "A identidade IAM da VM única é compartilhada; contêiner comprometido pode alcançar metadados/cofres permitidos à VM."
+    },
+    {
+      "numero": 21,
+      "tarefa": "Remover segredos do histórico Git",
+      "status": "parcial",
+      "caminho_evidencia": [
+        "scripts/security-scan.mjs",
+        "scripts/lib/security-scan-tree.mjs",
+        "scripts/security-scan-smoke.mjs",
+        ".gitleaks.toml",
+        ".github/workflows/CI.yml",
+        "tmp/remote-history-sanitization-proof.json",
+        "tmp/history-publish.log"
+      ],
+      "verificacao": "Scanner/CI e allowlist executável testados. O operador confirmou saneamento de dev/gh-pages e atualização CAS das referências locais via update-ref/fetch; índice e arquivos preservados, nenhum reset/stash. Scan: 516 arquivos e 17 commits alcançáveis, 0 findings; smoke 9 checks passou. Nenhum segredo é reproduzido nesta matriz.",
+      "limites": "PR refs 1–5, caches e clones/reflogs externos continuam pendentes; reescrita de refs principais não apaga cópias externas nem substitui rotação/revogação das credenciais aposentadas."
+    },
+    {
+      "numero": 22,
+      "tarefa": "Usar chave pública do banco",
+      "status": "não_aplicável",
+      "caminho_evidencia": [
+        "lib/server/db.ts",
+        "infra/sql/provision-runtime-role.sql",
+        "infra/hml/vm/provision-runtime.mjs"
+      ],
+      "verificacao": "Arquitetura usa PostgreSQL exclusivamente pelo servidor, com usuário SQL runtime separado do migrador.",
+      "limites": "Não há Supabase/BaaS acessado pelo navegador; uma chave pública não substitui credenciais SQL privadas nesta arquitetura."
+    },
+    {
+      "numero": 23,
+      "tarefa": "Habilitar RLS",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "prisma/migrations/20261002120000_sensitive_row_level_security/migration.sql",
+        "lib/server/database-scope.ts",
+        "tests/integration/row-security.test.ts"
+      ],
+      "verificacao": "FORCE RLS protege atendimentos, encaminhamentos e mensagens; novas filas possuem políticas próprias. A suíte SQL isolada passou, incluindo cenários reais com nonowner e negação de escopos incorretos. A HML confirmou 13 migrations aplicadas e ENABLE/FORCE RLS em seis tabelas sensíveis, com papel runtime nonowner sem SUPERUSER/BYPASSRLS.",
+      "limites": "RLS não está habilitado indiscriminadamente em toda tabela. A segurança depende do protocolo servidor e do papel runtime restrito; não há equivalência automática ao ambiente de produção."
+    },
+    {
+      "numero": 24,
+      "tarefa": "Cifrar dados sensíveis",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/crypto.ts",
+        "app/fale-conosco/actions.ts",
+        "app/admin/atendimentos/actions.ts",
+        "lib/server/generic-email-outbox.ts",
+        "tests/security-data/crypto.test.ts"
+      ],
+      "verificacao": "AES-256-GCM com IV aleatório e autenticação para PII selecionada e payloads de e-mail; legado convertido pela retenção.",
+      "limites": "Não significa que toda coluna é cifrada. Recuperação depende de preservar a chave; não houve migração de acervo de produção."
+    },
+    {
+      "numero": 25,
+      "tarefa": "Autenticação no servidor",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/auth.ts",
+        "app/admin/layout.tsx",
+        "lib/server/actions.ts",
+        "tests/security-auth/boundaries.test.ts",
+        "tmp/hml-final76-browser-proof.json"
+      ],
+      "verificacao": "Sessão e permissões são verificadas no servidor; proxy é apenas barreira preliminar. Login Workspace novo no navegador real da release final chegou a /admin às 02:59 UTC de 3/10 (23:59 Brasília de 2/10), com 14 áreas, uma conta e zero notícias; registro da prova às 03:03 UTC.",
+      "limites": "MFA individual é declaração administrativa para uma única conta autorizada; não é claim de 2FA do ID token. O teste real não substitui a exigência global de 2FA e validação de todos os perfis em produção."
+    },
+    {
+      "numero": 26,
+      "tarefa": "Restringir acesso aos registros",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/database-scope.ts",
+        "app/admin/atendimentos/politica.ts",
+        "app/admin/mensagens/actions.ts",
+        "tests/integration/row-security.test.ts"
+      ],
+      "verificacao": "Escopo de sessão, regional, atribuição e permissão é rechecado pelo servidor/SQL.",
+      "limites": "Na HML funcional, papel runtime restrito, seis tabelas com FORCE RLS e protocolo scoped-rls-v1 foram confirmados. O controle ainda depende do contexto servidor e das políticas específicas; não é isolamento IAM entre contêineres."
+    },
+    {
+      "numero": 27,
+      "tarefa": "Bloquear alteração de campos protegidos",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/database-scope.ts",
+        "app/admin/usuarios/actions.ts",
+        "app/admin/atendimentos/actions.ts",
+        "tests/security-auth/user-management.test.ts"
+      ],
+      "verificacao": "Campos gravados são selecionados no servidor; contextos públicos têm allowlists e IDs definidos pelo servidor.",
+      "limites": "Não se declara revisão manual exaustiva de toda ação futura; alterações novas exigem testes de autorização."
+    },
+    {
+      "numero": 28,
+      "tarefa": "Cookies de sessão seguros",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/auth.ts",
+        "app/api/auth/google/route.ts",
+        "tests/security-auth/sessions.test.ts",
+        "tests/security-auth/oauth.test.ts"
+      ],
+      "verificacao": "Produção usa cookie __Host, Secure, HttpOnly, SameSite e sessão revogável com prazos.",
+      "limites": "Ambiente HTTP de teste usa política própria; não deve ser confundido com cookies HTTPS da HML."
+    },
+    {
+      "numero": 29,
+      "tarefa": "Hash de senhas",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/crypto.ts",
+        "lib/server/auth.ts",
+        "tests/security-data/crypto.test.ts"
+      ],
+      "verificacao": "Scrypt com salt aleatório e comparação segura existe para senha local/legado; login por senha é recusado em produção.",
+      "limites": "O painel real usa Google Workspace; SPM não armazena ou verifica a senha Google. Basic Auth antigo não está ativo."
+    },
+    {
+      "numero": 30,
+      "tarefa": "Rate limit de login",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/oauth-rate-limit.ts",
+        "lib/server/rate-limit.ts",
+        "app/api/auth/google/route.ts",
+        "tests/security-auth/rate-limit.test.ts"
+      ],
+      "verificacao": "Contadores PostgreSQL compartilhados limitam início/admissão de login; não dependem só de memória por instância.",
+      "limites": "Não substitui controle do provedor, capacidade da infraestrutura ou proteção contra DDoS."
+    },
+    {
+      "numero": 31,
+      "tarefa": "Proteção contra bots",
+      "status": "parcial",
+      "caminho_evidencia": [
+        "app/fale-conosco/actions.ts",
+        "app/newsletter/actions.ts",
+        "lib/server/rate-limit.ts",
+        "tests/security-data/contact.test.ts"
+      ],
+      "verificacao": "Honeypot, origem e limites por endereço/fonte/global reduzem automação simples.",
+      "limites": "Não há CAPTCHA/WAF ou detecção comportamental de bots; controles não impedem toda automação sofisticada."
+    },
+    {
+      "numero": 32,
+      "tarefa": "Consultas parametrizadas",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/rate-limit.ts",
+        "lib/server/database-scope.ts",
+        "lib/server/media-deletion.ts",
+        "tests/integration/database.test.ts"
+      ],
+      "verificacao": "Dados de requisição passam pelo Prisma ou tagged templates com parâmetros; DDL operacional fica separado.",
+      "limites": "SQL administrativo/fixtures possuem comandos estáticos; a afirmação não dispensa revisão de novos $queryRawUnsafe."
+    },
+    {
+      "numero": 33,
+      "tarefa": "Validar entradas",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/actions.ts",
+        "app/fale-conosco/actions.ts",
+        "app/newsletter/actions.ts",
+        "app/api/admin/uploads/route.ts",
+        "tests/unit/actions.test.ts"
+      ],
+      "verificacao": "Schemas Zod, limites, datas canônicas, enums e formatos são verificados antes das mutações.",
+      "limites": "Não é garantia genérica de que todo conteúdo futuro terá validação adequada; alterações devem preservar os contratos."
+    },
+    {
+      "numero": 34,
+      "tarefa": "Escape de conteúdo do usuário",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/markdown.ts",
+        "lib/structured-data.ts",
+        "lib/server/mail.ts",
+        "tests/unit/markdown.test.ts",
+        "tests/organization-schema.test.ts"
+      ],
+      "verificacao": "React, Markdown restrito, templates escapados e JSON-LD escapado evitam interpolação direta de HTML.",
+      "limites": "CSP complementa o escape; não autoriza HTML arbitrário nem substitui revisão de novos renderizadores."
+    },
+    {
+      "numero": 35,
+      "tarefa": "Restringir upload de arquivos",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/api/admin/uploads/route.ts",
+        "lib/server/storage.ts",
+        "tests/security-data/uploads.test.ts",
+        "tests/security-data/storage.test.ts"
+      ],
+      "verificacao": "Permissão, Origin, tamanho, prazo de leitura, extensão e assinatura de bytes são verificados; grupo de 50 testes passou.",
+      "limites": "Não há antivírus nem análise completa de documentos/arquivos compactados. Testes GCS da nova release ainda precisam do ambiente."
+    },
+    {
+      "numero": 36,
+      "tarefa": "Respostas de API mínimas",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/fale-conosco/actions.ts",
+        "app/api/admin/uploads/route.ts",
+        "lib/server/pending-stream.ts",
+        "lib/server/logger.ts",
+        "tests/security-data/pending-stream-route.test.ts"
+      ],
+      "verificacao": "Contato devolve confirmação genérica; upload seleciona DTO; SSE transmite apenas contagens; erros não serializam SQL/tokens.",
+      "limites": "Dados privados necessários ao painel autenticado continuam sendo enviados sob permissão."
+    },
+    {
+      "numero": 37,
+      "tarefa": "Cabeçalhos de segurança",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "next.config.ts",
+        "proxy.ts",
+        "lib/content-security-policy.ts",
+        "tests/unit/runtime.test.ts",
+        "tests/security-auth/proxy.test.ts"
+      ],
+      "verificacao": "CSP com nonce em HTML, nosniff, frame restrictions, referrer e políticas de permissões presentes.",
+      "limites": "Headers finais da nova release e integrações opcionais precisam ser conferidos depois do deploy."
+    },
+    {
+      "numero": 38,
+      "tarefa": "Forçar HTTPS",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "infra/hml/vm/Caddyfile",
+        "next.config.ts",
+        "lib/config/runtime.ts",
+        "infra/terraform/main.tf"
+      ],
+      "verificacao": "Caddy/Cloud Run oferecem HTTPS; HSTS e configurações de produção recusam origem inadequada.",
+      "limites": "TLS real passou na release de 1/10; isso não confirma um futuro hostname ou nova publicação."
+    },
+    {
+      "numero": 39,
+      "tarefa": "Verificar dependências",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "package.json",
+        "bun.lock",
+        ".github/workflows/CI.yml",
+        "patches/braces@3.0.3.patch",
+        "patches/README.md",
+        "tests/unit/braces-security.test.ts",
+        "tmp/braces-mitigation/provenance.json",
+        "tmp/image-scan/postgres-secure76-vulnerabilities-redacted.json",
+        "tmp/image-scan/caddy-hml-exact-vulnerabilities-redacted.json"
+      ],
+      "verificacao": "Install congelado e auditorias foram executados. A auditoria completa de dependências reporta 1 HIGH em braces 3.0.3, ferramenta de desenvolvimento. Não há release upstream corrigida; a patch Bun local limita profundidade a 100 e passou 11 regressões reais. O achado não foi suprimido e o gate HIGH da CI permanece bloqueado. A árvore de produção não inclui esse pacote. Instalação produção: audit 0 achados/233 pacotes. Trivy dos digests finais APP, migrador e PostgreSQL endurecido: 0 achados OS/bibliotecas em todas as severidades; imagens confirmadas na HML. Caddy mantém 1 UNKNOWN em x/crypto/openpgp, com alcance não comprovado.",
+      "limites": "Mitigação local não equivale a release upstream corrigida. Bun audit completo e o gate HIGH da CI continuam falhando; scans e auditorias usam bases e escopos distintos e são fotografias temporais."
+    },
+    {
+      "numero": 40,
+      "tarefa": "Favicon",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "public/assets/spm_logo_atualizada.png",
+        "app/layout.tsx",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "Logo institucional PNG original usada como favicon e apple icon; teste de marca confirma o arquivo intacto, metadados e dimensões, com E2E atualizado.",
+      "limites": "Cache do navegador após publicação pode exigir atualização."
+    },
+    {
+      "numero": 41,
+      "tarefa": "Lazy loading de imagens",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/quem-somos/historia/page.tsx",
+        "app/publicacoes/testemunhos/page.tsx",
+        "components/Footer.tsx",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "Imagens fora do hero usam carregamento lazy e dimensões/reservas de layout.",
+      "limites": "Não se declara auditoria visual de todas as páginas ou de imagens futuras do acervo."
+    },
+    {
+      "numero": 42,
+      "tarefa": "Política de privacidade coerente",
+      "status": "parcial",
+      "caminho_evidencia": [
+        "app/politica-de-privacidade/page.tsx",
+        "lib/server/data-retention.ts",
+        "infra/hml/terraform/main.tf",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "Copy informa prazo desde última atualização, execução da rotina e retenção de backups; Analytics inativo sem ID.",
+      "limites": "Prazos técnicos e política precisam de validação institucional/jurídica; mailbox de privacidade e operação de direitos não foram testados."
+    },
+    {
+      "numero": 43,
+      "tarefa": "sitemap.xml",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/sitemap.ts",
+        "lib/seo.ts",
+        "tests/sitemap-policy.test.ts"
+      ],
+      "verificacao": "HML retorna lista vazia sem consulta ao banco; produção usa canônicos e datas reais de conteúdo publicado.",
+      "limites": "Envio ao Search Console e indexação efetiva não foram realizados."
+    },
+    {
+      "numero": 44,
+      "tarefa": "Imagens otimizadas",
+      "status": "parcial",
+      "caminho_evidencia": [
+        "next.config.ts",
+        "app/page.tsx",
+        "app/quem-somos/historia/page.tsx",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "Next Image otimiza assets públicos locais; mídia editorial privada usa acesso direto sem cache do otimizador.",
+      "limites": "Não há pipeline de redimensionamento/transcodificação de todo upload. Prioridade de privacidade impede cache público indiscriminado."
+    },
+    {
+      "numero": 45,
+      "tarefa": "Erros úteis",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/actions.ts",
+        "app/fale-conosco/PageContent.tsx",
+        "app/not-found.tsx",
+        "tests/unit/actions.test.ts"
+      ],
+      "verificacao": "Campos recebem mensagens específicas; falhas inesperadas têm mensagem genérica sem detalhes internos.",
+      "limites": "Erros de infraestrutura exigem diagnóstico operacional; a UI não revela stack traces para facilitar esse diagnóstico."
+    },
+    {
+      "numero": 46,
+      "tarefa": "CORS",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/request-origin.ts",
+        "app/api/admin/uploads/route.ts",
+        "app/api/admin/pendencias/stream/route.ts",
+        "tests/security-auth/boundaries.test.ts"
+      ],
+      "verificacao": "APIs de navegador usam mesma origem; mutações verificam Origin/Sec-Fetch-Site, sem wildcard para credenciais.",
+      "limites": "CORS não é autenticação; não foi criada uma API pública para clientes de outras origens."
+    },
+    {
+      "numero": 47,
+      "tarefa": "Evitar exposição de ambiente",
+      "status": "implementado",
+      "caminho_evidencia": [
+        ".gitignore",
+        ".dockerignore",
+        "Dockerfile",
+        "lib/server/env.ts",
+        "scripts/security-scan.mjs"
+      ],
+      "verificacao": "Arquivos de ambiente/credenciais ficam fora do build e módulos server-only centralizam leitura; startup valida produção.",
+      "limites": "O histórico original contém exemplos aposentados até concluir o item 21. Configuração local protegida não foi impressa nesta auditoria."
+    },
+    {
+      "numero": 48,
+      "tarefa": "Validação no frontend",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/fale-conosco/PageContent.tsx",
+        "components/NewsletterForm.tsx",
+        "lib/client/admin-upload.ts",
+        "tests/public-ui.test.ts"
+      ],
+      "verificacao": "Campos HTML possuem tipos/limites e erros associados; cliente valida envio de upload.",
+      "limites": "Validação do navegador é usabilidade; o servidor continua sendo a autoridade."
+    },
+    {
+      "numero": 49,
+      "tarefa": "Validação no backend",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/actions.ts",
+        "app/fale-conosco/actions.ts",
+        "app/newsletter/actions.ts",
+        "tests/security-data/newsletter-action.test.ts"
+      ],
+      "verificacao": "Validação ocorre antes de acesso/SQL; testes exercitam payloads inválidos e alterações protegidas.",
+      "limites": "Não há garantia universal sobre novas rotas; cada contrato precisa de revisão e regressão."
+    },
+    {
+      "numero": 50,
+      "tarefa": "Proteção contra SQL injection",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/db.ts",
+        "lib/server/rate-limit.ts",
+        "lib/server/database-scope.ts",
+        "tests/integration/database.test.ts"
+      ],
+      "verificacao": "Consultas de requisição parametrizadas; identidade runtime sem DDL; dados não são concatenados em SQL.",
+      "limites": "Não é atestado de pentest independente; comandos operacionais/fixtures estáticos seguem escopo separado."
+    },
+    {
+      "numero": 51,
+      "tarefa": "Evitar autenticação fraca",
+      "status": "parcial",
+      "caminho_evidencia": [
+        "lib/config/workspace-auth.ts",
+        "lib/server/auth.ts",
+        "app/api/auth/google/callback/route.ts",
+        "tests/security-auth/workspace-policy.test.ts"
+      ],
+      "verificacao": "Produção usa Workspace com validação JWT, conta provisionada, domínio e política MFA; local auth fica desligado.",
+      "limites": "HML admite somente a exceção individual confirmada de uma conta. Declaração operacional não comprova MFA em token; política global e lançamento ainda exigem homologação organizacional."
+    },
+    {
+      "numero": 52,
+      "tarefa": "Proteção contra IDOR",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/admin/atendimentos/politica.ts",
+        "lib/server/database-scope.ts",
+        "app/admin/mensagens/actions.ts",
+        "tests/integration/row-security.test.ts"
+      ],
+      "verificacao": "ID fornecido pelo usuário não basta: consulta/mutação exige escopo da sessão e políticas por regional/atribuição.",
+      "limites": "Novas entidades e endpoints precisam manter os filtros; não houve pentest externo abrangente."
+    },
+    {
+      "numero": 53,
+      "tarefa": "Não guardar senhas em texto no banco",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/crypto.ts",
+        "lib/server/auth.ts",
+        "app/admin/usuarios/actions.ts",
+        "tests/security-data/crypto.test.ts"
+      ],
+      "verificacao": "Contas Workspace novas não recebem passwordHash; senha local/legado usa scrypt.",
+      "limites": "Credenciais SQL/SMTP são segredos de servidor/cofre e não representam senhas de usuários armazenadas na tabela User."
+    },
+    {
+      "numero": 54,
+      "tarefa": "Proteção contra força bruta",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/oauth-rate-limit.ts",
+        "lib/server/rate-limit.ts",
+        "lib/server/auth.ts",
+        "tests/security-auth/rate-limit.test.ts"
+      ],
+      "verificacao": "Limites compartilhados e respostas de acesso genéricas reduzem enumeração/tentativas; login local de produção é bloqueado.",
+      "limites": "Disponibilidade do provedor e DDoS volumétrico não são resolvidos por rate limits da aplicação."
+    },
+    {
+      "numero": 55,
+      "tarefa": "Rate limit geral",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/rate-limit.ts",
+        "app/fale-conosco/actions.ts",
+        "app/newsletter/actions.ts",
+        "app/api/admin/uploads/route.ts",
+        "tests/security-auth/rate-limit.test.ts"
+      ],
+      "verificacao": "UPSERT atômico PostgreSQL compartilha contadores para ações sensíveis, com limites globais e por origem/conta.",
+      "limites": "Leituras públicas não possuem um WAF ou limitador global de tráfego; capacidade deve ser medida pelo item 65."
+    },
+    {
+      "numero": 56,
+      "tarefa": "Bloquear formulário durante envio",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/fale-conosco/PageContent.tsx",
+        "components/NewsletterForm.tsx",
+        "lib/client/admin-upload.ts",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacao": "Contato desabilita fieldset/botão enquanto pending e preserva chave de tentativa; clientes exibem estado de envio.",
+      "limites": "Bloqueio visual sozinho não fornece idempotência persistente para todas as ações administrativas."
+    },
+    {
+      "numero": 57,
+      "tarefa": "Proteção contra CSRF",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/request-origin.ts",
+        "lib/server/actions.ts",
+        "app/api/admin/uploads/route.ts",
+        "app/api/auth/google/callback/route.ts",
+        "tests/security-auth/boundaries.test.ts"
+      ],
+      "verificacao": "Origin confiável, contexto de navegação, cookies SameSite e state/nonce no OAuth protegem os caminhos de mutação.",
+      "limites": "Crons usam segredo operacional próprio; não aceitam apenas cookies do navegador."
+    },
+    {
+      "numero": 58,
+      "tarefa": "Upload validado e sem vazamento de informação",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/api/admin/uploads/route.ts",
+        "lib/server/storage.ts",
+        "lib/server/logger.ts",
+        "tests/security-data/uploads.test.ts",
+        "tests/security-data/storage.test.ts"
+      ],
+      "verificacao": "Grupo de 50 testes passou; erros não exibem resposta do provedor, credencial ou SQL; recuperação fica durável.",
+      "limites": "Assinatura de bytes não é antivírus. Arquivos não publicados permanecem sujeitos à rota privada da aplicação."
+    },
+    {
+      "numero": 59,
+      "tarefa": "Tokens seguros e bem geridos",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/crypto.ts",
+        "lib/server/auth-security.ts",
+        "lib/server/auth.ts",
+        "app/api/auth/google/callback/route.ts",
+        "tests/security-auth/oauth.test.ts"
+      ],
+      "verificacao": "Tokens opacos aleatórios, HMAC no banco, prazos/revogação e OAuth state/PKCE/nonce/JWT são verificados.",
+      "limites": "Links de confirmação de newsletter incluem token de finalidade específica; não são enviados a Analytics nem logs. Rotação exige coordenação com sessões/dados."
+    },
+    {
+      "numero": 60,
+      "tarefa": "Proteção contra SSRF",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/storage.ts",
+        "lib/server/google-auth.ts",
+        "lib/server/google-calendar.ts",
+        "next.config.ts",
+        "tests/security-data/calendar.test.ts",
+        "tests/security-data/storage.test.ts"
+      ],
+      "verificacao": "APIs externas usam hosts fixos, componentes codificados e redirect:error; Image optimizer aceita somente assets locais.",
+      "limites": "Metadata server é uma integração interna deliberada; não se declara sandbox de rede total da VM."
+    },
+    {
+      "numero": 61,
+      "tarefa": "Evitar N+1",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/queries.ts",
+        "lib/server/admin-listing.ts",
+        "lib/admin-pagination.ts",
+        "app/admin/noticias/page.tsx",
+        "app/admin/midia/page.tsx",
+        "app/admin/atendimentos/page.tsx",
+        "app/admin/mensagens/page.tsx",
+        "tests/integration/admin-pagination.test.ts",
+        "tests/integration/query-shape.test.ts",
+        "tests/unit/queries-bounds.test.ts"
+      ],
+      "verificacao": "select/include e contagens agregadas evitam consultas em loops. Notícias e mídia passaram a usar paginação SQL de 25 registros e GET validado; 12 testes unitários/SSR e 4 casos de paginação SQL real passaram, com acesso aos 53 registros por navegação e busca além da primeira página.",
+      "limites": "Evitar N+1 não elimina SSR/serialização nem prova paginação de toda lista. Reteste público monotônico delimitou saturação entre a etapa 50 req/s PASS e 75 req/s FAIL; isso não mede capacidade universal nem substitui perfil autenticado específico."
+    },
+    {
+      "numero": 62,
+      "tarefa": "Separação CQRS",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/queries.ts",
+        "app/admin/noticias/actions.ts",
+        "lib/server/actions.ts",
+        "tests/unit/public-publication-queries.test.ts"
+      ],
+      "verificacao": "Leituras públicas centralizadas em queries; comandos/mutações em actions com autenticação e validação.",
+      "limites": "É separação pragmática de leitura e escrita, sem event sourcing, framework CQRS extra ou dois bancos."
+    },
+    {
+      "numero": 63,
+      "tarefa": "Idempotência",
+      "status": "parcial",
+      "caminho_evidencia": [
+        "lib/config/contact-submission.ts",
+        "lib/server/contact-idempotency.ts",
+        "app/fale-conosco/actions.ts",
+        "prisma/migrations/20261002140000_contact_idempotency/migration.sql",
+        "tests/security-data/contact-idempotency.test.ts"
+      ],
+      "verificacao": "Contato usa chave por tentativa, hashes de payload e claim transacional durável; replay igual recebe sucesso e payload diferente conflita.",
+      "limites": "Não há chave persistida universal para todo CRUD/upload. SMTP é at-least-once; Message-ID estável não garante exactly-once."
+    },
+    {
+      "numero": 64,
+      "tarefa": "Condições de corrida",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/media-deletion.ts",
+        "lib/server/contact-email-outbox.ts",
+        "lib/server/generic-email-outbox.ts",
+        "tests/integration/admin-race.test.ts",
+        "tests/integration/row-security.test.ts"
+      ],
+      "verificacao": "Row locks, constraints, transações e CAS protegem os caminhos sensíveis revisados; versões invalidam notificações obsoletas.",
+      "limites": "Não é uma prova formal contra toda corrida possível; manutenção manual e mudanças futuras exigem testes específicos."
+    },
+    {
+      "numero": 65,
+      "tarefa": "Carga, limite de requisições e otimização",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "scripts/test-load.mjs",
+        "tests/load/scenarios.js",
+        "tests/load/capacity-plan.js",
+        "tests/unit/capacity-plan.test.ts",
+        "tests/unit/load-guard.test.ts",
+        "load-results/spm-load-18795554487bbc83/report.json",
+        "lib/server/admin-listing.ts",
+        "tests/integration/admin-pagination.test.ts",
+        "load-results/spm-load-e673152467233b4d/report.json",
+        "tests/load/monotonic-core.mjs",
+        "tests/load/monotonic.mjs",
+        "tests/unit/monotonic-load.test.ts",
+        "tests/load/timing-validity.js",
+        "tests/unit/load-timing.test.ts",
+        "scripts/lib/docker-local.mjs"
+      ],
+      "verificacao": "Reteste público monotônico e accounting válidos: etapas 2/5/10/20/30/50 req/s passaram. A 50 req/s houve 1.550 requisições, p95 53,87 ms/p99 175,58 ms, 0 erros e 0 drops. A 75 req/s, p95 2.583 ms/p99 3.149 ms excederam SLO sem drops. A partir de 100 req/s ocorreram também drops; 14.544 requisições e 9.231 drops no ensaio inteiro, exit 99/passed=false por saturação. Saúde final 200 e cleanup confirmados. Paginação SQL/projeções foram testadas preservando auth/RLS.",
+      "limites": "Ensaio Docker local isolado com dados sintéticos: não mede capacidade da VM HML nem de produção. Mediu a imagem funcional b964c14e, anterior à remoção de npm e às alterações finais de dependências/TZ; não se atribui o resultado ao digest final 7488adb0. As etapas duram 30/31 s, com seis rotas públicas, app 1 CPU/512 MiB, PostgreSQL 1 CPU/512 MiB e gerador 2 CPU/512 MiB/200 requisições em voo. RTT monotônico inclui a leitura do corpo inteiro e difere da fase de duração do k6. Ensaios k6 posteriores com durações negativas são inconclusivos e preservados, não usados para afirmar PASS ou capacidade. Não se afirma que toda a carga passou nem exatamente o máximo de requisições. Esse reteste é público, não um reteste autenticado do painel final."
+    },
+    {
+      "numero": 66,
+      "tarefa": "Dual write",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/api/admin/uploads/route.ts",
+        "lib/server/storage.ts",
+        "lib/server/media-deletion.ts",
+        "tests/integration/upload-recovery.test.ts",
+        "tests/security-data/uploads.test.ts"
+      ],
+      "verificacao": "Intenção de recuperação existe antes do write no provedor; Media e remoção da intenção compartilham commit; 50 testes unitários do grupo passaram. Integração SQL/armazenamento local real confirmou que falha na inserção de metadata preserva intenção e arquivo órfão, respeita a grace e permite remoção posterior.",
+      "limites": "É compensação durável, não transação distribuída. Grace de 15min depende de operação terminar dentro dos prazos; cancelamento remoto não fornece garantia absoluta de conclusão. Não se executou falha induzida em uploads reais do GCP."
+    },
+    {
+      "numero": 67,
+      "tarefa": "Dead letter queue",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/media-deletion.ts",
+        "lib/server/contact-email-outbox.ts",
+        "lib/server/generic-email-outbox.ts",
+        "scripts/retry-contact-email.ts",
+        "scripts/retry-media-deletion.ts",
+        "scripts/retry-generic-email.ts",
+        "tests/unit/operations.test.ts"
+      ],
+      "verificacao": "Filas persistidas preservam deadLetterAt/failureCode; reprocessamento exige comando operacional e CAS.",
+      "limites": "Monitoramento contínuo e procedimento humano de resolução continuam necessários; não se criou um serviço de mensageria extra."
+    },
+    {
+      "numero": 68,
+      "tarefa": "Ataques por comparação de tempo",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/crypto.ts",
+        "app/api/auth/google/callback/route.ts",
+        "app/api/cron/notificacoes/route.ts",
+        "tests/security-data/crypto.test.ts"
+      ],
+      "verificacao": "Comparações de hashes/segredos de mesmo tamanho usam timingSafeEqual.",
+      "limites": "Não se promete tempo constante para toda resposta HTTP, consultas ao banco ou interação com o Google."
+    },
+    {
+      "numero": 69,
+      "tarefa": "Poison messages",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/media-deletion.ts",
+        "lib/server/contact-email-outbox.ts",
+        "lib/server/generic-email-outbox.ts",
+        "tests/security-data/media-deletion.test.ts",
+        "tests/security-data/generic-email-outbox.test.ts"
+      ],
+      "verificacao": "Attempts aumentam no claim; oito tentativas, backoff e DLQ limitam falhas persistentes e crashes repetidos.",
+      "limites": "Itens estacionados exigem diagnóstico e retry autorizado; não são descartados silenciosamente."
+    },
+    {
+      "numero": 70,
+      "tarefa": "Cache stampede",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/translation-store.ts",
+        "lib/server/google-auth.ts",
+        "tests/unit/translation-store.test.ts",
+        "tests/integration/translation.test.ts"
+      ],
+      "verificacao": "Traduções usam claim/lease persistido e CAS; tokens Google usam single-flight por processo.",
+      "limites": "Não há cache distribuído geral para toda página; personalização e dados privados usam no-store. Claims/CAS e concorrência foram exercitados em SQL sintético; isso não prova comportamento ilimitado entre réplicas em produção."
+    },
+    {
+      "numero": 71,
+      "tarefa": "Deploy blue/green",
+      "status": "parcial",
+      "caminho_evidencia": [
+        ".github/workflows/deploy-gcp.yml",
+        "scripts/lib/migration-policy.mjs",
+        "lib/database-protocol.json",
+        "infra/hml/vm/deploy.sh",
+        "tests/unit/migration-policy.test.ts",
+        "tests/integration/deploy-workflow.test.ts",
+        "tests/helpers/deploy-workflow.ts"
+      ],
+      "verificacao": "Workflow Cloud Run prepara candidata sem tráfego, smoke, promoção e restauração do split; guard verifica imagens por digest e migrações/protocolo da candidata e revisões anteriores. 22 checks de Bash com CLI simulada passaram, conforme confirmação do operador.",
+      "limites": "Workflow Bash testado com CLIs simuladas, sem deploy Cloud Run blue/green real nesta rodada. HML funcional está RUNNING em VM única com manutenção e uma web; não possui duas aplicações concorrentes. Restaurar tráfego não reverte schema/dados."
+    },
+    {
+      "numero": 72,
+      "tarefa": "Índices do banco",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "prisma/schema.prisma",
+        "prisma/migrations/20261002130000_query_indexes/migration.sql",
+        "tests/integration/query-shape.test.ts"
+      ],
+      "verificacao": "Índices de filtros/publicação/filas e campos de consulta foram adicionados por migração versionada. A HML funcional confirmou as 13 migrations, incluindo os índices versionados.",
+      "limites": "EXPLAIN/custo sob carga prolongada na VM ainda precisam de medição; índices não foram adicionados indiscriminadamente a toda coluna."
+    },
+    {
+      "numero": 73,
+      "tarefa": "Middleware de requests/responses",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "proxy.ts",
+        "next.config.ts",
+        "lib/server/actions.ts",
+        "lib/server/logger.ts",
+        "tests/security-auth/proxy.test.ts"
+      ],
+      "verificacao": "Proxy sobrescreve nonce/locale confiáveis, restringe painel preliminarmente e headers; wrapper centraliza autorização/erros das actions.",
+      "limites": "API não depende só do proxy; autenticação/validação ocorre na rota. Não há logging de corpos/segredos das requisições."
+    },
+    {
+      "numero": 74,
+      "tarefa": "Migrações",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "prisma/migrations",
+        "scripts/lib/check-migrations.mjs",
+        "scripts/lib/migration-policy.mjs",
+        "infra/hml/vm/deploy.sh",
+        "tests/unit/migration-policy.test.ts",
+        "tmp/hml-final76-proof.json",
+        "tmp/hml-final76-install.log"
+      ],
+      "verificacao": "Migrações versionadas usam manifests expand/contract e protocolo de app/migrador; online recusa contract/unknown e histórico incompatível. Deploy real final confirmou 13 migrations aplicadas sem pendências e protocolo scoped-rls-v1; backup/restauração isolada da HML conferiu 33 tabelas e uma sequência antes da troca de imagem PostgreSQL, sem alterar a origem.",
+      "limites": "Aplicação real exige backup verificado/manutenção quando incompatível. Nenhum reset/seed automático nem rollback destrutivo de schema foi executado."
+    },
+    {
+      "numero": 75,
+      "tarefa": "Connection pool",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "lib/server/db.ts",
+        "lib/config/runtime.ts",
+        "infra/hml/vm/configure.py",
+        "tests/unit/db-singleton.test.ts"
+      ],
+      "verificacao": "Singleton por processo e limites/timeout explícitos; HML prepara poolMax3 e concorrência de jobs limitada.",
+      "limites": "Pool não é global entre réplicas/processos. Conexões e saturação precisam ser observadas na nova carga."
+    },
+    {
+      "numero": 76,
+      "tarefa": "Server-Sent Events",
+      "status": "implementado",
+      "caminho_evidencia": [
+        "app/api/admin/pendencias/stream/route.ts",
+        "lib/server/pending-stream.ts",
+        "components/admin/PendingCounters.tsx",
+        "tests/unit/pending-stream.test.ts",
+        "tests/security-data/pending-stream-route.test.ts"
+      ],
+      "verificacao": "Stream autenticado envia só contagens, revalida sessão/RLS, limita duração/concorrência e libera recursos em cancelamento.",
+      "limites": "Transporte usa polling interno e guard por processo; não é broker global. Reconnect/CPU/latência reais na VM e Cloud Run ainda precisam de medição."
+    }
+  ],
+  "estado_operacional_hml": {
+    "estado_vm_confirmado": "RUNNING",
+    "url": "https://spm-hml.35.215.232.88.sslip.io",
+    "entrada_painel": "/atendente",
+    "publico_sem_basic_auth": true,
+    "release_funcional_publicada": true,
+    "release_final_sem_npm_publicada": true,
+    "release_final_status": "Release hml-20261002-76-04 publicada e validada na VM com APP 7488adb0, migrador 4a3d9b21, PostgreSQL endurecido 605136e4 e Caddy 881bbc60 por digest; instalação EXIT 0. Backup/restauração real das 13 migrations, recibo GCS íntegro, HTTP e OAuth final confirmados.",
+    "postgres": "18.6",
+    "migrations_aplicadas": 13,
+    "protocolo_readiness": "scoped-rls-v1",
+    "tabelas_force_rls": 6,
+    "runtime_nonowner_sem_superuser_sem_bypassrls": true,
+    "conta_admin_ativa_aprovada": 1,
+    "banco_tcp_desativado": true,
+    "readiness_http": 200,
+    "liveness_http": 200,
+    "host_oom_kills_observados": 0,
+    "verificacoes_http_passadas": 18,
+    "bytes_respostas_http": 372529,
+    "oauth_navegador_real_chegou_admin": true,
+    "oauth_confirmacao_operador_utc": "2026-10-03T02:59:00Z",
+    "horario_regular_brasilia": "Segunda, quarta, sexta, sábado e domingo, 09h–17h; política VM 08h45–17h15.",
+    "associacao_cloud_agendamento_confirmada": true,
+    "excecao_deadline_brasilia": "2026-10-03T06:00:00-03:00",
+    "timer_excecao_ativo_aguardando": true,
+    "limite_trafego_excecao_mib": 512,
+    "shaping_excecao_mbit_s": 10,
+    "baseline_trafego_excecao_preservada": true,
+    "limite_rigido_faturamento": false,
+    "fontes": [
+      "tmp/hml-final76-proof.json",
+      "tmp/hml-final76-install.log",
+      "tmp/hml-final-http-proof.json",
+      "tmp/hml-final76-browser-proof.json",
+      "tmp/hml-regular-schedule-final.json",
+      "tmp/hml-vm-final.json",
+      "tmp/hml-final76-proof-downloaded.json",
+      "tmp/hml-final76-save-proof.log",
+      "tmp/hml-final76-proof-download.log"
+    ],
+    "limites": "A exportação direta por stdout sofreu avaria no cliente Windows após produzir o JSON completo. Reexportação por arquivo protegido na VM (save-proof SSH EXIT 0) e download SCP EXIT 0 recuperaram JSON idêntico, complete=true/errors=[]. A instalação final terminou EXIT 0. OAuth vem do navegador real separado; primeiro disparo real do agendamento Compute e desligamento futuro ainda não observados.",
+    "coletora_json_completa": true,
+    "coletora_json_errors": [],
+    "coletora_data_utc": "2026-10-03T02:57:18.433134+00:00",
+    "containers_oom_killed_observado": false,
+    "release_final_id": "hml-20261002-76-04",
+    "instalacao_exit_code": 0,
+    "release_confirmada_na_coletora_utc": "2026-10-03T02:57:18.433134+00:00",
+    "release_confirmada_na_coletora_brasilia": "2026-10-02T23:57:18.433134-03:00",
+    "runtime_timezone": "America/Sao_Paulo",
+    "oauth_prova_navegador_registrada_utc": "2026-10-03T03:03:26.314Z",
+    "oauth_atividade_exibida_brasilia": "02/10/2026 23:59",
+    "oauth_areas_visiveis": 14,
+    "oauth_usuarios_visiveis": 1,
+    "oauth_noticias_visiveis": 0,
+    "coletora_cli_export_exit0_confirmado": true,
+    "imagens_configuradas": [
+      {
+        "referencia": "caddy:2.11.6-alpine@sha256:881bbc60f9986d5ab8e7cfd6cf7e4ef3c9c0439fef2429d035d065577882f028",
+        "id": "sha256:881bbc60f9986d5ab8e7cfd6cf7e4ef3c9c0439fef2429d035d065577882f028",
+        "fixada_por_digest": true
+      },
+      {
+        "referencia": "southamerica-east1-docker.pkg.dev/site-institucional-510319/spm-hml-docker/spm-hml-migrate@sha256:4a3d9b21d38680940477e1a1cb4582806f730249cc49186fee0243ef8de88420",
+        "id": "sha256:4a3d9b21d38680940477e1a1cb4582806f730249cc49186fee0243ef8de88420",
+        "fixada_por_digest": true
+      },
+      {
+        "referencia": "southamerica-east1-docker.pkg.dev/site-institucional-510319/spm-hml-docker/spm-hml-postgres@sha256:605136e47342394723b247f76a53ea82804c3855349124db6e31ff29558bf515",
+        "id": "sha256:605136e47342394723b247f76a53ea82804c3855349124db6e31ff29558bf515",
+        "fixada_por_digest": true
+      },
+      {
+        "referencia": "southamerica-east1-docker.pkg.dev/site-institucional-510319/spm-hml-docker/spm-hml-site@sha256:7488adb06c40b0a382c0b793a9b2048d381853a195cde92952c292ead802f338",
+        "id": "sha256:7488adb06c40b0a382c0b793a9b2048d381853a195cde92952c292ead802f338",
+        "fixada_por_digest": true
+      }
+    ],
+    "backup_restauracao_hml": {
+      "migrations": 13,
+      "verificado": true,
+      "origem_inalterada": true,
+      "restauracao_corresponde": true,
+      "banco_temporario_removido": true,
+      "tabelas": 33,
+      "sequencias": 1,
+      "bytes": 111498,
+      "verificado_em_utc": "2026-10-03T02:49:03.518643+00:00",
+      "upload_gcs_verificado": true,
+      "md5_recibo_validado": true,
+      "geracao_decimal_positiva": true,
+      "evidencia": "tmp/hml-final76-proof.json"
+    },
+    "custo_excecao": {
+      "reserva_planejamento_brl": 12,
+      "fatura_real_confirmada": false,
+      "limite_rigido_faturamento": false,
+      "evidencia": "tmp/hml-test-cost-plan.json"
+    },
+    "coletora_stdout_direto_exit0_confirmado": false,
+    "coletora_export_metodo": "arquivo protegido na VM + SCP",
+    "http_verificado_em_utc": "2026-10-03T03:10:37.390Z",
+    "tags_retencao_promovidas": true,
+    "tags_retencao_confirmadas": "protected-current APP7488/migrador4a3d/PostgreSQL6051; protected-previous APPb964/migrador45f6, com protocolo compatível"
+  },
+  "atualizado_em_utc": "2026-10-03T03:10:42.196Z"
+}

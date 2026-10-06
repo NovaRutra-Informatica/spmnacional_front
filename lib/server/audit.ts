@@ -4,6 +4,7 @@ import { isIP } from 'node:net';
 import { headers } from 'next/headers';
 import type { AuditLevel } from '@/lib/generated/prisma/enums';
 import { prisma } from './db';
+import { logError } from './logger';
 
 export interface AuditInput {
     action: string;
@@ -23,16 +24,22 @@ export interface AuditInput {
  * `TRUSTED_PROXY_HOPS=0` usa o endereço mais à direita do X-Forwarded-For;
  * valores maiores pulam essa quantidade de endereços de proxies à direita.
  */
-function trustedClientIp(forwarded: string | null): string | null {
-    const configured = process.env.TRUSTED_PROXY_HOPS?.trim();
+export function trustedClientIp(
+    forwarded: string | null,
+    configured = process.env.TRUSTED_PROXY_HOPS?.trim(),
+): string | null {
     if (configured === undefined || !/^\d+$/.test(configured) || !forwarded) return null;
 
     const trustedHops = Number.parseInt(configured, 10);
-    const chain = forwarded
-        .split(',')
-        .map((part) => part.trim())
-        .filter((part) => isIP(part) !== 0);
-    const candidate = chain[chain.length - trustedHops - 1];
+    if (!Number.isSafeInteger(trustedHops) || trustedHops > 32 || forwarded.length > 8192)
+        return null;
+    // Nunca remova entradas inválidas: isso deslocaria a contagem dos proxies
+    // e poderia promover um IP forjado mais à esquerda a cliente confiável.
+    const chain = forwarded.split(',').map((part) => part.trim());
+    const candidateIndex = chain.length - trustedHops - 1;
+    if (candidateIndex < 0 || chain.slice(candidateIndex).some((part) => isIP(part) === 0))
+        return null;
+    const candidate = chain[candidateIndex];
     return candidate && isIP(candidate) !== 0 ? candidate : null;
 }
 
@@ -71,6 +78,6 @@ export async function recordAudit(input: AuditInput): Promise<void> {
             },
         });
     } catch (error) {
-        console.error('[auditoria] falha ao registrar', input.action, error);
+        logError('audit.write_failed', error);
     }
 }

@@ -1,11 +1,12 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
+import PublicTranslation from '@/components/PublicTranslation';
 import { listRegionais } from '@/lib/server/queries';
 import PageContent, { type RegionalItem } from './PageContent';
 
 // A página lê as unidades do Postgres — o build do Docker roda sem banco.
 export const dynamic = 'force-dynamic';
 
-export const metadata: Metadata = { title: 'Onde estamos' };
+export const metadata = pageMetadata('/onde-estamos');
 
 export default async function Page() {
     const regionais = await listRegionais();
@@ -31,5 +32,9 @@ export default async function Page() {
         regioes: new Set(items.map((item) => item.region)).size,
     };
 
-    return <PageContent regionais={items} stats={stats} />;
+    return (
+        <PublicTranslation pageKey="onde-estamos">
+            {<PageContent regionais={items} stats={stats} />}
+        </PublicTranslation>
+    );
 }

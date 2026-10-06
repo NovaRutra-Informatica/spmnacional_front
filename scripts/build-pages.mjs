@@ -63,6 +63,17 @@ const NAO_COPIAR = new Set([
     'out',
     'scripts',
     'storage',
+    'tests',
+    'coverage',
+    'playwright-report',
+    'test-results',
+    'tmp',
+    'output',
+    'instrumentation.ts',
+    'vitest.config.ts',
+    'vitest.integration.config.ts',
+    'playwright.config.ts',
+    'eslint.config.mjs',
 ]);
 
 /** Removidos da cópia: dependem de servidor, sessão ou de um token que só existe no e-mail. */
@@ -291,6 +302,8 @@ async function main() {
             ...process.env,
             APP_URL: SITE_URL,
             NEXT_TELEMETRY_DISABLED: '1',
+            NEXT_PUBLIC_STATIC_DEMO: 'true',
+            TRANSLATION_ENABLED: 'false',
         },
     });
 

@@ -1,0 +1,8 @@
+.private/
+vm/__pycache__/
+terraform/.terraform/
+terraform/*.tfstate*
+terraform/*.tfplan
+terraform/*.tfvars
+terraform/*.tfvars.json
+!terraform/*.example

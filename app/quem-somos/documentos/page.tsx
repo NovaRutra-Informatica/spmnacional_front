@@ -1,10 +1,9 @@
-import type { Metadata } from 'next';
+import { pageMetadata } from '@/lib/seo';
+import PublicTranslation from '@/components/PublicTranslation';
 import { listDocumentos } from '@/lib/server/queries';
 import PageContent, { type DocumentoItem } from './PageContent';
 
-export const metadata: Metadata = {
-    title: 'Documentos',
-};
+export const metadata = pageMetadata('/quem-somos/documentos');
 
 // A página lê o Postgres: sem isto o `docker build` (que roda sem banco) quebraria no prerender.
 export const dynamic = 'force-dynamic';
@@ -22,5 +21,9 @@ export default async function Page() {
         fileUrl: documento.fileUrl,
     }));
 
-    return <PageContent documentos={documentos} />;
+    return (
+        <PublicTranslation pageKey="quem-somos/documentos">
+            {<PageContent documentos={documentos} />}
+        </PublicTranslation>
+    );
 }

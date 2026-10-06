@@ -1,0 +1,623 @@
+{
+  "data": "2026-10-02",
+  "fonte_matriz": "docs/auditoria-76-itens.json",
+  "escopo": "Código congelado, evidências locais e release final hml-20261002-76-04 publicada e validada na VM RUNNING, com 13 migrations, readiness scoped-rls-v1, PostgreSQL 18.6 endurecido e horário de Brasília. Deploy EXIT 0, backup/restauração HML e login Workspace real confirmados em 3/10 UTC (2/10 Brasília). Não equivale a validação integral de produção.",
+  "contagem_status": {
+    "total": 76,
+    "implementado": 65,
+    "parcial": 7,
+    "pendente_externo": 3,
+    "não_aplicável": 1
+  },
+  "interpretacao": "Implementado significa presente no código. Não é porcentagem de segurança, conformidade ou validação integral em produção.",
+  "fatos_organizacionais": {
+    "ga4_id_fornecido": false,
+    "google_analytics_ativo": false,
+    "depoimentos_autorizados_fornecidos": false,
+    "estudos_de_caso_autorizados_fornecidos": false,
+    "conteudo_ficticio_publicado": false,
+    "prazo_quantificavel_de_resposta_definido": false,
+    "resposta_publicada": "Responderemos o mais breve possível."
+  },
+  "grupos": [
+    {
+      "id": "site_publico_seo_acessibilidade",
+      "itens": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        40,
+        41,
+        42,
+        43,
+        44,
+        45,
+        48,
+        56
+      ],
+      "estado": "implementacao_com_conteudo_externo_pendente",
+      "entregas": [
+        "404 útil, CTA principal e móvel, links internos, breadcrumbs, FAQs e agradecimento sem PII na URL.",
+        "Metadados próprios, imagens sociais, favicon, otimização de assets, sitemap e indexação permitida apenas no domínio de produção; HML noindex.",
+        "Schema NGO com endereço e telefone existentes, publicado uma vez e protegido por nonce e escape JSON.",
+        "Estudos de caso e testemunhos possuem estruturas de publicação autorizada e estados vazios úteis; sem exemplos fictícios ou avaliações inventadas.",
+        "Política descreve contato, retenção, provedores e consentimento sem inventar prazo de resposta."
+      ],
+      "evidencias": [
+        "lib/seo.ts",
+        "app/robots.ts",
+        "app/sitemap.ts",
+        "components/StructuredData.tsx",
+        "lib/content/organization.ts",
+        "tests/seo.test.ts",
+        "tests/public-ui.test.ts",
+        "tests/organization-schema.test.ts",
+        "tests/e2e/public-seo.spec.ts"
+      ],
+      "verificacoes_confirmadas": [
+        "4 testes do schema institucional passaram",
+        "9 testes de UI/retenção passaram",
+        "ESLint e typecheck dos arquivos revisados passaram"
+      ],
+      "limites": [
+        "E2E local consolidado passou: 28 checks e 8 skips intencionais, mais perfis Analytics/local separados. Não substitui todos os dispositivos reais nem comprova integrações externas.",
+        "Casos, depoimentos e prazo quantificável dependem da organização; não foram fabricados.",
+        "Mapas/direções são links externos; não se afirmou validação de localização por GPS nem horários de atendimento."
+      ]
+    },
+    {
+      "id": "analytics_e_privacidade",
+      "itens": [
+        18,
+        19,
+        42
+      ],
+      "estado": "analytics_pendente_externo_desativado",
+      "entregas": [
+        "GA4 preparado para consentimento explícito, recusa/revogação e exclusão de páginas privadas e dados de formulários.",
+        "Sem ID fornecido, Analytics permanece desativado e o aviso trata preferências essenciais."
+      ],
+      "evidencias": [
+        "components/AnalyticsConsent.tsx",
+        "lib/analytics-browser.ts",
+        "lib/config/analytics.ts",
+        "app/politica-de-privacidade/page.tsx"
+      ],
+      "limites": [
+        "Ativação e verificação de uma propriedade real dependem do ID e configuração externa da organização.",
+        "Política e prazos técnicos exigem validação organizacional antes de tratar dados reais."
+      ]
+    },
+    {
+      "id": "seguranca_aplicacao_dados",
+      "itens": [
+        20,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37,
+        38,
+        39,
+        46,
+        47,
+        49,
+        50,
+        51,
+        52,
+        53,
+        54,
+        55,
+        57,
+        58,
+        59,
+        60,
+        73
+      ],
+      "estado": "controles_testados_local_e_hml_funcional",
+      "entregas": [
+        "Autorização e validação no servidor, sessões protegidas, consultas parametrizadas e respostas reduzidas.",
+        "RLS forçado e escopos SQL por transação para registros sensíveis, runtime separado do migrador.",
+        "AES-256-GCM para campos selecionados, filas cifradas, rate limit persistido, uploads privados/validados, HTTPS e CSP com nonce."
+      ],
+      "evidencias": [
+        "lib/server/auth.ts",
+        "lib/server/database-scope.ts",
+        "lib/server/crypto.ts",
+        "lib/server/rate-limit.ts",
+        "app/api/admin/uploads/route.ts",
+        "proxy.ts",
+        "prisma/migrations/20261002120000_sensitive_row_level_security/migration.sql",
+        "tests/integration/row-security.test.ts",
+        "tmp/hml-final76-proof.json",
+        "tmp/hml-final76-browser-proof.json"
+      ],
+      "verificacoes_confirmadas": [
+        "50 testes unitários de uploads/armazenamento/exclusão passaram",
+        "65 testes SQL isolados em 11 arquivos passaram, incluindo RLS nonowner, corridas, outboxes e recuperação de uploads",
+        "Login Workspace novo no navegador real chegou a /admin na release final às 02:59 UTC de 3/10 (23:59 Brasília de 2/10); coletora não verifica OAuth."
+      ],
+      "limites": [
+        "HML final confirmou PostgreSQL 18.6, 13 migrations, seis tabelas ENABLE/FORCE RLS, runtime nonowner sem SUPERUSER/BYPASSRLS, uma conta admin aprovada, timezone America/Sao_Paulo e readiness scoped-rls-v1 HTTP 200 nos digests publicados.",
+        "Chave pública do banco não se aplica ao PostgreSQL acessado somente pelo servidor.",
+        "A VM única compartilha identidade IAM entre seus contêineres; não é isolamento por identidade de workload.",
+        "Não é uma prova formal de ausência de vulnerabilidades nem cifra de toda coluna."
+      ]
+    },
+    {
+      "id": "historico_git_segredos",
+      "itens": [
+        21
+      ],
+      "estado": "parcial",
+      "entregas": [
+        "Scanner de árvore/CI, proteção de symlinks e allowlist restrita testados.",
+        "dev e gh-pages saneados; referências locais atualizadas com CAS via update-ref/fetch, conforme confirmação do operador. Índice e arquivos preservados; nenhum reset/stash."
+      ],
+      "evidencias": [
+        "scripts/security-scan.mjs",
+        "scripts/lib/security-scan-tree.mjs",
+        "scripts/security-scan-smoke.mjs",
+        ".gitleaks.toml",
+        "tmp/remote-history-sanitization-proof.json",
+        "tmp/history-publish.log"
+      ],
+      "pendencias": [
+        "PR refs 1–5",
+        "Caches externos",
+        "Clones/reflogs externos"
+      ],
+      "verificacoes_confirmadas": [
+        "Working tree: 516 arquivos, 0 findings",
+        "Histórico alcançável: 17 commits, 0 findings",
+        "Smoke: 9 checks passaram"
+      ],
+      "limites": [
+        "Reescrever referências principais não apaga cópias externas nem substitui rotação/revogação de credenciais aposentadas.",
+        "Este resumo não reproduz valores, hashes ou payloads de segredos."
+      ]
+    },
+    {
+      "id": "confiabilidade_filas_consistencia",
+      "itens": [
+        61,
+        62,
+        63,
+        64,
+        66,
+        67,
+        68,
+        69,
+        70,
+        72,
+        74,
+        75,
+        76
+      ],
+      "estado": "implementacao_testada_com_limites_operacionais",
+      "entregas": [
+        "Leituras e comandos separados sem framework CQRS extra; consultas projetadas e paginação SQL de notícias/mídia.",
+        "Idempotência durável de contato, transações, versões, leases/CAS, backoff e DLQ para filas.",
+        "Upload registra intenção antes do armazenamento e elimina a intenção na transação da metadata; recuperação posterior de órfãos.",
+        "Migrations versionadas com guard de protocolo, índices específicos, singleton/pool e SSE autenticado com duração e concorrência limitadas."
+      ],
+      "evidencias": [
+        "lib/server/admin-listing.ts",
+        "lib/server/contact-idempotency.ts",
+        "lib/server/contact-email-outbox.ts",
+        "lib/server/generic-email-outbox.ts",
+        "lib/server/media-deletion.ts",
+        "scripts/lib/migration-policy.mjs",
+        "lib/server/pending-stream.ts",
+        "tests/integration/admin-pagination.test.ts",
+        "tests/integration/upload-recovery.test.ts"
+      ],
+      "verificacoes_confirmadas": [
+        "12 testes de paginação unitários/SSR passaram",
+        "4 cenários de paginação com SQL real passaram: 53 registros acessíveis em páginas de 25/25/3, filtros e busca além da primeira página",
+        "65 testes da suíte SQL isolada passaram e recursos sintéticos foram removidos"
+      ],
+      "limites": [
+        "Idempotência não é universal para todo CRUD/upload.",
+        "E-mail é at-least-once; Message-ID estável não garante exactly-once nem entrega real sem SMTP configurado.",
+        "Dual write usa compensação durável, não transação distribuída; cancelamento de upload remoto não é garantia absoluta de conclusão.",
+        "SSE usa polling e limites por processo; não há broker ou pool global entre réplicas.",
+        "Restauração de tráfego não reverte schema e dados."
+      ]
+    },
+    {
+      "id": "carga_e_otimizacao",
+      "itens": [
+        65
+      ],
+      "estado": "implementado_limite_local_medido",
+      "otimizacoes": [
+        "Notícias e mídia agora consultam e renderizam 25 registros por página, com filtros GET e totais globais agregados.",
+        "Permissões e RLS foram preservados; busca trata curingas SQL como texto literal."
+      ],
+      "reteste": {
+        "concluido": true,
+        "relatorio": "load-results/spm-load-e673152467233b4d/report.json",
+        "engine": "monotonic",
+        "medicao": "performance.now RTT até fim do corpo, incluindo conexão",
+        "timing_valido": true,
+        "accounting_valido": true,
+        "ensaio_completo_passed": false,
+        "exit_code": 99,
+        "resultado": "Ensaio válido de saturação; etapas até 50 req/s consecutivas no SLO, primeira falha do SLO a 75 req/s. O teste inteiro deliberadamente não passou os limites.",
+        "limite_consecutivo_rps": 50,
+        "primeiro_estagio_fora_slo_rps": 75,
+        "maior_estagio_oferecido_rps": 200,
+        "requisicoes": 14544,
+        "drops": 9231,
+        "etapa_50": {
+          "requisicoes": 1550,
+          "p95_ms": 53.87306045000441,
+          "p99_ms": 175.5832355999926,
+          "erros": 0,
+          "drops": 0
+        },
+        "etapa_75": {
+          "requisicoes": 2325,
+          "p95_ms": 2583.000943800001,
+          "p99_ms": 3148.5611488799973,
+          "erros": 0,
+          "drops": 0
+        },
+        "saude_final_http": 200,
+        "cleanup_confirmado": true,
+        "imagem_medida": "sha256:b964c14e97b320eb9e0588db78cf81637502fd1da1a374de66611683b7409f83"
+      },
+      "limites": [
+        "Ensaio Docker local isolado com dados sintéticos: não mede capacidade da VM HML nem de produção. Mediu a imagem funcional b964c14e, anterior à remoção de npm e às alterações finais de dependências/TZ; não se atribui o resultado ao digest final 7488adb0. As etapas duram 30/31 s, com seis rotas públicas, app 1 CPU/512 MiB, PostgreSQL 1 CPU/512 MiB e gerador 2 CPU/512 MiB/200 requisições em voo. RTT monotônico inclui a leitura do corpo inteiro e difere da fase de duração do k6.",
+        "K6 com métricas temporais negativas é inconclusivo; dados brutos não foram ocultados e esse ensaio não fundamenta o limite.",
+        "50 req/s é a última etapa pública consecutiva no SLO desta configuração; o máximo preciso está entre etapas, não é universal. Drops a partir de 100 também refletem o limite de 200 requisições em voo do gerador.",
+        "Capacidade monotônica mede somente o mix público; não é reteste autenticado da release final. O perfil autenticado histórico permanece identificado separadamente."
+      ],
+      "baseline_historico": {
+        "relatorio": "load-results/spm-load-18795554487bbc83/report.json",
+        "publico_etapa_50_rps_dentro_slo": true,
+        "publico_etapa_75_rps_saturou": true,
+        "auth_requisicoes": 1009,
+        "auth_p95_ms_aproximado": 6262,
+        "noticias_requisicoes": 202,
+        "noticias_timeouts": 18,
+        "noticias_registros_retornados": 101000,
+        "app_cpu_limite": 1,
+        "app_memoria_limite_mib": 512,
+        "app_cpu_pico_percentual": 101.07,
+        "app_memoria_pico_mib": 186.5,
+        "auth_periodos_cpu_throttled_percentual": 47.3,
+        "locks_sql_observados": 0,
+        "oom_observado": false
+      }
+    },
+    {
+      "id": "publicacao_infraestrutura",
+      "itens": [
+        71,
+        74,
+        75
+      ],
+      "estado": "hml_final_publicada_validada",
+      "entregas": [
+        "Workflow Cloud Run com candidata sem tráfego, smoke, promoção/rollback e guard de protocolo/imagens por digest.",
+        "Scheduler de e-mail em produção condicionado ao SMTP, secret existente e deadlines compatíveis.",
+        "HML econômica em VM única de São Paulo está funcional/publicada e RUNNING, com 13 migrations, TLS, Google Workspace, horário regular associado e exceção única até 03/10 06h Brasília."
+      ],
+      "evidencias": [
+        ".github/workflows/deploy-gcp.yml",
+        "tests/integration/deploy-workflow.test.ts",
+        "tests/helpers/deploy-workflow.ts",
+        "infra/terraform/tests/production.tftest.hcl",
+        "infra/hml/README.md",
+        "infra/hml/vm/deploy.sh",
+        "tmp/hml-final76-proof.json",
+        "tmp/hml-final76-install.log",
+        "tmp/hml-final76-browser-proof.json"
+      ],
+      "verificacoes_confirmadas": [
+        "22 checks de workflow Bash com CLI simulada passaram conforme confirmação do operador",
+        "9 cenários Terraform simulados passaram; fmt/validate passaram",
+        "HTTP real final: 18 checks passaram, 372.529 bytes; respostas esperadas incluem páginas/readiness200, redirecionamentos307/308 e recusas401/403/404. Login Workspace novo no navegador real da release final chegou a /admin.",
+        "Instalação real final EXIT 0; backup/restauração HML de 13 migrations/33 tabelas/uma sequência, origem preservada e scratch removido; upload de 111.498 bytes com MD5 do recibo e geração positiva. Coletora confirmou os digests APP7488/migrador4a3d/PG6051/Caddy881b."
+      ],
+      "hml_estado_confirmado": "RUNNING",
+      "hml_dominio": "spm-hml.35.215.232.88.sslip.io",
+      "hml_login_painel": "/atendente",
+      "hml_publico_sem_basic_auth": true,
+      "nova_release_publicada": true,
+      "horario_regular_brasilia": "Segunda, quarta, sexta, sábado e domingo, 09h–17h; política VM 08h45–17h15.",
+      "limites": [
+        "Checks de workflow não são deploy blue/green real.",
+        "HML mantém uma web/VM e manutenção; não haverá duas aplicações concorrentes de blue/green nessa máquina.",
+        "VM desligada não permite acesso ao site; orçamento de alerta não é bloqueio automático de despesas.",
+        "SMTP e ID real de calendário permanecem dependências externas."
+      ],
+      "release_final_sem_npm_publicada": true,
+      "excecao_confirmada": "Timer de 03/10 às 06h Brasília habilitado, ativo e aguardando; quota de 512 MiB e shaping de 10 Mbit/s aplicados, baseline preservada. Primeiro disparo/desligamento futuro não observados.",
+      "estado_operacional": {
+        "estado_vm_confirmado": "RUNNING",
+        "url": "https://spm-hml.35.215.232.88.sslip.io",
+        "entrada_painel": "/atendente",
+        "publico_sem_basic_auth": true,
+        "release_funcional_publicada": true,
+        "release_final_sem_npm_publicada": true,
+        "release_final_status": "Release hml-20261002-76-04 publicada e validada na VM com APP 7488adb0, migrador 4a3d9b21, PostgreSQL endurecido 605136e4 e Caddy 881bbc60 por digest; instalação EXIT 0. Backup/restauração real das 13 migrations, recibo GCS íntegro, HTTP e OAuth final confirmados.",
+        "postgres": "18.6",
+        "migrations_aplicadas": 13,
+        "protocolo_readiness": "scoped-rls-v1",
+        "tabelas_force_rls": 6,
+        "runtime_nonowner_sem_superuser_sem_bypassrls": true,
+        "conta_admin_ativa_aprovada": 1,
+        "banco_tcp_desativado": true,
+        "readiness_http": 200,
+        "liveness_http": 200,
+        "host_oom_kills_observados": 0,
+        "verificacoes_http_passadas": 18,
+        "bytes_respostas_http": 372529,
+        "oauth_navegador_real_chegou_admin": true,
+        "oauth_confirmacao_operador_utc": "2026-10-03T02:59:00Z",
+        "horario_regular_brasilia": "Segunda, quarta, sexta, sábado e domingo, 09h–17h; política VM 08h45–17h15.",
+        "associacao_cloud_agendamento_confirmada": true,
+        "excecao_deadline_brasilia": "2026-10-03T06:00:00-03:00",
+        "timer_excecao_ativo_aguardando": true,
+        "limite_trafego_excecao_mib": 512,
+        "shaping_excecao_mbit_s": 10,
+        "baseline_trafego_excecao_preservada": true,
+        "limite_rigido_faturamento": false,
+        "fontes": [
+          "tmp/hml-final76-proof.json",
+          "tmp/hml-final76-install.log",
+          "tmp/hml-final-http-proof.json",
+          "tmp/hml-final76-browser-proof.json",
+          "tmp/hml-regular-schedule-final.json",
+          "tmp/hml-vm-final.json",
+          "tmp/hml-final76-proof-downloaded.json",
+          "tmp/hml-final76-save-proof.log",
+          "tmp/hml-final76-proof-download.log"
+        ],
+        "limites": "A exportação direta por stdout sofreu avaria no cliente Windows após produzir o JSON completo. Reexportação por arquivo protegido na VM (save-proof SSH EXIT 0) e download SCP EXIT 0 recuperaram JSON idêntico, complete=true/errors=[]. A instalação final terminou EXIT 0. OAuth vem do navegador real separado; primeiro disparo real do agendamento Compute e desligamento futuro ainda não observados.",
+        "coletora_json_completa": true,
+        "coletora_json_errors": [],
+        "coletora_data_utc": "2026-10-03T02:57:18.433134+00:00",
+        "containers_oom_killed_observado": false,
+        "release_final_id": "hml-20261002-76-04",
+        "instalacao_exit_code": 0,
+        "release_confirmada_na_coletora_utc": "2026-10-03T02:57:18.433134+00:00",
+        "release_confirmada_na_coletora_brasilia": "2026-10-02T23:57:18.433134-03:00",
+        "runtime_timezone": "America/Sao_Paulo",
+        "oauth_prova_navegador_registrada_utc": "2026-10-03T03:03:26.314Z",
+        "oauth_atividade_exibida_brasilia": "02/10/2026 23:59",
+        "oauth_areas_visiveis": 14,
+        "oauth_usuarios_visiveis": 1,
+        "oauth_noticias_visiveis": 0,
+        "coletora_cli_export_exit0_confirmado": true,
+        "imagens_configuradas": [
+          {
+            "referencia": "caddy:2.11.6-alpine@sha256:881bbc60f9986d5ab8e7cfd6cf7e4ef3c9c0439fef2429d035d065577882f028",
+            "id": "sha256:881bbc60f9986d5ab8e7cfd6cf7e4ef3c9c0439fef2429d035d065577882f028",
+            "fixada_por_digest": true
+          },
+          {
+            "referencia": "southamerica-east1-docker.pkg.dev/site-institucional-510319/spm-hml-docker/spm-hml-migrate@sha256:4a3d9b21d38680940477e1a1cb4582806f730249cc49186fee0243ef8de88420",
+            "id": "sha256:4a3d9b21d38680940477e1a1cb4582806f730249cc49186fee0243ef8de88420",
+            "fixada_por_digest": true
+          },
+          {
+            "referencia": "southamerica-east1-docker.pkg.dev/site-institucional-510319/spm-hml-docker/spm-hml-postgres@sha256:605136e47342394723b247f76a53ea82804c3855349124db6e31ff29558bf515",
+            "id": "sha256:605136e47342394723b247f76a53ea82804c3855349124db6e31ff29558bf515",
+            "fixada_por_digest": true
+          },
+          {
+            "referencia": "southamerica-east1-docker.pkg.dev/site-institucional-510319/spm-hml-docker/spm-hml-site@sha256:7488adb06c40b0a382c0b793a9b2048d381853a195cde92952c292ead802f338",
+            "id": "sha256:7488adb06c40b0a382c0b793a9b2048d381853a195cde92952c292ead802f338",
+            "fixada_por_digest": true
+          }
+        ],
+        "backup_restauracao_hml": {
+          "migrations": 13,
+          "verificado": true,
+          "origem_inalterada": true,
+          "restauracao_corresponde": true,
+          "banco_temporario_removido": true,
+          "tabelas": 33,
+          "sequencias": 1,
+          "bytes": 111498,
+          "verificado_em_utc": "2026-10-03T02:49:03.518643+00:00",
+          "upload_gcs_verificado": true,
+          "md5_recibo_validado": true,
+          "geracao_decimal_positiva": true,
+          "evidencia": "tmp/hml-final76-proof.json"
+        },
+        "custo_excecao": {
+          "reserva_planejamento_brl": 12,
+          "fatura_real_confirmada": false,
+          "limite_rigido_faturamento": false,
+          "evidencia": "tmp/hml-test-cost-plan.json"
+        },
+        "coletora_stdout_direto_exit0_confirmado": false,
+        "coletora_export_metodo": "arquivo protegido na VM + SCP",
+        "http_verificado_em_utc": "2026-10-03T03:10:37.390Z",
+        "tags_retencao_promovidas": true,
+        "tags_retencao_confirmadas": "protected-current APP7488/migrador4a3d/PostgreSQL6051; protected-previous APPb964/migrador45f6, com protocolo compatível"
+      },
+      "imagens_finais_locais": [
+        {
+          "imagem": "spmnacional-front:secure76-final",
+          "id": "sha256:7488adb06c40b0a382c0b793a9b2048d381853a195cde92952c292ead802f338",
+          "achados": 0,
+          "evidencia": "tmp/image-scan/secure76-final-vulnerabilities-redacted.json"
+        },
+        {
+          "imagem": "spmnacional-front:migrator-secure76-final",
+          "id": "sha256:4a3d9b21d38680940477e1a1cb4582806f730249cc49186fee0243ef8de88420",
+          "achados": 0,
+          "evidencia": "tmp/image-scan/migrator-secure76-final-vulnerabilities-redacted.json"
+        },
+        {
+          "imagem": "spmnacional-postgres:secure76",
+          "id": "sha256:605136e47342394723b247f76a53ea82804c3855349124db6e31ff29558bf515",
+          "achados": 0,
+          "evidencia": "tmp/image-scan/postgres-secure76-vulnerabilities-redacted.json"
+        }
+      ],
+      "smokes_imagens_finais_offline": {
+        "checks": 13,
+        "passaram": true,
+        "evidencia": "tmp/image-scan/secure76-final-runtime-smoke.json"
+      }
+    }
+  ],
+  "proximos_passos": [
+    "Observar o primeiro disparo real da exceção e o ciclo regular de sábado, com início previsto às 08h45 e acesso 09h–17h sujeito à readiness; medir memória/disco/latência prolongados e conferir a fatura real, preservando a baseline e o prazo autorizado.",
+    "Acompanhar release upstream de braces e substituir a mitigação local; o HIGH de desenvolvimento continua bloqueando o gate da CI.",
+    "Tratar PR refs/caches/clones externos e configurar apenas SMTP, calendário, propriedade GA4 e conteúdos reais fornecidos pela organização.",
+    "Observar o primeiro ciclo real do agendamento Compute e medir uso prolongado da VM; preparar aprovação de privacidade e dados reais antes da produção."
+  ],
+  "qualidade_consolidada_confirmada_pelo_operador": {
+    "unitarios": {
+      "testes_passados": 851,
+      "arquivos": 73,
+      "cobertura_statements_percentual": 84.17,
+      "cobertura_branches_percentual": 78.5,
+      "cobertura_functions_percentual": 81.16,
+      "cobertura_lines_percentual": 85.9,
+      "evidencia": "tmp/final-unit-results.json"
+    },
+    "integracao_sql": {
+      "testes_passados": 65,
+      "arquivos": 11,
+      "evidencia": "tmp/final-integration-runtime-guard.log"
+    },
+    "e2e": {
+      "principal_passados": 28,
+      "skips_intencionais": 8,
+      "analytics_fixtures_passados": 6,
+      "local_passados": 2
+    },
+    "typecheck": "passou",
+    "eslint": {
+      "erros": 0,
+      "warnings": 22
+    },
+    "audit_dependencias": {
+      "escopo": "árvore completa incluindo desenvolvimento",
+      "achados": 1,
+      "high": 1,
+      "advisory": "GHSA-vfj7-8cjw-p6xm",
+      "release_upstream_corrigida": false,
+      "mitigacao_patch_bun": true,
+      "regressao_real_testes_passados": 11,
+      "achado_suprimido": false,
+      "gate_ci_high_bloqueado": true,
+      "producao": {
+        "achados": 0,
+        "pacotes": 233,
+        "instalacao_isolada": true
+      },
+      "evidencia": "tmp/braces-mitigation/provenance.json"
+    },
+    "scans_imagens_finais": [
+      {
+        "imagem": "spmnacional-front:secure76-final",
+        "id": "sha256:7488adb06c40b0a382c0b793a9b2048d381853a195cde92952c292ead802f338",
+        "achados": 0,
+        "evidencia": "tmp/image-scan/secure76-final-vulnerabilities-redacted.json"
+      },
+      {
+        "imagem": "spmnacional-front:migrator-secure76-final",
+        "id": "sha256:4a3d9b21d38680940477e1a1cb4582806f730249cc49186fee0243ef8de88420",
+        "achados": 0,
+        "evidencia": "tmp/image-scan/migrator-secure76-final-vulnerabilities-redacted.json"
+      },
+      {
+        "imagem": "spmnacional-postgres:secure76",
+        "id": "sha256:605136e47342394723b247f76a53ea82804c3855349124db6e31ff29558bf515",
+        "achados": 0,
+        "evidencia": "tmp/image-scan/postgres-secure76-vulnerabilities-redacted.json"
+      }
+    ],
+    "smokes_imagens_finais": {
+      "checks": 13,
+      "passaram": true,
+      "evidencia": "tmp/image-scan/secure76-final-runtime-smoke.json"
+    },
+    "limites": "Builds, scans e smokes finais locais passaram; digests finais publicados e validados na HML por instalação EXIT0, coletora JSON completa, backup/restauração e HTTP/OAuth reais. E2E e carga local mediram a aplicação funcional anterior à remoção de npm/deps/TZ; não constituem prova de capacidade por digest da nova imagem. Ausência de findings nos scans não prova ausência de vulnerabilidade; HIGH dev segue explícito e bloqueia CI, Caddy mantém UNKNOWN. Export stdout direto sofreu avaria Windows; salvamento protegido SSH e SCP passaram EXIT 0 e recuperaram JSON idêntico.",
+    "escopo_scans": "APP, migrador e PostgreSQL endurecido nos três digests finais registrados têm zero achados nos scans Trivy OS/bibliotecas disponíveis. Caddy 2.11.6 no digest 881bbc60 mantém 1 UNKNOWN em x/crypto/openpgp, sem correção upstream identificada e alcance não comprovado; análise de binário sem símbolos não prova ausência. Scans são fotografias temporais. O audit completo de desenvolvimento mantém 1 HIGH explícito em braces, mitigado localmente e bloqueando CI.",
+    "postgres_smoke_local": {
+      "passou": true,
+      "migrations": 13,
+      "tabelas_restauradas": 34,
+      "sequencias_restauradas": 2,
+      "persistencia_apos_reinicio": true,
+      "evidencia": "tmp/pg-secure76-smoke-proof.json"
+    },
+    "backup_restauracao_hml": {
+      "migrations": 13,
+      "verificado": true,
+      "origem_inalterada": true,
+      "restauracao_corresponde": true,
+      "banco_temporario_removido": true,
+      "tabelas": 33,
+      "sequencias": 1,
+      "bytes": 111498,
+      "verificado_em_utc": "2026-10-03T02:49:03.518643+00:00",
+      "upload_gcs_verificado": true,
+      "md5_recibo_validado": true,
+      "geracao_decimal_positiva": true,
+      "evidencia": "tmp/hml-final76-proof.json"
+    },
+    "deploy_final_real": {
+      "release": "hml-20261002-76-04",
+      "instalacao_exit_code": 0,
+      "coletora_json_completa": true,
+      "coletora_cli_export_exit0_confirmado": true,
+      "login_workspace_novo": true,
+      "evidencia": "tmp/hml-final76-proof.json",
+      "coletora_export_metodo": "arquivo protegido na VM + SCP"
+    }
+  },
+  "revisao_frontend_somente_leitura": {
+    "escopo": [
+      "lib/seo.ts",
+      "app/layout.tsx",
+      "app/robots.ts",
+      "app/sitemap.ts",
+      "app/not-found.tsx",
+      "app/publicacoes/blog/[slug]/page.tsx",
+      "app/publicacoes/estudos-de-caso/page.tsx",
+      "components/SiteChrome.tsx",
+      "components/StructuredData.tsx"
+    ],
+    "bug_material_confirmado": false,
+    "limites": "Leitura de fonte não substitui revisão visual e E2E no build consolidado; nenhum arquivo da aplicação foi alterado nesta revisão."
+  },
+  "atualizado_em_utc": "2026-10-03T03:10:42.196Z"
+}

@@ -75,7 +75,8 @@ export default function PageContent({
                     <h1>Convidar usuário</h1>
                     <p>
                         Crie o acesso, escolha o perfil de permissões e a regional. O convite é
-                        enviado por e-mail para que a pessoa defina a própria senha.
+                        enviado por e-mail com instruções de acesso via Google Workspace, sem senha
+                        local.
                     </p>
                 </div>
                 <div className="admin-page-head__actions">
@@ -217,14 +218,14 @@ export default function PageContent({
 
                             <div className="afield" style={{ marginBottom: '0' }}>
                                 <label htmlFor="situacao">Situação inicial</label>
-                                <select id="situacao" value="PENDENTE" disabled>
-                                    <option value="PENDENTE">
-                                        Pendente (aguardando aceite do convite)
+                                <select id="situacao" value="ATIVO" disabled>
+                                    <option value="ATIVO">
+                                        Ativo (autorizado para Google Workspace)
                                     </option>
                                 </select>
                                 <span className="afield__hint">
-                                    A conta entra como pendente e só passa a ativa quando a pessoa
-                                    definir a senha pelo link do convite.
+                                    O cadastro autoriza este e-mail institucional. A pessoa ainda
+                                    precisa provar sua identidade entrando pelo Google Workspace.
                                 </span>
                             </div>
                         </div>

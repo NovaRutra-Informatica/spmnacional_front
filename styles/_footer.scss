@@ -48,8 +48,10 @@
         margin-bottom: 1.5rem;
 
         img {
-            width: 64px;
+            width: 132px;
+            max-width: 100%;
             height: auto;
+            object-fit: contain;
         }
     }
 

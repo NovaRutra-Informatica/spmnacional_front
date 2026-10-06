@@ -1,0 +1,1 @@
+{"protocol":"scoped-rls-v1","requiredRlsTables":["Atendimento","AtendimentoEncaminhamento","ContactMessage","IdempotencyRequest","ContactEmailJob","GenericEmailJob"]}

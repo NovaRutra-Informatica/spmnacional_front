@@ -1,0 +1,1 @@
+{"schemaVersion":1,"strategy":"contract","requiredAppProtocol":"scoped-rls-v1","reason":"FORCE RLS requires the scoped database protocol. Previous unscoped application revisions are incompatible; verified maintenance and a compatible rollback release are required."}

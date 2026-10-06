@@ -55,6 +55,9 @@ const EMPTY_EVENT: EventRow = {
 
 export default function PageContent({ events, counts, calendarConfigured }: PageContentProps) {
     const [editandoId, setEditandoId] = useState<string | null>(null);
+    const [syncState, syncAction, syncing] = useActionState<FormState, FormData>(sincronizarAgora, {
+        ok: false,
+    });
     const [state, formAction, pending] = useActionState<FormState, FormData>(salvarEvento, {
         ok: false,
     });
@@ -96,17 +99,23 @@ export default function PageContent({ events, counts, calendarConfigured }: Page
                     <Link className="abtn abtn--ghost" href="/agenda">
                         <i className="fas fa-arrow-up-right-from-square"></i> Ver agenda pública
                     </Link>
-                    <form action={sincronizarAgora}>
+                    <form action={syncAction}>
                         <button
                             className="abtn abtn--ghost"
-                            disabled={!calendarConfigured}
+                            disabled={!calendarConfigured || syncing}
                             title={syncHint}
                         >
-                            <i className="fas fa-rotate"></i> Sincronizar agora
+                            <i className="fas fa-rotate"></i>{' '}
+                            {syncing ? 'Sincronizando…' : 'Sincronizar agora'}
                         </button>
                     </form>
                 </div>
             </div>
+            {syncState.message && (
+                <p role="status" className="callout">
+                    {syncState.message}
+                </p>
+            )}
 
             <div className="anote">
                 <i className="fas fa-circle-info"></i>

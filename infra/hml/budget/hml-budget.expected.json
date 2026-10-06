@@ -1,0 +1,39 @@
+{
+  "displayName": "SPM HML - BRL100 mensal",
+  "budgetFilter": {
+    "projects": [
+      "projects/114929512155"
+    ],
+    "creditTypesTreatment": "EXCLUDE_ALL_CREDITS",
+    "calendarPeriod": "MONTH"
+  },
+  "amount": {
+    "specifiedAmount": {
+      "currencyCode": "BRL",
+      "units": "100",
+      "nanos": 0
+    }
+  },
+  "thresholdRules": [
+    {
+      "thresholdPercent": 0.5,
+      "spendBasis": "CURRENT_SPEND"
+    },
+    {
+      "thresholdPercent": 0.9,
+      "spendBasis": "CURRENT_SPEND"
+    },
+    {
+      "thresholdPercent": 1,
+      "spendBasis": "CURRENT_SPEND"
+    },
+    {
+      "thresholdPercent": 1,
+      "spendBasis": "FORECASTED_SPEND"
+    }
+  ],
+  "notificationsRule": {
+    "disableDefaultIamRecipients": false
+  },
+  "ownershipScope": "BILLING_ACCOUNT"
+}

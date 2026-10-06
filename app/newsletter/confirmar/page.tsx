@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import PageHero from '@/components/PageHero';
 import { recordAudit } from '@/lib/server/audit';
-import { hashToken } from '@/lib/server/crypto';
-import { prisma } from '@/lib/server/db';
+import { confirmNewsletterToken } from '@/lib/server/newsletter';
+import { logError } from '@/lib/server/logger';
 
 // Consulta e atualiza o Postgres a cada acesso: nunca pode ser pré-renderizada.
 export const dynamic = 'force-dynamic';
@@ -29,32 +29,9 @@ async function confirmar(token: string | undefined): Promise<Resultado> {
     if (!token) return { ok: false, motivo: 'ausente' };
 
     try {
-        const subscriber = await prisma.newsletterSubscriber.findUnique({
-            where: { confirmTokenHash: hashToken(token) },
-            select: { id: true, email: true, confirmExpiresAt: true },
-        });
+        const subscriber = await confirmNewsletterToken(token);
 
         if (!subscriber) return { ok: false, motivo: 'invalido' };
-
-        if (!subscriber.confirmExpiresAt || subscriber.confirmExpiresAt.getTime() <= Date.now()) {
-            await prisma.newsletterSubscriber.update({
-                where: { id: subscriber.id },
-                data: { confirmTokenHash: null, confirmExpiresAt: null },
-            });
-            return { ok: false, motivo: 'invalido' };
-        }
-
-        await prisma.newsletterSubscriber.update({
-            where: { id: subscriber.id },
-            data: {
-                confirmed: true,
-                confirmedAt: new Date(),
-                // O token é de uso único: some assim que cumpre seu papel.
-                confirmTokenHash: null,
-                confirmExpiresAt: null,
-                unsubscribedAt: null,
-            },
-        });
 
         await recordAudit({
             action: 'Inscrição no boletim confirmada',
@@ -64,7 +41,7 @@ async function confirmar(token: string | undefined): Promise<Resultado> {
 
         return { ok: true, email: subscriber.email };
     } catch (error) {
-        console.error('[newsletter] falha ao confirmar inscrição:', error);
+        logError('newsletter.confirm_failed', error);
         return { ok: false, motivo: 'falha' };
     }
 }
@@ -101,9 +78,8 @@ export default async function Page({ searchParams }: PageProps) {
                         <div className="callout">
                             <i className="fas fa-circle-check"></i>
                             <p>
-                                <strong>Inscrição confirmada para {resultado.email}.</strong>{' '}
-                                Enviamos o boletim mensalmente e você pode cancelar quando quiser.
-                                Enquanto isso, veja as{' '}
+                                <strong>Inscrição confirmada para {resultado.email}.</strong> Você
+                                pode cancelar quando quiser. Enquanto isso, veja as{' '}
                                 <Link href="/publicacoes/blog">últimas notícias</Link> ou conheça a{' '}
                                 <Link href="/semana-do-migrante">Semana do Migrante</Link>.
                             </p>

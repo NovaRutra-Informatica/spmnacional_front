@@ -16,9 +16,8 @@
 #   Cloud Scheduler ──(header com CRON_SECRET)──> /api/cron/agenda
 #                                            └──> /api/cron/retencao
 #
-# Princípio de custo: tudo que consegue escalar a zero escala a zero. O único
-# item que cobra 24 horas por dia é o Cloud SQL — ver a tabela em
-# infra/README.md e a alternativa de Postgres serverless registrada lá.
+# Custos, disponibilidade e retenção devem ser aprovados antes da criação.
+# Consulte infra/OPERACAO-PRODUCAO.md; não existe promessa de custo fixo.
 #
 # NADA aqui é aplicado automaticamente. Este diretório existe para que o
 # `terraform apply` seja uma decisão da organização, não um efeito colateral.
@@ -47,7 +46,7 @@ locals {
   # Enquanto não houver domínio apontado, fica vazio e a aplicação responde
   # pela URL gerada pelo Cloud Run. Links de e-mail e o redirect do OAuth
   # exigem este valor — preencher `app_domain` antes de divulgar o site.
-  app_url = var.app_domain != "" ? "https://${var.app_domain}" : ""
+  app_url = var.app_url_override != "" ? var.app_url_override : (var.app_domain != "" ? "https://${var.app_domain}" : "")
 
   # A conexão sai pelo socket do Cloud SQL montado pelo próprio Cloud Run:
   # não passa pela internet e não exige VPC connector (que custaria mais que
@@ -72,6 +71,7 @@ locals {
   # cofre com um valor de espera; quem tiver a credencial adiciona a versão
   # real depois, sem passar por aqui.
   secrets_externos = [
+    "RUNTIME_DATABASE_URL",
     "SMTP_PASSWORD",
     "GOOGLE_OAUTH_CLIENT_ID",
     "GOOGLE_OAUTH_CLIENT_SECRET",
@@ -83,10 +83,20 @@ locals {
   # Variáveis de ambiente em texto claro do Cloud Run.
   env_vars = merge(
     {
-      NEXT_TELEMETRY_DISABLED = "1"
-      STORAGE_DRIVER          = "gcs"
-      GCS_BUCKET              = google_storage_bucket.uploads.name
-      SEED_ADMIN_EMAIL        = var.seed_admin_email
+      NEXT_TELEMETRY_DISABLED           = "1"
+      DEPLOYMENT_TARGET                 = "gcp"
+      DB_POOL_MAX                       = tostring(var.db_pool_max)
+      STORAGE_DRIVER                    = "gcs"
+      GCS_BUCKET                        = google_storage_bucket.uploads.name
+      SEED_ADMIN_EMAIL                  = var.seed_admin_email
+      GOOGLE_WORKSPACE_MFA_ENFORCED     = tostring(var.google_workspace_mfa_enforced)
+      TRANSLATION_ENABLED               = tostring(var.enable_translation)
+      ANALYTICS_ENABLED                 = tostring(var.enable_analytics)
+      GA_MEASUREMENT_ID                 = var.ga_measurement_id
+      GA_ENHANCED_MEASUREMENT_DISABLED  = tostring(var.ga_enhanced_measurement_disabled)
+      GOOGLE_CLOUD_PROJECT              = var.project_id
+      TRANSLATION_LOCATION              = var.translation_location
+      TRANSLATION_DAILY_CHARACTER_LIMIT = tostring(var.translation_daily_character_limit)
     },
     # NEXT_PUBLIC_* só entra no bundle do cliente em tempo de build; hoje
     # nenhum componente cliente lê esta variável, ela fica aqui para o
@@ -133,7 +143,7 @@ locals {
 # ---------------------------------------------------------
 
 resource "google_project_service" "apis" {
-  for_each = toset([
+  for_each = toset(concat([
     "run.googleapis.com",
     "sqladmin.googleapis.com",
     "secretmanager.googleapis.com",
@@ -147,7 +157,7 @@ resource "google_project_service" "apis" {
     "cloudresourcemanager.googleapis.com",
     # Necessária para a chave de API da agenda funcionar.
     "calendar-json.googleapis.com",
-  ])
+  ], var.enable_translation ? ["translate.googleapis.com"] : []))
 
   project            = var.project_id
   service            = each.value
@@ -157,9 +167,7 @@ resource "google_project_service" "apis" {
 # ---------------------------------------------------------
 # 2. Artifact Registry
 #
-# Um repositório Docker regional. O armazenamento é cobrado por GB
-# (US$ 0,10/GB-mês acima do 0,5 GB gratuito), então as políticas de limpeza
-# não são zelo estético: sem elas o repositório cresce a cada deploy.
+# Repositório regional com limpeza de versões antigas e tags de release imutáveis.
 # ---------------------------------------------------------
 
 resource "google_artifact_registry_repository" "docker" {
@@ -170,7 +178,7 @@ resource "google_artifact_registry_repository" "docker" {
   labels        = var.labels
 
   docker_config {
-    immutable_tags = false
+    immutable_tags = true
   }
 
   # Guarda as 10 imagens mais recentes de cada tag.
@@ -201,12 +209,8 @@ resource "google_artifact_registry_repository" "docker" {
 # ---------------------------------------------------------
 # 3. Cloud SQL — PostgreSQL 17
 #
-# É o item fixo mais caro: não tem nível gratuito e não escala a zero.
-# `db-f1-micro` em São Paulo ≈ US$ 11,53/mês + 10 GB SSD ≈ US$ 2,55/mês.
-#
-# Alta disponibilidade (REGIONAL) dobraria a conta e não se justifica para um
-# site institucional: a perda tolerável é a janela entre backups, não segundos
-# de indisponibilidade.
+# Disponibilidade (zonal/regional) e capacidade dependem dos requisitos aprovados.
+# PITR e backup são habilitados, mas restauração precisa ser ensaiada.
 # ---------------------------------------------------------
 
 resource "random_password" "db" {
@@ -218,7 +222,7 @@ resource "random_password" "db" {
 
 resource "google_sql_database_instance" "postgres" {
   name             = "${var.name_prefix}-postgres"
-  database_version = "POSTGRES_17"
+  database_version = "POSTGRES_18"
   region           = var.region
 
   # Trava de segurança no plano do terraform. O nome de uma instância
@@ -231,7 +235,7 @@ resource "google_sql_database_instance" "postgres" {
     edition = "ENTERPRISE"
 
     # Zonal: uma zona só. Ver comentário do bloco.
-    availability_type = "ZONAL"
+    availability_type = var.db_availability_type
 
     disk_type             = "PD_SSD"
     disk_size             = var.db_disk_size_gb
@@ -247,9 +251,9 @@ resource "google_sql_database_instance" "postgres" {
       enabled    = true
       start_time = var.db_backup_start_time
       location   = var.region
-      # PITR exige arquivamento de WAL e mais disco; num banco desta
-      # ordem de grandeza o backup diário já cobre o risco real.
-      point_in_time_recovery_enabled = false
+      # PITR reduz a janela de perda entre backups; há custo de retenção dos logs.
+      point_in_time_recovery_enabled = var.db_pitr_enabled
+      transaction_log_retention_days = var.db_pitr_enabled ? 7 : null
 
       backup_retention_settings {
         retained_backups = var.db_retained_backups
@@ -306,8 +310,6 @@ resource "google_sql_user" "app" {
 # Replicação gerenciada por nós, fixada em São Paulo: segredo que protege dado
 # pessoal de migrante não sai do Brasil sem decisão explícita.
 #
-# Cobrança: US$ 0,06 por segredo ativo/mês + US$ 0,03 por 10.000 acessos.
-# Com 8 segredos, isso é menos de US$ 0,50/mês.
 # ---------------------------------------------------------
 
 resource "random_bytes" "auth_secret" {
@@ -364,8 +366,7 @@ resource "google_secret_manager_secret_version" "espera" {
 # ---------------------------------------------------------
 # 5. Cloud Storage — uploads
 #
-# Standard regional em São Paulo: US$ 0,020/GB-mês. Com alguns GB de imagens e
-# PDFs, o custo é de centavos.
+# Objetos privados, versionados e com exclusão recuperável por prazo definido.
 # ---------------------------------------------------------
 
 resource "google_storage_bucket" "uploads" {
@@ -388,20 +389,14 @@ resource "google_storage_bucket" "uploads" {
     enabled = true
   }
 
+  soft_delete_policy {
+    retention_duration_seconds = 604800
+  }
+
   # Apaga versões antigas depois do prazo configurado.
   lifecycle_rule {
     condition {
       days_since_noncurrent_time = var.uploads_noncurrent_retention_days
-    }
-    action {
-      type = "Delete"
-    }
-  }
-
-  # Mesmo dentro do prazo, guarda no máximo 3 gerações de cada arquivo.
-  lifecycle_rule {
-    condition {
-      num_newer_versions = 3
     }
     action {
       type = "Delete"
@@ -437,8 +432,8 @@ resource "google_service_account" "runtime" {
   depends_on   = [google_project_service.apis]
 }
 
-# 6.2 — Identidade do job de migração. Separada da aplicação porque altera o
-# esquema do banco: se a aplicação for comprometida, ela não pode migrar nada.
+# 6.2 — Migração usa o proprietário SQL. Runtime recebe segredo/usuário distinto
+# após provisionamento aprovado de infra/sql/provision-runtime-role.sql.
 resource "google_service_account" "migrator" {
   account_id   = "${var.name_prefix}-migrate"
   display_name = "SPM Nacional — migrações (Cloud Run Job)"
@@ -464,9 +459,29 @@ resource "google_project_iam_member" "runtime_sql" {
   member  = "serviceAccount:${google_service_account.runtime.email}"
 }
 
+# Somente tradução síncrona NMT: sem papéis de admin, batch, datasets ou glossários.
+# API e permissões ficam ausentes enquanto a integração estiver desligada.
+resource "google_project_iam_custom_role" "runtime_translation" {
+  count       = var.enable_translation ? 1 : 0
+  project     = var.project_id
+  role_id     = "${replace(var.name_prefix, "-", "_")}_translate_text"
+  title       = "SPM public text translation"
+  description = "Tradução de conteúdo público pelo runtime; sem administração de modelos."
+  permissions = ["cloudtranslate.generalModels.predict", "serviceusage.services.use"]
+  depends_on  = [google_project_service.apis]
+}
+
+resource "google_project_iam_member" "runtime_translation" {
+  count   = var.enable_translation ? 1 : 0
+  project = var.project_id
+  role    = google_project_iam_custom_role.runtime_translation[0].name
+  member  = "serviceAccount:${google_service_account.runtime.email}"
+}
+
 # Acesso a segredo concedido segredo a segredo — nunca no projeto inteiro.
 resource "google_secret_manager_secret_iam_member" "runtime_secrets" {
-  for_each  = toset(local.secret_names)
+  # O runtime não recebe a credencial DDL do migrador.
+  for_each  = setunion(setsubtract(local.secret_env, toset(["DATABASE_URL"])), toset(["RUNTIME_DATABASE_URL"]))
   secret_id = google_secret_manager_secret.app[each.value].id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.runtime.email}"
@@ -480,10 +495,8 @@ resource "google_storage_bucket_iam_member" "runtime_uploads" {
   member = "serviceAccount:${google_service_account.runtime.email}"
 }
 
-# Sem `logWriter` a identidade personalizada não consegue gravar no Cloud
-# Logging, e o que a aplicação escreve em stdout/stderr (inclusive as falhas de
-# auditoria e de sincronização da agenda) simplesmente não aparece. Diagnóstico
-# de produção depende disso — ver "Operação do dia a dia" no infra/README.md.
+# Permite chamadas explícitas à Logging API. Captura de stdout/stderr do Cloud
+# Run é gerenciada pela plataforma e não depende deste papel no runtime.
 resource "google_project_iam_member" "runtime_logs" {
   project = var.project_id
   role    = "roles/logging.logWriter"
@@ -566,14 +579,8 @@ resource "google_service_account_iam_member" "deployer_usa_migrator" {
 # ---------------------------------------------------------
 # 7. Cloud Run — site e painel
 #
-# Nível gratuito mensal: 180.000 vCPU-s, 360.000 GiB-s e 2 milhões de
-# requisições. Ele é aplicado como desconto calculado com o preço do Tier 1, e
-# São Paulo é Tier 2 — ou seja, cobre a maior parte do consumo de um site
-# institucional, mas não exatamente 100% dele.
-#
-# `min_instance_count = 0` significa cold start de alguns segundos na primeira
-# visita depois de um período parado. É o preço de não pagar instância ociosa;
-# para o volume desta organização, é o trade-off certo.
+# Escala a zero envolve cold start; medir latência antes de escolher min_instances.
+# Nenhuma configuração de escala substitui orçamento/alertas de faturamento.
 # ---------------------------------------------------------
 
 resource "google_cloud_run_v2_service" "site" {
@@ -591,7 +598,8 @@ resource "google_cloud_run_v2_service" "site" {
   template {
     service_account                  = google_service_account.runtime.email
     max_instance_request_concurrency = var.request_concurrency
-    timeout                          = "60s"
+    # Notificações usam lote de 120s e podem concluir um SMTP já iniciado.
+    timeout = "185s"
 
     scaling {
       min_instance_count = 0
@@ -623,7 +631,7 @@ resource "google_cloud_run_v2_service" "site" {
 
         # CPU só é cobrada durante a requisição.
         cpu_idle = true
-        # Turbina o cold start do Next.js sem custo adicional relevante.
+        # CPU extra na inicialização; medir latência e custo no ambiente real.
         startup_cpu_boost = true
       }
 
@@ -649,10 +657,9 @@ resource "google_cloud_run_v2_service" "site" {
 
           value_source {
             secret_key_ref {
-              secret = google_secret_manager_secret.app[env.value].secret_id
-              # "latest" faz a troca de um segredo valer na
-              # próxima instância, sem novo deploy.
-              version = "latest"
+              secret = google_secret_manager_secret.app[env.value == "DATABASE_URL" ? "RUNTIME_DATABASE_URL" : env.value].secret_id
+              # Versões fixas evitam instâncias da mesma revisão usando segredos diferentes.
+              version = env.value == "DATABASE_URL" ? lookup(var.external_secret_versions, "RUNTIME_DATABASE_URL", "1") : (contains(keys(local.secrets_gerados), env.value) ? google_secret_manager_secret_version.gerados[env.value].version : lookup(var.external_secret_versions, env.value, "1"))
             }
           }
         }
@@ -671,7 +678,21 @@ resource "google_cloud_run_v2_service" "site" {
         initial_delay_seconds = 5
         timeout_seconds       = 3
         period_seconds        = 5
-        failure_threshold     = 6
+        failure_threshold     = 24
+      }
+
+      # Bootstrap não contém estas rotas; o pipeline ativa a sonda ao publicar a app.
+      dynamic "liveness_probe" {
+        for_each = var.use_bootstrap_image ? [] : [1]
+        content {
+          http_get {
+            path = "/api/health/live"
+            port = 3000
+          }
+          timeout_seconds   = 5
+          period_seconds    = 30
+          failure_threshold = 3
+        }
       }
     }
   }
@@ -686,9 +707,32 @@ resource "google_cloud_run_v2_service" "site" {
     # `terraform apply` faria rollback silencioso para a tag do plano.
     ignore_changes = [
       template[0].containers[0].image,
+      template[0].containers[0].liveness_probe,
+      # O pipeline controla promoção/rollback; apply não pode promover latest.
+      traffic,
       client,
       client_version,
     ]
+    precondition {
+      condition     = !var.enable_analytics || (var.ga_measurement_id != "" && var.ga_enhanced_measurement_disabled)
+      error_message = "Analytics ativado exige um ID GA4 real."
+    }
+    precondition {
+      condition     = var.use_bootstrap_image || local.app_url != ""
+      error_message = "Defina app_domain ou app_url_override HTTPS antes do deploy real."
+    }
+    precondition {
+      condition     = var.use_bootstrap_image || (var.enable_google_oauth && var.google_workspace_mfa_enforced && var.google_oauth_allowed_domain != "")
+      error_message = "Produção exige login Workspace configurado e confirmação operacional de 2FA obrigatório na organização. A variável não comprova MFA no token."
+    }
+    precondition {
+      condition     = var.use_bootstrap_image || try(tonumber(var.external_secret_versions["RUNTIME_DATABASE_URL"]) > 1, false)
+      error_message = "Provisione usuário SQL sem DDL e fixe RUNTIME_DATABASE_URL > 1 antes de produção."
+    }
+    precondition {
+      condition     = alltrue([for name in setsubtract(local.secret_env, toset(keys(local.secrets_gerados))) : try(tonumber(var.external_secret_versions[name]) > 1, false)])
+      error_message = "Integrações ligadas exigem external_secret_versions > 1; versão 1 é placeholder."
+    }
   }
 
   depends_on = [
@@ -732,7 +776,7 @@ resource "google_cloud_run_v2_job" "migrate" {
 
     template {
       service_account = google_service_account.migrator.email
-      max_retries     = 1
+      max_retries     = 0
       timeout         = "900s"
 
       volumes {
@@ -764,7 +808,7 @@ resource "google_cloud_run_v2_job" "migrate" {
           value_source {
             secret_key_ref {
               secret  = google_secret_manager_secret.app["DATABASE_URL"].secret_id
-              version = "latest"
+              version = google_secret_manager_secret_version.gerados["DATABASE_URL"].version
             }
           }
         }
@@ -790,9 +834,8 @@ resource "google_cloud_run_v2_job" "migrate" {
 # ---------------------------------------------------------
 # 9. Cloud Scheduler — rotinas periódicas
 #
-# Três jobs por conta de faturamento são gratuitos; usamos dois. A retenção é
-# obrigatória e diária. A agenda só é criada quando a integração com o Calendar
-# está ligada: sem ela a rota devolveria zeros e só geraria ruído no log.
+# A retenção é obrigatória e diária. Agenda e notificações só são criadas
+# quando as respectivas integrações estão habilitadas.
 # ---------------------------------------------------------
 
 resource "google_cloud_scheduler_job" "retencao" {
@@ -817,6 +860,39 @@ resource "google_cloud_scheduler_job" "retencao" {
     headers = {
       # Mesmo segredo operacional forte injetado no Cloud Run. O cabeçalho
       # próprio evita conflito com os tokens reservados pelo Scheduler.
+      "X-Cron-Secret" = random_password.cron_secret.result
+      "Content-Type"  = "application/json"
+    }
+
+    body = base64encode("{}")
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_cloud_scheduler_job" "notificacoes" {
+  count = var.enable_smtp ? 1 : 0
+
+  name        = "${var.name_prefix}-notification-email"
+  region      = var.region
+  description = "Processa as filas duráveis de contato, convites e confirmação do boletim."
+  schedule    = "*/5 * * * *"
+  time_zone   = "America/Sao_Paulo"
+
+  # Maior que o timeout HTTP de 185s do serviço; menor que o intervalo de 5min.
+  attempt_deadline = "200s"
+
+  retry_config {
+    retry_count          = 2
+    min_backoff_duration = "60s"
+    max_backoff_duration = "300s"
+  }
+
+  http_target {
+    http_method = "POST"
+    uri         = "${google_cloud_run_v2_service.site.uri}/api/cron/notificacoes"
+
+    headers = {
       "X-Cron-Secret" = random_password.cron_secret.result
       "Content-Type"  = "application/json"
     }
@@ -886,10 +962,12 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   display_name                       = "GitHub OIDC"
 
   attribute_mapping = {
-    "google.subject"             = "assertion.sub"
-    "attribute.repository"       = "assertion.repository"
-    "attribute.repository_owner" = "assertion.repository_owner"
-    "attribute.ref"              = "assertion.ref"
+    "google.subject"                = "assertion.sub"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_owner"    = "assertion.repository_owner"
+    "attribute.ref"                 = "assertion.ref"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
   }
 
   # Sem esta condição, QUALQUER workflow do GitHub no mundo poderia pedir
@@ -897,7 +975,11 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   # repositório exato e branch exata.
   attribute_condition = join(" && ", [
     "assertion.repository == \"${var.github_repository}\"",
+    "assertion.repository_id == \"${var.github_repository_id}\"",
+    "assertion.repository_owner_id == \"${var.github_repository_owner_id}\"",
     "assertion.ref == \"refs/heads/${var.github_deploy_branch}\"",
+    "assertion.sub == \"repo:${var.github_repository}:environment:production\"",
+    "assertion.workflow_ref == \"${var.github_repository}/.github/workflows/deploy-gcp.yml@refs/heads/${var.github_deploy_branch}\"",
   ])
 
   oidc {
@@ -908,5 +990,5 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 resource "google_service_account_iam_member" "github_deploy" {
   service_account_id = google_service_account.deployer.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repository}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository_id/${var.github_repository_id}"
 }

@@ -1,0 +1,1 @@
+{"schemaVersion":1,"strategy":"expand","reason":"Adds a protected HTTP replay table without changing the existing contact schema."}

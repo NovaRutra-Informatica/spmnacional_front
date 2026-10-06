@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { prisma } from '@/lib/server/db';
+import { prisma, withActorDatabaseScope } from '@/lib/server/db';
 import { requirePermission } from '@/lib/server/auth';
 import { recordAudit } from '@/lib/server/audit';
 import { decryptSensitiveOrLegacy } from '@/lib/server/crypto';
@@ -21,27 +21,29 @@ interface PageProps {
 export default async function Page({ params }: PageProps) {
     const [user, { id }] = await Promise.all([requirePermission('atendimentos'), params]);
 
-    const message = await prisma.contactMessage.findFirst({
-        where: { id, ...escopoMensagens(user) },
-        select: {
-            id: true,
-            name: true,
-            email: true,
-            phone: true,
-            city: true,
-            subject: true,
-            language: true,
-            message: true,
-            status: true,
-            internalNote: true,
-            respondedAt: true,
-            createdAt: true,
-            updatedAt: true,
-            encryptedAt: true,
-            assignedToId: true,
-            assignedTo: { select: { name: true } },
-        },
-    });
+    const message = await withActorDatabaseScope(user, () =>
+        prisma.contactMessage.findFirst({
+            where: { id, ...escopoMensagens(user) },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+                city: true,
+                subject: true,
+                language: true,
+                message: true,
+                status: true,
+                internalNote: true,
+                respondedAt: true,
+                createdAt: true,
+                updatedAt: true,
+                encryptedAt: true,
+                assignedToId: true,
+                assignedTo: { select: { name: true } },
+            },
+        }),
+    );
 
     if (!message) {
         notFound();

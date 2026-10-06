@@ -5,6 +5,10 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { recordAudit } from '@/lib/server/audit';
 import { loginWithGoogleProfile } from '@/lib/server/auth';
 import { env, isGoogleOAuthEnabled } from '@/lib/server/env';
+import { logError } from '@/lib/server/logger';
+import { isWorkspaceIdentity, workspaceDomain } from '@/lib/config/workspace-auth';
+import { googleOAuthRateLimitResponse } from '@/lib/server/oauth-rate-limit';
+import { readBoundedJson } from '@/lib/server/bounded-json';
 
 /**
  * Retorno do Google: valida state, PKCE, nonce e a assinatura do ID token
@@ -19,7 +23,9 @@ const STATE_COOKIE = `${COOKIE_PREFIX}g_state`;
 const VERIFIER_COOKIE = `${COOKIE_PREFIX}g_verifier`;
 const NONCE_COOKIE = `${COOKIE_PREFIX}g_nonce`;
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
-const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'));
+const GOOGLE_JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/oauth2/v3/certs'), {
+    timeoutDuration: 5000,
+});
 const VALID_ISSUERS = ['accounts.google.com', 'https://accounts.google.com'];
 
 function safeEqual(left: string, right: string): boolean {
@@ -29,7 +35,7 @@ function safeEqual(left: string, right: string): boolean {
 }
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
-    if (!isGoogleOAuthEnabled()) {
+    if (!isGoogleOAuthEnabled() || !workspaceDomain(env.google.allowedDomain)) {
         return new NextResponse('Não encontrado.', { status: 404 });
     }
 
@@ -39,14 +45,24 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const expectedNonce = store.get(NONCE_COOKIE)?.value ?? '';
 
     const clearTemporaryCookies = (): void => {
-        store.delete(STATE_COOKIE);
-        store.delete(VERIFIER_COOKIE);
-        store.delete(NONCE_COOKIE);
+        // Browsers reject even an expired __Host- cookie unless Secure and Path=/
+        // are present. Next's generic delete omits Secure; preserve issuance scope.
+        for (const name of [STATE_COOKIE, VERIFIER_COOKIE, NONCE_COOKIE]) {
+            store.set(name, '', {
+                httpOnly: true,
+                sameSite: 'lax',
+                secure: process.env.NODE_ENV === 'production',
+                path: '/',
+                maxAge: 0,
+                expires: new Date(0),
+                priority: 'high',
+            });
+        }
     };
 
     const toLogin = (message: string): NextResponse =>
         NextResponse.redirect(
-            new URL(`/atendente?erro=${encodeURIComponent(message)}`, request.url),
+            new URL(`/atendente?erro=${encodeURIComponent(message)}`, env.appUrl),
         );
 
     const reject = async (
@@ -72,18 +88,35 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     // Inclusive respostas de cancelamento precisam pertencer ao fluxo iniciado
     // neste navegador; isso evita apagar cookies ou poluir auditoria via CSRF.
-    if (!state || !expectedState || !safeEqual(state, expectedState)) {
-        return reject('Sessão de login expirada. Tente novamente.', 'state-invalido');
+    if (
+        !state ||
+        !/^[A-Za-z0-9_-]{32}$/.test(state) ||
+        !expectedState ||
+        !safeEqual(state, expectedState)
+    ) {
+        // Uma requisição externa não pode interromper um fluxo legítimo em andamento.
+        return toLogin('Sessão de login expirada. Tente novamente.');
     }
+
+    const limited = await googleOAuthRateLimitResponse('callback');
+    if (limited) return limited;
 
     if (googleError) {
         const safeError = googleError.replace(/[^a-z0-9_.-]/gi, '').slice(0, 60);
         return reject('Autorização cancelada no Google.', `google-error-${safeError}`);
     }
 
-    if (!code || !verifier || !expectedNonce) {
+    if (
+        !code ||
+        code.length > 4096 ||
+        !/^[A-Za-z0-9_-]{64}$/.test(verifier) ||
+        !/^[A-Za-z0-9_-]{32}$/.test(expectedNonce)
+    ) {
         return reject('Sessão de login expirada. Tente novamente.', 'parametros-ausentes');
     }
+
+    // Consome o estado antes da chamada de rede, inclusive se o provedor falhar.
+    clearTemporaryCookies();
 
     let idToken: string | undefined;
 
@@ -100,6 +133,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
                 code_verifier: verifier,
             }),
             cache: 'no-store',
+            signal: AbortSignal.timeout(10_000),
+            redirect: 'error',
         });
 
         if (!response.ok) {
@@ -109,10 +144,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             );
         }
 
-        const data = (await response.json()) as { id_token?: string };
-        idToken = data.id_token;
+        const data = (await readBoundedJson(response, 64 * 1024)) as { id_token?: string };
+        idToken =
+            typeof data.id_token === 'string' && data.id_token.length <= 16_384
+                ? data.id_token
+                : undefined;
     } catch (error) {
-        console.error('[google oauth] falha na troca do código:', error);
+        logError('auth.google_token_exchange_failed', error);
         return reject('Não foi possível falar com o Google. Tente novamente.', 'token-endpoint');
     }
 
@@ -128,9 +166,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             issuer: VALID_ISSUERS,
             clockTolerance: 5,
             maxTokenAge: '10m',
+            requiredClaims: ['exp', 'iat', 'sub', 'nonce', 'email', 'email_verified', 'hd'],
         }));
     } catch (error) {
-        console.error('[google oauth] ID token inválido:', error);
+        logError('auth.google_id_token_invalid', error);
         return reject('Credencial do Google não reconhecida.', 'id-token-invalido');
     }
 
@@ -140,6 +179,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const hostedDomain = typeof payload.hd === 'string' ? payload.hd : '';
     const name = typeof payload.name === 'string' ? payload.name : undefined;
 
+    if (payload.azp !== undefined && payload.azp !== env.google.clientId) {
+        return reject('Credencial do Google não reconhecida.', 'apresentador-invalido');
+    }
+
     if (!nonce || !safeEqual(nonce, expectedNonce)) {
         return reject('Credencial do Google não reconhecida.', 'nonce-invalido', email);
     }
@@ -148,7 +191,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return reject('Credencial do Google não reconhecida.', 'email-nao-verificado', email);
     }
 
-    if (env.google.allowedDomain && hostedDomain !== env.google.allowedDomain) {
+    if (
+        !isWorkspaceIdentity(
+            {
+                sub: subject,
+                email,
+                emailVerified: payload.email_verified === true,
+                hd: hostedDomain,
+            },
+            workspaceDomain(env.google.allowedDomain),
+        )
+    ) {
         return reject(
             'Use a conta do domínio institucional do SPM.',
             'dominio-nao-permitido',
@@ -160,12 +213,19 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return reject('Não foi possível concluir o login com o Google.', 'perfil-incompleto');
     }
 
-    const result = await loginWithGoogleProfile({
-        sub: subject,
-        email,
-        name,
-        hd: hostedDomain || undefined,
-    });
+    let result;
+    try {
+        result = await loginWithGoogleProfile({
+            sub: subject,
+            email,
+            name,
+            hd: hostedDomain || undefined,
+            emailVerified: true,
+        });
+    } catch (error) {
+        logError('auth.google_login_failed', error);
+        return toLogin('Não foi possível entrar agora. Tente novamente em instantes.');
+    }
 
     clearTemporaryCookies();
 
@@ -173,5 +233,5 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return toLogin(result.error);
     }
 
-    return NextResponse.redirect(new URL('/admin', request.url));
+    return NextResponse.redirect(new URL('/admin', env.appUrl));
 }

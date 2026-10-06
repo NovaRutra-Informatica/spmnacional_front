@@ -3,11 +3,20 @@
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { formString, zodErrors } from '@/lib/server/actions';
-import { recordAudit, requestMeta } from '@/lib/server/audit';
+import { requestMeta } from '@/lib/server/audit';
 import { encryptSensitive } from '@/lib/server/crypto';
 import { prisma } from '@/lib/server/db';
-import { sendContactAcknowledgement, sendContactNotification } from '@/lib/server/mail';
 import { consumeRateLimit } from '@/lib/server/rate-limit';
+import { assertTrustedMutationOrigin, UntrustedOriginError } from '@/lib/server/request-origin';
+import { logError } from '@/lib/server/logger';
+import { withPublicContactDatabaseScope } from '@/lib/server/database-scope';
+import {
+    CONTACT_ATTEMPT_TTL_MS,
+    contactAttemptKeyHash,
+    contactPayloadHash,
+    contactReplayStatus,
+    isIdempotencyClaimConflict,
+} from '@/lib/server/contact-idempotency';
 import { CONTACT_LANGUAGES, CONTACT_SUBJECTS, DEFAULT_CONTACT_LANGUAGE } from './options';
 
 /**
@@ -26,8 +35,7 @@ interface ContactFormState {
     data?: Record<string, unknown>;
 }
 
-const SUCCESS_MESSAGE =
-    'Recebemos seu contato e nossa equipe responde em até 5 dias úteis no e-mail informado.';
+const SUCCESS_MESSAGE = 'Recebemos seu contato. Responderemos o mais breve possível.';
 
 const contactSchema = z.object({
     name: z
@@ -60,8 +68,19 @@ export async function enviarMensagem(
         language: formString(formData, 'language') || DEFAULT_CONTACT_LANGUAGE,
         message: formString(formData, 'message'),
     };
+    // Preserve useful field values after errors without reflecting oversized input.
+    const echoedValues = {
+        name: values.name.slice(0, 120),
+        email: values.email.slice(0, 180),
+        phone: values.phone.slice(0, 40),
+        city: values.city.slice(0, 120),
+        subject: values.subject.slice(0, 80),
+        language: values.language.slice(0, 80),
+        message: values.message.slice(0, 5000),
+    };
 
     try {
+        await assertTrustedMutationOrigin();
         // Armadilha para robôs: o campo fica oculto e fora da navegação por teclado,
         // então só um preenchedor automático o completa. Fingimos sucesso para não
         // ensinar ao robô qual é o critério de rejeição.
@@ -75,11 +94,55 @@ export async function enviarMensagem(
                 ok: false,
                 message: 'Verifique os campos destacados.',
                 fieldErrors: zodErrors(parsed.error),
-                data: { values },
+                data: { values: echoedValues },
             };
         }
 
         const input = parsed.data;
+        const keyHash = contactAttemptKeyHash(formString(formData, 'idempotencyKey'));
+        if (!keyHash) {
+            return {
+                ok: false,
+                message:
+                    'A tentativa de envio não é válida. Prepare um novo envio e tente novamente.',
+                fieldErrors: { idempotencyKey: 'Prepare um novo envio.' },
+                data: { values: echoedValues },
+            };
+        }
+        const payloadHash = contactPayloadHash(input);
+        const scope = { keyHash, payloadHash };
+        const attemptSelect = { payloadHash: true, expiresAt: true } as const;
+        const replayResponse = (existing: {
+            payloadHash: string;
+            expiresAt: Date;
+        }): ContactFormState => {
+            const status = contactReplayStatus(existing, payloadHash);
+            if (status === 'replay') return { ok: true, message: SUCCESS_MESSAGE };
+            const message =
+                status === 'expired'
+                    ? 'Esta tentativa expirou. Prepare um novo envio.'
+                    : 'Esta tentativa já foi registrada com outro conteúdo. Prepare um novo envio.';
+            return {
+                ok: false,
+                message,
+                fieldErrors: { idempotencyKey: message },
+                data: { values: echoedValues },
+            };
+        };
+        const readAttempt = () =>
+            withPublicContactDatabaseScope(
+                () =>
+                    prisma.idempotencyRequest.findUnique({
+                        where: { keyHash },
+                        select: attemptSelect,
+                    }),
+                scope,
+            );
+        // A successful retry must not consume another address quota or send mail.
+        // This lookup can only see this attempt's HMAC under the public RLS policy.
+        const existingAttempt = await readAttempt();
+        if (existingAttempt) return replayResponse(existingAttempt);
+
         const meta = await requestMeta();
         const normalizedEmail = input.email.toLowerCase();
         const limits = [
@@ -123,65 +186,94 @@ export async function enviarMensagem(
                 ok: false,
                 message:
                     'Recebemos muitas solicitações desta conexão. Aguarde alguns minutos antes de tentar novamente.',
-                data: { values },
+                data: { values: echoedValues },
             };
         }
 
-        const saved = await prisma.contactMessage.create({
-            data: {
-                name: encryptSensitive(input.name)!,
-                email: encryptSensitive(normalizedEmail)!,
-                phone: encryptSensitive(input.phone),
-                city: encryptSensitive(input.city),
-                subject: input.subject,
-                language: input.language,
-                message: encryptSensitive(input.message)!,
-                // O controle de abuso usa somente chaves HMAC no RateLimitBucket;
-                // IP e navegador não precisam ficar ligados à mensagem.
-                ip: null,
-                userAgent: null,
-                encryptedAt: new Date(),
-            },
-            select: { id: true },
-        });
-
-        // A mensagem já está gravada e visível no painel: o e-mail é notificação,
-        // não pode derrubar o envio se o SMTP estiver fora do ar.
-        await Promise.allSettled([
-            sendContactNotification({
-                name: input.name,
-                email: input.email,
-                subject: input.subject,
-                city: input.city || null,
-                phone: input.phone || null,
-                language: input.language,
-                message: input.message,
-            }),
-            sendContactAcknowledgement({ name: input.name, email: input.email }),
-        ]);
-
-        await recordAudit({
-            action: 'Mensagem recebida pelo Fale Conosco',
-            target: `Mensagem ${saved.id}`,
-            actorLabel: 'site público',
-            metadata: {
-                contactMessageId: saved.id,
-                subject: input.subject,
-                language: input.language,
-            },
-        });
+        let outcome;
+        try {
+            outcome = await withPublicContactDatabaseScope(
+                () =>
+                    prisma.$transaction(
+                        async (tx) => {
+                            const existing = await tx.idempotencyRequest.findUnique({
+                                where: { keyHash },
+                                select: attemptSelect,
+                            });
+                            if (existing) return { kind: 'replay' as const, existing };
+                            await tx.idempotencyRequest.create({
+                                data: {
+                                    keyHash,
+                                    payloadHash,
+                                    expiresAt: new Date(Date.now() + CONTACT_ATTEMPT_TTL_MS),
+                                },
+                                select: { keyHash: true },
+                            });
+                            const saved = await tx.contactMessage.create({
+                                data: {
+                                    name: encryptSensitive(input.name)!,
+                                    email: encryptSensitive(normalizedEmail)!,
+                                    phone: encryptSensitive(input.phone),
+                                    city: encryptSensitive(input.city),
+                                    subject: input.subject,
+                                    language: input.language,
+                                    message: encryptSensitive(input.message)!,
+                                    // O controle de abuso usa somente chaves HMAC no RateLimitBucket;
+                                    // IP e navegador não precisam ficar ligados à mensagem.
+                                    ip: null,
+                                    userAgent: null,
+                                    encryptedAt: new Date(),
+                                },
+                                select: { id: true },
+                            });
+                            await tx.auditLog.create({
+                                data: {
+                                    action: 'Mensagem recebida pelo Fale Conosco',
+                                    actorLabel: 'site público',
+                                    target: `Mensagem ${saved.id}`,
+                                    userId: null,
+                                    ip: null,
+                                    userAgent: null,
+                                    metadata: { contactMessageId: saved.id },
+                                },
+                                select: { id: true },
+                            });
+                            // Durable delivery intents share the message/claim/audit commit.
+                            // SMTP is performed only by the bounded operational worker.
+                            await tx.contactEmailJob.createMany({
+                                data: [
+                                    { contactMessageId: saved.id, kind: 'NOTIFICATION' },
+                                    { contactMessageId: saved.id, kind: 'ACKNOWLEDGEMENT' },
+                                ],
+                            });
+                            return { kind: 'created' as const };
+                        },
+                        { maxWait: 5_000, timeout: 10_000 },
+                    ),
+                scope,
+            );
+        } catch (error) {
+            if (!isIdempotencyClaimConflict(error)) throw error;
+            // The losing unique INSERT rolled its entire transaction back. Once
+            // the winner commits, only that attempt's fingerprint is readable.
+            const committed = await readAttempt();
+            if (!committed) throw error;
+            return replayResponse(committed);
+        }
+        if (outcome.kind === 'replay') return replayResponse(outcome.existing);
 
         revalidatePath('/admin/mensagens');
         revalidatePath('/admin');
 
-        return { ok: true, message: SUCCESS_MESSAGE, data: { id: saved.id } };
+        return { ok: true, message: SUCCESS_MESSAGE };
     } catch (error) {
-        console.error('[fale-conosco] falha ao registrar mensagem:', error);
+        if (error instanceof UntrustedOriginError) return { ok: false, message: error.message };
+        logError('contact.create_failed', error);
         return {
             ok: false,
             message:
                 'Não conseguimos registrar sua mensagem agora. Tente novamente em alguns minutos ou escreva para contato@spmnacional.org.br.',
-            data: { values },
+            data: { values: echoedValues },
         };
     }
 }

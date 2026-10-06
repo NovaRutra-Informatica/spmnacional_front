@@ -10,7 +10,7 @@ import SiteChrome from './SiteChrome';
  * As rotas do painel usam layout próprio, sem o cabeçalho e o rodapé
  * públicos — mesma regra que existia no AppComponent do Angular.
  */
-export default function SiteShell({ children }: { children: ReactNode }) {
+export default function SiteShell({ children, measurementId, nonce }: { children: ReactNode; measurementId?: string; nonce?: string }) {
     const pathname = usePathname();
     const isAdminArea = pathname.startsWith('/admin');
 
@@ -23,7 +23,7 @@ export default function SiteShell({ children }: { children: ReactNode }) {
             <Header />
             <main>{children}</main>
             <Footer />
-            <SiteChrome />
+            <SiteChrome measurementId={measurementId} nonce={nonce} />
         </>
     );
 }

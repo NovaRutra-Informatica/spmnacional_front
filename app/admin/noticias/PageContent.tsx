@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useState } from 'react';
 import type { MouseEvent } from 'react';
+import AdminPagination from '@/components/admin/AdminPagination';
+import type { AdminPagination as Pagination, NewsFilters } from '@/lib/admin-pagination';
 import type { PostStatus } from '@/lib/generated/prisma/enums';
 import { POST_STATUS_CLASS, POST_STATUS_LABEL } from '@/lib/labels';
 import { alternarDestaque, alternarPublicacao, excluirNoticia } from './actions';
@@ -20,7 +21,6 @@ export interface NoticiaLinha {
     views: number;
     status: PostStatus;
     highlight: boolean;
-    tags: string[];
 }
 
 export interface CategoriaOpcao {
@@ -39,6 +39,8 @@ interface Props {
     noticias: NoticiaLinha[];
     categorias: CategoriaOpcao[];
     contagens: Contagens;
+    filtros: NewsFilters;
+    pagination: Pagination;
 }
 
 const STATUS_FILTROS: { value: 'todos' | PostStatus; label: string }[] = [
@@ -49,27 +51,13 @@ const STATUS_FILTROS: { value: 'todos' | PostStatus; label: string }[] = [
     { value: 'AGENDADO', label: 'Agendado' },
 ];
 
-export default function PageContent({ noticias, categorias, contagens }: Props) {
-    const [search, setSearch] = useState('');
-    const [statusFilter, setStatusFilter] = useState<'todos' | PostStatus>('todos');
-    const [categoryFilter, setCategoryFilter] = useState('todas');
-
-    const filtered = useMemo<NoticiaLinha[]>(() => {
-        const term = search.trim().toLowerCase();
-
-        return noticias.filter((item) => {
-            const matchesTerm =
-                !term ||
-                item.title.toLowerCase().includes(term) ||
-                item.author.toLowerCase().includes(term) ||
-                item.tags.some((tag) => tag.toLowerCase().includes(term));
-            const matchesStatus = statusFilter === 'todos' || item.status === statusFilter;
-            const matchesCategory =
-                categoryFilter === 'todas' || item.categoryId === categoryFilter;
-            return matchesTerm && matchesStatus && matchesCategory;
-        });
-    }, [noticias, search, statusFilter, categoryFilter]);
-
+export default function PageContent({
+    noticias,
+    categorias,
+    contagens,
+    filtros,
+    pagination,
+}: Props) {
     /**
      * Cancelar no `click` impede o envio antes de o navegador disparar o submit —
      * mais confiável do que tentar barrar a Server Action depois.
@@ -143,20 +131,23 @@ export default function PageContent({ noticias, categorias, contagens }: Props) 
             </div>
 
             <div className="acard">
-                <div className="atoolbar">
+                <form className="atoolbar" action="/admin/noticias" method="get">
                     <input
+                        key={filtros.q}
                         className="atoolbar__search"
                         type="search"
+                        name="q"
+                        maxLength={120}
                         aria-label="Buscar notícias"
                         placeholder="Buscar por título, autor ou tag…"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
+                        defaultValue={filtros.q}
                     />
 
                     <select
+                        key={filtros.status}
+                        name="status"
                         aria-label="Filtrar notícias por status"
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value as 'todos' | PostStatus)}
+                        defaultValue={filtros.status}
                     >
                         {STATUS_FILTROS.map((s) => (
                             <option value={s.value} key={s.value}>
@@ -166,9 +157,10 @@ export default function PageContent({ noticias, categorias, contagens }: Props) 
                     </select>
 
                     <select
+                        key={filtros.categoria}
+                        name="categoria"
                         aria-label="Filtrar notícias por categoria"
-                        value={categoryFilter}
-                        onChange={(e) => setCategoryFilter(e.target.value)}
+                        defaultValue={filtros.categoria}
                     >
                         <option value="todas">Todas as categorias</option>
                         {categorias.map((c) => (
@@ -177,14 +169,19 @@ export default function PageContent({ noticias, categorias, contagens }: Props) 
                             </option>
                         ))}
                     </select>
-
+                    <button className="abtn abtn--action" type="submit">
+                        Filtrar
+                    </button>
+                    <Link className="abtn abtn--ghost" href="/admin/noticias" prefetch={false}>
+                        Limpar filtros
+                    </Link>
                     <span className="atoolbar__spacer"></span>
                     <span className="atoolbar__count">
-                        {filtered.length} de {noticias.length} registros
+                        {pagination.from}–{pagination.to} de {pagination.total} registros
                     </span>
-                </div>
+                </form>
 
-                {filtered.length ? (
+                {noticias.length ? (
                     <div className="atable-wrap">
                         <table className="atable">
                             <thead>
@@ -198,7 +195,7 @@ export default function PageContent({ noticias, categorias, contagens }: Props) 
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((item) => (
+                                {noticias.map((item) => (
                                     <tr key={item.id}>
                                         <td>
                                             <div className="atable__cell-media">
@@ -306,6 +303,7 @@ export default function PageContent({ noticias, categorias, contagens }: Props) 
                         <span>Ajuste os filtros ou crie uma nova publicação.</span>
                     </div>
                 )}
+                <AdminPagination path="/admin/noticias" filters={filtros} pagination={pagination} />
             </div>
         </>
     );

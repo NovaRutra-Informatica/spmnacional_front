@@ -4,8 +4,9 @@ import AdminShell, {
     type AdminNavGroup,
     type AdminNotification,
 } from '@/components/admin/AdminShell';
-import { prisma } from '@/lib/server/db';
-import { destroySession, hasPermission, requireUser } from '@/lib/server/auth';
+import PendingCounters from '@/components/admin/PendingCounters';
+import { prisma, withActorDatabaseScope } from '@/lib/server/db';
+import { destroySession, getLocalTestAccount, hasPermission, requireUser } from '@/lib/server/auth';
 import { recordAudit } from '@/lib/server/audit';
 import { escopoAtendimento } from './atendimentos/politica';
 import { escopoMensagens } from './mensagens/politica';
@@ -15,19 +16,23 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminLayout({ children }: { children: ReactNode }) {
     const user = await requireUser();
+    const localTestAccount = await getLocalTestAccount();
     const adminGeral = isAdminGeral(user);
 
-    const [posts, users, novasMensagens, atendimentosAbertos, rascunhos] = await Promise.all([
-        prisma.post.count(),
-        prisma.user.count({ where: escopoUsuarios(user) }),
-        prisma.contactMessage.count({
-            where: { AND: [escopoMensagens(user), { status: 'NOVA' }] },
-        }),
-        prisma.atendimento.count({
-            where: { AND: [escopoAtendimento(user), { status: { not: 'ENCERRADO' } }] },
-        }),
-        prisma.post.count({ where: { status: { in: ['RASCUNHO', 'REVISAO'] } } }),
-    ]);
+    const [posts, users, novasMensagens, atendimentosAbertos, rascunhos] =
+        await withActorDatabaseScope(user, () =>
+            Promise.all([
+                prisma.post.count(),
+                prisma.user.count({ where: escopoUsuarios(user) }),
+                prisma.contactMessage.count({
+                    where: { AND: [escopoMensagens(user), { status: 'NOVA' }] },
+                }),
+                prisma.atendimento.count({
+                    where: { AND: [escopoAtendimento(user), { status: { not: 'ENCERRADO' } }] },
+                }),
+                prisma.post.count({ where: { status: { in: ['RASCUNHO', 'REVISAO'] } } }),
+            ]),
+        );
 
     const allGroups: AdminNavGroup[] = [
         {
@@ -206,6 +211,15 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             notifications={notifications}
             logoutAction={logoutAction}
         >
+            {localTestAccount && (
+                <div className="admin-local-test-notice" role="status">
+                    <strong>Acesso local de teste.</strong> As alterações são salvas neste banco.
+                    Google Workspace será obrigatório na nuvem.
+                </div>
+            )}
+            {hasPermission(user, 'atendimentos') && (
+                <PendingCounters messages={novasMensagens} cases={atendimentosAbertos} />
+            )}
             {children}
         </AdminShell>
     );

@@ -77,6 +77,16 @@ enum ContactStatus {
   ARQUIVADA
 }
 
+enum ContactEmailKind {
+  NOTIFICATION
+  ACKNOWLEDGEMENT
+}
+
+enum GenericEmailKind {
+  USER_INVITE
+  NEWSLETTER_CONFIRMATION
+}
+
 enum AgendaSource {
   MANUAL
   GOOGLE_CALENDAR
@@ -190,6 +200,7 @@ model User {
 
   resetTokenHash String?   @unique
   resetExpiresAt DateTime?
+  notificationVersion Int @default(0)
 
   sessions            Session[]
   auditEntries        AuditLog[]
@@ -197,6 +208,7 @@ model User {
   uploads             Media[]
   assignedMessages    ContactMessage[]
   atendimentosAbertos Atendimento[]    @relation("AtendimentoAutor")
+  emailJobs           GenericEmailJob[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -219,6 +231,10 @@ model Session {
   lastSeenAt DateTime  @default(now())
   expiresAt  DateTime
   revokedAt  DateTime?
+  /// LEGACY is fail-closed: old/password sessions cannot survive Workspace rollout.
+  authMethod String @default("LEGACY")
+  googleSub String?
+  workspaceDomain String?
 
   @@index([userId])
   @@index([expiresAt])
@@ -323,7 +339,9 @@ model Post {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([status, publishedAt])
+  @@index([status, publishedAt, id])
+  @@index([categoryId, status, publishedAt, id])
+  @@index([status, highlight, publishedAt, id])
   @@index([categoryId])
   @@index([highlight])
 }
@@ -366,6 +384,25 @@ model Media {
 
   @@index([kind])
   @@index([createdAt])
+}
+
+/// Exclusões de objetos confirmadas no banco e repetidas até o provedor aceitar.
+/// Não guarda nome original, usuário nem conteúdo do arquivo.
+model MediaDeletion {
+  id            String   @id @default(cuid())
+  storageKey    String   @unique
+  attempts      Int      @default(0)
+  nextAttemptAt DateTime @default(now())
+  /// Identifica o worker que adquiriu a tentativa atual; o prazo é nextAttemptAt.
+  leaseToken    String?
+  /// Falhas esgotadas ficam preservadas e fora dos lotes até revisão operacional.
+  deadLetterAt  DateTime?
+  /// Código estável; nunca inclui erro do provedor, credenciais ou conteúdo.
+  failureCode   String?  @db.VarChar(40)
+  createdAt     DateTime @default(now())
+
+  @@index([nextAttemptAt])
+  @@index([deadLetterAt, nextAttemptAt, id])
 }
 
 model Edital {
@@ -545,6 +582,7 @@ model AgendaEvent {
 
   @@index([startsAt])
   @@index([published, startsAt])
+  @@index([calendarId, source, endsAt])
 }
 
 // ---------------------------------------------------------
@@ -572,14 +610,72 @@ model ContactMessage {
   userAgent   String?
   /// Todos os campos pessoais desta linha já estão cifrados com AES-256-GCM.
   encryptedAt DateTime?
+  emailJobs ContactEmailJob[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([status, createdAt])
+  @@index([assignedToId, createdAt, id])
   @@index([createdAt])
   @@index([updatedAt])
   @@index([encryptedAt])
+}
+
+/// Transactional SMTP outbox references the encrypted message; no duplicated PII.
+model ContactEmailJob {
+  id               String @id @default(cuid())
+  contactMessageId String
+  contactMessage   ContactMessage @relation(fields: [contactMessageId], references: [id], onDelete: Cascade)
+  kind             ContactEmailKind
+  attempts         Int @default(0)
+  nextAttemptAt    DateTime @default(now())
+  leaseToken       String?
+  leaseUntil       DateTime?
+  deadLetterAt     DateTime?
+  processedAt      DateTime?
+  failureCode      String? @db.VarChar(40)
+  createdAt        DateTime @default(now())
+
+  @@unique([contactMessageId, kind])
+  @@index([processedAt, deadLetterAt, nextAttemptAt, id])
+}
+
+/// HTTP replay record: keyed HMACs only, never the form payload or its PII.
+model IdempotencyRequest {
+  keyHash     String   @id @db.VarChar(64)
+  payloadHash String   @db.VarChar(64)
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  @@index([expiresAt])
+}
+
+/// Encrypted short-lived SMTP intent, committed with its source record.
+model GenericEmailJob {
+  id                     String @id @default(uuid())
+  kind                   GenericEmailKind
+  userId                 String?
+  user                   User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newsletterSubscriberId String?
+  newsletterSubscriber   NewsletterSubscriber? @relation(fields: [newsletterSubscriberId], references: [id], onDelete: Cascade)
+  versionHash            String @db.VarChar(64)
+  payloadEncrypted       String @db.Text
+  expiresAt              DateTime
+  attempts               Int @default(0)
+  nextAttemptAt          DateTime @default(now())
+  leaseToken             String?
+  leaseUntil             DateTime?
+  deadLetterAt           DateTime?
+  processedAt            DateTime?
+  failureCode            String? @db.VarChar(40)
+  createdAt              DateTime @default(now())
+
+  @@unique([kind, versionHash])
+  @@index([processedAt, deadLetterAt, nextAttemptAt, id])
+  @@index([expiresAt])
+  @@index([userId])
+  @@index([newsletterSubscriberId])
 }
 
 model NewsletterSubscriber {
@@ -593,6 +689,7 @@ model NewsletterSubscriber {
   createdAt        DateTime  @default(now())
   confirmedAt      DateTime?
   unsubscribedAt   DateTime?
+  emailJobs        GenericEmailJob[]
 
   @@index([confirmed])
   @@index([createdAt])
@@ -654,6 +751,7 @@ model Atendimento {
   updatedAt DateTime @updatedAt
 
   @@index([regionalId, status])
+  @@index([regionalId, abertoEm, id])
   @@index([abertoEm])
   @@index([retencaoAte])
   @@index([retencaoAte, anonymizedAt])
@@ -670,4 +768,29 @@ model AtendimentoEncaminhamento {
   registradoPor String?
 
   @@index([atendimentoId])
+}
+
+// Tradução somente de conteúdo público. O original não é duplicado no cache.
+model PublicTranslation {
+  id               String   @id
+  contentKey       String
+  sourceHash       String
+  locale           String
+  translatedFields Json?
+  leaseToken       String?
+  leaseUntil       DateTime?
+  retryAfter       DateTime?
+  attempts         Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([contentKey, sourceHash, locale])
+  @@index([updatedAt])
+}
+
+/// Reserva conservadora de caracteres: falhas não devolvem orçamento já reservado.
+model TranslationUsage {
+  day        String   @id
+  characters Int      @default(0)
+  updatedAt  DateTime @updatedAt
 }

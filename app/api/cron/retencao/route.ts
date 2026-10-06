@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import { NextResponse } from 'next/server';
 import { executeDataRetention } from '@/lib/server/data-retention';
 import { env } from '@/lib/server/env';
+import { processPendingMediaDeletions } from '@/lib/server/media-deletion';
 
 /**
  * Expurgo diário de dados pessoais. O Cloud Scheduler deve chamar somente
@@ -44,8 +45,20 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     try {
         const result = await executeDataRetention();
+        const mediaDeletion = await processPendingMediaDeletions();
+        if (mediaDeletion.failed > 0 || mediaDeletion.deadLetters > 0) {
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error: 'Limpeza de arquivos pendente; haverá nova tentativa.',
+                    ...result,
+                    mediaDeletion,
+                },
+                { status: 503, headers: { 'Cache-Control': 'no-store', 'Retry-After': '60' } },
+            );
+        }
         return NextResponse.json(
-            { ok: true, ...result },
+            { ok: true, ...result, mediaDeletion },
             { headers: { 'Cache-Control': 'no-store' } },
         );
     } catch {

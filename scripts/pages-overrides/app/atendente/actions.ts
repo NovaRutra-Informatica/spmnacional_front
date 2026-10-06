@@ -21,3 +21,7 @@ const AVISO =
 export async function entrar(_prev: ActionState, _formData: FormData): Promise<ActionState> {
     return { ok: false, message: AVISO };
 }
+
+export async function entrarLocal(_prev: ActionState, _formData: FormData): Promise<ActionState> {
+    return { ok: false, message: AVISO };
+}

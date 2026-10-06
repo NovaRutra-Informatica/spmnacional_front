@@ -1,4 +1,5 @@
-import Link from 'next/link';
+import { TranslatedContent } from '@/components/TranslationProvider';
+import Link from '@/components/LocalizedLink';
 
 interface PageCtaProps {
     title?: string;
@@ -18,19 +19,23 @@ export default function PageCta({
     secondaryLink = '/fale-conosco',
 }: PageCtaProps) {
     return (
-        <section className="cta-band">
-            <div className="container">
-                <h2>{title}</h2>
-                <p>{text}</p>
-                <div className="cta-band__actions">
-                    <Link className="btn btn--cta" href={primaryLink}>
-                        <i className="fas fa-heart"></i> {primaryLabel}
-                    </Link>
-                    <Link className="btn btn--light" href={secondaryLink}>
-                        {secondaryLabel}
-                    </Link>
-                </div>
-            </div>
-        </section>
+        <TranslatedContent>
+            {
+                <section className="cta-band">
+                    <div className="container">
+                        <h2>{title}</h2>
+                        <p>{text}</p>
+                        <div className="cta-band__actions">
+                            <Link className="btn btn--cta" href={primaryLink}>
+                                <i className="fas fa-heart"></i> {primaryLabel}
+                            </Link>
+                            <Link className="btn btn--light" href={secondaryLink}>
+                                {secondaryLabel}
+                            </Link>
+                        </div>
+                    </div>
+                </section>
+            }
+        </TranslatedContent>
     );
 }
