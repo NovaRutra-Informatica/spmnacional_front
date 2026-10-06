@@ -8,7 +8,7 @@
 
 # O CLI de migrações ainda precisa de OpenSSL. Mantemos musl no Alpine,
 # sem libc6-compat, conforme os requisitos do Prisma.
-FROM node:22-alpine AS base
+FROM node:26-alpine AS base
 RUN apk add --no-cache openssl
 WORKDIR /app
 
